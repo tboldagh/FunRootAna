@@ -378,16 +378,6 @@ auto wrap(const std::initializer_list<T>& il)
 }
 
 
-
-
-
-/*
-template<typename Key, typename T, template<typename...> class Container, typename... Args>
-Container<Key, int, Args...> count(const Container<Key, T, Args...>& m)
-{
-  std::map<Key, int, Args...> cont;
-  for (auto const& el : m)
-    cont[el.first] = el.second.size();
-  return cont;
-}
-*/
+// macro generating generic, single agument, returning lambda
+// example use: filter( F(_ < 0)) - the _ is the lambda argument
+#define F(CODE) [&](const auto &_) { return CODE; }

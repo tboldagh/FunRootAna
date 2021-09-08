@@ -23,6 +23,6 @@ std::vector<TLorentz> Access::tlget( const std::string& brprefix ) {
     tl.SetPtEtaPhiM( ptBr.at(i), etaBr.at(i), phiBr.at(i), 0.0);
       result.push_back( tl );
   }
-    return result;
+  return result;
 }
 
