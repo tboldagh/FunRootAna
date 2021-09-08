@@ -4,11 +4,10 @@ This is basic framework allowing to do [ROOT](https://root.cern.ch/) analysis in
 In comparison to RDFrame it offers more functional feel for the data analysis (in particular histograms filling) and is overall a bit more holistic. 
 As consequence, typical a single line containing selection, data extraction & histogram definition is sufficient to obtain one unit of result.
 
-So that is the promise: 
+The promise is: 
 
-<span style="color:red; font-weight: bold; ">
-Amount of lines of analysis code per histogram is converging to 1.
-</span>
+**Amount of lines of analysis code per histogram is converging to 1.**
+
 Let's see how.
 
 
@@ -149,7 +148,12 @@ Trivial `report` can be used for it. More useful is the `assure` function that w
 There are less commonly needed `missing` and `assure_about_equal`.
 
 
+# Playing with the example
+Attached makefile compiles code in examples subdir. That one contains example_analysis.cpp tha can be changed to see how things work.
+Input file with the points can be generated using generateTree.C
+Attached makefile should be sufficient to compile this lib.
 # TODO 
+* unit tests
 * Move to better implementations of functional container (std::ranges/std::views) or [FTL](https://github.com/ftlorg/ftl).
 * cmake build
 * HIIST macros cleanup
