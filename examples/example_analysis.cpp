@@ -10,7 +10,6 @@ struct Point{
     float z;
     double rho_xy() const { return std::hypot(x, y); }
     double r() const { return std::hypot( rho_xy(), z); }
-
 };
 
 #include <vector>
