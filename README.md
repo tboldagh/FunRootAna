@@ -167,9 +167,8 @@ Attached makefile compiles code in examples subdir. That one contains example_an
 Input file with the points can be generated using generateTree.C
 Attached makefile should be sufficient to compile this lib, generate the test file and so on.
 # TODO 
-* unit tests
+* more tests
 * Move to better implementations of functional container (std::ranges/std::views) or [FTL](https://github.com/ftlorg/ftl).
-* cmake build
 * HIST macros cleanup
 
 
