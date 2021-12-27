@@ -13,7 +13,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${ROOT_INCLUDE_DIRS})
 message(STATUS "ROOT_INCLUDE_DIRS: ${ROOT_INCLUDE_DIRS}")
 
-add_library(FunRootAna SHARED fwksrc/Access.cpp	fwksrc/Conf.cpp	fwksrc/HIST.cpp	fwksrc/Weights.cpp	fwksrc/assure.cpp )
+file(GLOB LIBSRC "fwksrc/*.cpp")
+add_library(FunRootAna SHARED ${LIBSRC} )
 target_link_libraries(FunRootAna ${ROOT_LIBRARIES})
 target_compile_features(FunRootAna PRIVATE cxx_std_17)
 
@@ -22,3 +23,11 @@ target_compile_features(FunRootAna PRIVATE cxx_std_17)
 add_executable(example_analysis examples/example_analysis.cpp)
 target_link_libraries(example_analysis ${ROOT_LIBRARIES} FunRootAna)
 target_compile_features(example_analysis PRIVATE cxx_std_17)
+
+add_executable( test_wsc tests/test_wsc.cpp )
+target_link_libraries(test_wsc ${ROOT_LIBRARIES} FunRootAna)
+target_compile_features(test_wsc PRIVATE cxx_std_17)
+enable_testing() 
+add_test(NAME test_WrappedSequenceContainer COMMAND test_wsc)
+
+#target_compile_features(example_analysis PRIVATE cxx_std_17)
