@@ -42,12 +42,16 @@ private:
 
 constexpr int ALLOK = 0;
 constexpr int FAILED = 1;
+
 template<typename F>
-int SUITE( F f ) {
+int _SUITE( F f, const char* name ) {
     try { 
         f(); 
     } catch ( const std::exception& e) {       
+      std::cout << "... " << name << " FAILED\n";
         return FAILED;
     }
+    std::cout << "... " << name << " OK\n";
     return ALLOK;
 }
+#define SUITE( f )  _SUITE(f, #f)

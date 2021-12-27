@@ -4,6 +4,7 @@
 #include <memory>
 #include <map>
 #include <iostream>
+#include <type_traits>
 #include <TH1.h>
 #include <TH2.h>
 #include <TEfficiency.h>
@@ -50,34 +51,14 @@ public:
     container = std::move(rhs.container);
   }
 
-  template<typename Op>
-  T reduceLeft(Op f) const {
-    auto it_begin = container.begin();
-    T ret = *it_begin;
-    while(++it_begin != container.end())
-      ret = f(ret, *it_begin );
-    return ret;
-  }
-
-  template<typename Op>
-  T reduceRight(Op f) const {
-    auto it_rbegin = container.rbegin();
-    T ret = *it_rbegin;
-    while(++it_rbegin != container.rend()){
-      ret = f(ret, *it_rbegin );
-    }
-    return ret;
-  }
-
   template<typename ResultT, typename Op>
-  ResultT accumulate( const ResultT& initialValue, Op operation ) const {
+  ResultT reduce( const ResultT& initialValue, Op operation ) const {
     ResultT total = initialValue;
     for ( auto e: container ) {
-      total += operation( total, e );
+      total = operation( total, e );
     }
     return total;
   }
-
 
   template<typename Op>
   WrappedSequenceContainer<Container, decltype(std::declval<Op>()(std::declval<T>()))> integ( Op op ) const {
@@ -85,7 +66,6 @@ public:
     ret.push_back( sum(op) );
     return ret;
   }
-
 
   template<typename Op>
 //  decltype(std::declval<Op>()(std::declval<T>())) sum( Op operation ) const {
@@ -267,8 +247,8 @@ public:
     return WrappedSequenceContainer<Container, T, Allocator>( container.begin()+start, container.begin ()+stop );
   }
 
-  const T& element_at( size_t index ) const { return container.at(index); }
-  const T& operator[]( size_t index ) const { return container.at(index); }
+  typename std::conditional<std::is_pod<T>::value, T, const T&>::type element_at( size_t index ) const { return container.at(index); }
+  typename std::conditional<std::is_pod<T>::value, T, const T&>::type  operator[]( size_t index ) const { return container.at(index); }
 
   const WrappedSequenceContainer<Container, T, Allocator> first( size_t n = 1 )  const {
     auto iterator = container.end() < container.begin() + n ? container.end() : container.begin() + n;
