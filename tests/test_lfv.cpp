@@ -19,9 +19,7 @@ void test_type_presentation() {
 
     auto mt2 = vt1.map(F( _ * 0.1 ));
     decltype(mt2)::value_type z2;
-    VALUE( typeid(z2) == typeid(int) ) EXPECTED( true );
-
-
+    VALUE( typeid(z2) == typeid(double) ) EXPECTED( true );
 }
 
 void test_count() {
@@ -55,18 +53,64 @@ void test_filter() {
 void test_map() {
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
     auto vt1 = wrap(t1);
-    auto mt1 = vt1.map( F(_+2) );
-//    VALUE( mt1.element_at(0)) EXPECTED ( 33 );
+    {
+        auto mt1 = vt1.map( F(_+2) );
+        std::vector<int> r;
+        mt1.push_back_to(r);
+        VALUE( int(r[0])) EXPECTED ( 3 );
+        VALUE( int(r[1])) EXPECTED ( 21 );
+    }
+    {
+        auto mt1 = vt1.map( F(_*0.2) );
+        std::vector<double> r;
+        mt1.push_back_to(r);
+        VALUE( double(r[0])) EXPECTED ( 0.2 );
+        VALUE( double(r[2])) EXPECTED ( 0.8 );
+    }
 
+//    VALUE( mt1.element_at(0)) EXPECTED ( 33 );
 }
+
+void test_filter_map() {
+    std::vector<int> t1({1,19,4, 2, 5, -1, 5});
+    auto vt1 = wrap(t1);
+    {
+        auto mt1 = vt1.map( F(_+2) ).filter(F(_>4));
+        VALUE(mt1.size()) EXPECTED(4);
+        std::vector<int> r;
+        mt1.push_back_to(r);
+        VALUE( int(r[0])) EXPECTED ( 21 );
+        VALUE( int(r[1])) EXPECTED ( 6 );
+    }
+    // filter after type change
+    {
+        auto mt1 = vt1.map( F(_*0.2) ).filter(F(_>=1.0));
+        VALUE(mt1.size()) EXPECTED(3);
+        std::vector<double> r;
+        mt1.push_back_to(r);
+        VALUE( double(r[0])) EXPECTED ( 3.8 );
+        VALUE( double(r[1])) EXPECTED ( 1.0 );
+    }
+    // filter and then map
+    {
+        auto mt1 = vt1.filter(F(_>=2)).map( F(_*0.2) );
+        VALUE(mt1.size()) EXPECTED(5);
+        std::vector<double> r;
+        mt1.push_back_to(r);
+        VALUE( double(r[0])) EXPECTED ( 3.8 );
+        VALUE( double(r[1])) EXPECTED ( 0.8 );
+        VALUE( double(r[2])) EXPECTED ( 0.4 );
+    }
+}
+
 
 int main() {
     const int failed = 
       + SUITE(test_type_presentation)
       + SUITE(test_count)
       + SUITE(test_filter)
-      + SUITE(test_map);
-    // + SUITE(test_searching)
+      + SUITE(test_map)
+     + SUITE(test_filter_map);
     // + SUITE(test_map) 
     // + SUITE(test_filter);
 
