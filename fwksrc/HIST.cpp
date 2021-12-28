@@ -7,7 +7,7 @@ namespace {
 template<typename T>
 void _save(TFile* f, T* o) {
   const std::string_view& name(o->GetName());
-  if ( name.find('/') == std::string::npos ) {// no subdrectory designation, to be saved in the file main subdir
+  if ( name.find('/') == std::string::npos ) {// no subdirectory designation, to be saved in the file main subdir
     o->SetDirectory(f);
     return;
   }

@@ -27,7 +27,14 @@ target_compile_features(example_analysis PRIVATE cxx_std_17)
 add_executable( test_wsc tests/test_wsc.cpp )
 target_link_libraries(test_wsc ${ROOT_LIBRARIES} FunRootAna)
 target_compile_features(test_wsc PRIVATE cxx_std_17)
+
+add_executable( test_hist tests/test_hist.cpp )
+target_link_libraries(test_hist ${ROOT_LIBRARIES} FunRootAna)
+target_compile_features(test_hist PRIVATE cxx_std_17)
+
+
 enable_testing() 
+add_test(NAME test_HIST COMMAND test_hist)
 add_test(NAME test_WrappedSequenceContainer COMMAND test_wsc)
 
 #target_compile_features(example_analysis PRIVATE cxx_std_17)
