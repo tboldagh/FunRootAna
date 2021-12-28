@@ -12,7 +12,6 @@ void test_type_presentation() {
     auto ft1 = vt1.filter(F(_>0));
     decltype(vt1)::value_type y;
     VALUE( typeid(y) == typeid(int) ) EXPECTED( true );
-
     auto mt1 = vt1.map(F(_+2));
     decltype(mt1)::value_type z1;
     VALUE( typeid(z1) == typeid(int) ) EXPECTED( true );
@@ -35,7 +34,6 @@ void test_count() {
 }
 
 void test_filter() {
-
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
     auto vt1 = wrap(t1);
     auto ft1 = vt1.filter( F( _ > 2));
@@ -49,7 +47,6 @@ void test_filter() {
     VALUE( count_of_5 ) EXPECTED( 2 );
 
 }
-
 void test_map() {
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
     auto vt1 = wrap(t1);
@@ -103,14 +100,13 @@ void test_filter_map() {
     }
 }
 
-
 int main() {
     const int failed = 
       + SUITE(test_type_presentation)
       + SUITE(test_count)
       + SUITE(test_filter)
       + SUITE(test_map)
-     + SUITE(test_filter_map);
+      + SUITE(test_filter_map);
     // + SUITE(test_map) 
     // + SUITE(test_filter);
 

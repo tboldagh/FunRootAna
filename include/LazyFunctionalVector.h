@@ -7,48 +7,50 @@ template< typename Container, typename Map> class MappedView;
 template<typename T> class DirectView;
 template<typename T> class OwningView;
 
-template<typename Container>
+template<typename Container, typename Stored>
 class FunctionalInterface {
 public:
-//    using value_type = typename Container::value_type;
     FunctionalInterface(const Container& cont) : m_foreach_provider(cont) {}
 
     // subclasses need to implement this method
     // template<typename F>
     // void foreach( F f ) const;
 
-    size_t size() {
+    // count of elements, this eager operation
+    size_t size() const {
         size_t c = 0;
         m_foreach_provider.foreach([&c](typename Container::const_reference_type) { c++; });
         return c;
     }
-
+    // count element satisfying predicate, this eager operation
     template<typename Predicate>
-    size_t count(Predicate&& pred) {
+    size_t count(Predicate&& pred) const {
         size_t c = 0;
         m_foreach_provider.foreach([&c, pred](typename Container::const_reference_type datum) {
             c += (pred(datum) ? 1 : 0); });
         return c;
     }
 
+    // transform using function provided, this is lazy operation
     template<typename F>
     auto map(F f) const {
         return MappedView<Container, F>(m_foreach_provider, f);
     }
 
-
+    // filter provided predicate, this is lazy operation
     template<typename F>
     auto filter(F f) const {
         return FilteredView<Container, F>(m_foreach_provider, f);
     }
 
     // creates intermediate container to speed following up operations
-    /*
-    auto stage() const -> OwningView<typename Container::value_type> {
-        OwningView<typename Container::value_type> c;
+    
+    auto stage() const -> OwningView<Stored> {
+        OwningView<Stored> c;
         m_foreach_provider.foreach( [&c]( auto el){ c.insert(el); } );
+        return c;
     }
-    */
+    
     // max and min
 
     // sum
@@ -90,16 +92,16 @@ protected:
 
 // provides view of subset of element which satisfy the predicate
 template< typename Container, typename Filter>
-class FilteredView : public FunctionalInterface<FilteredView<Container, Filter> > {
+class FilteredView : public FunctionalInterface<FilteredView<Container, Filter>, typename Container::value_type> {
 public:
     typedef typename Container::value_type value_type;
     typedef value_type& reference_type;
     typedef const value_type& const_reference_type;
 
-    typedef FunctionalInterface<Container> container;
+   // typedef FunctionalInterface<Container, value_type> container;
 
     FilteredView(const Container& c, Filter f)
-        : FunctionalInterface<FilteredView<Container, Filter> >(*this),
+        : FunctionalInterface<FilteredView<Container, Filter>, value_type >(*this),
         m_foreach_provider(c),
         m_filterOp(f) {};
 
@@ -116,18 +118,18 @@ private:
     const Container& m_foreach_provider;
 };
 
-// provides the converting view
+// provides the transforming view
 template< typename Container, typename Mapping>
-class MappedView : public FunctionalInterface<MappedView<Container, Mapping> > {
+class MappedView : public FunctionalInterface<MappedView<Container, Mapping>, typename std::invoke_result<Mapping, typename Container::value_type>::type > {
 public:
     using processed_type = typename Container::value_type;
     using value_type = typename std::invoke_result<Mapping, processed_type>::type;
     using const_value_type = const value_type;
     using const_reference_type = const_value_type &;
-    using container = FunctionalInterface<Container>;
+    using container = FunctionalInterface<Container, value_type>;
 
     MappedView(const Container& c, Mapping m)
-        : FunctionalInterface<MappedView<Container, Mapping> >(*this),
+        : FunctionalInterface<MappedView<Container, Mapping>, value_type >(*this),
         m_foreach_provider(c),
         m_mappingOp(m) {};
 
@@ -146,7 +148,7 @@ private:
 
 
 template<typename T>
-class DirectView : public FunctionalInterface<DirectView<T>> {
+class DirectView : public FunctionalInterface<DirectView<T>, T> {
 public:
     using value_type = T;
     using const_value_type =  const value_type;
@@ -154,7 +156,7 @@ public:
     using  container = DirectView<T>;
 
     DirectView(const std::vector<T>& m)
-        : FunctionalInterface<container>(*this), m_data(m) {}
+        : FunctionalInterface<container, T>(*this), m_data(m) {}
 
     template<typename F>
     void foreach(F&& f) const {
@@ -168,7 +170,7 @@ private:
 
 
 template<typename T>
-class OwningView : public FunctionalInterface<OwningView<T>> {
+class OwningView : public FunctionalInterface<OwningView<T>, T> {
 public:
     using value_type = T;
     using const_value_type =  const value_type;
@@ -176,7 +178,7 @@ public:
     using container = OwningView<T>;
 
     OwningView()
-        : FunctionalInterface<container>(*this) {}
+        : FunctionalInterface<container, T>(*this) {}
     void insert( const_reference_type d) { m_data.push_back(d); }
     template<typename F>
     void foreach(F&& f) const {
