@@ -32,9 +32,14 @@ add_executable( test_hist tests/test_hist.cpp )
 target_link_libraries(test_hist ${ROOT_LIBRARIES} FunRootAna)
 target_compile_features(test_hist PRIVATE cxx_std_17)
 
+add_executable( test_lfv tests/test_lfv.cpp )
+target_link_libraries(test_lfv ${ROOT_LIBRARIES} FunRootAna)
+target_compile_features(test_lfv PRIVATE cxx_std_17)
+
 
 enable_testing() 
 add_test(NAME test_HIST COMMAND test_hist)
 add_test(NAME test_WrappedSequenceContainer COMMAND test_wsc)
+add_test(NAME test_LazyFunctionalVector COMMAND test_lfv)
 
 #target_compile_features(example_analysis PRIVATE cxx_std_17)
