@@ -160,6 +160,35 @@ void test_sum_and_accumulate() {
     VALUE( multiply_el ) EXPECTED ( 8 );
 }
 
+void test_chain() {
+    std::vector<int> t1({1,19,4, 2});
+    std::vector<int> t2({5, -1, 5});
+    auto vt1 = wrap(t1);
+    auto vt2 = wrap(t2);
+    auto jt =  vt1.chain(vt2);
+    VALUE( jt.size() ) EXPECTED ( 7 );
+    VALUE( jt.element_at(0)) EXPECTED ( 1 );
+    VALUE( jt.element_at(4)) EXPECTED ( 5 );
+    VALUE( jt.element_at(5)) EXPECTED ( -1 );
+
+    auto ajt = vt1.skip(1).chain( vt2.filter(F(_<0)));
+    VALUE(ajt.size()) EXPECTED( 4 );
+    VALUE(ajt.element_at(0)) EXPECTED (19);
+    VALUE( ajt.element_at(3)) EXPECTED(-1);
+}
+
+
+void test_sort() {
+    std::vector<int> t1({1,19,4, 2, 5, -1, 5});
+    auto vt1 = wrap(t1);
+    auto st1 = vt1.sorted(F(_));
+    VALUE(st1.size()) EXPECTED( t1.size());
+    VALUE(st1.element_at(0)) EXPECTED( -1);
+    VALUE(st1.element_at(1)) EXPECTED( 1);
+    VALUE(st1.element_at(6)) EXPECTED( 19);
+
+}
+
 int main() {
     const int failed =
       + SUITE(test_type_presentation)
@@ -169,7 +198,9 @@ int main() {
       + SUITE(test_filter_map)
       + SUITE(test_staging)
       + SUITE(test_take)
-      + SUITE(test_sum_and_accumulate);
+      + SUITE(test_sum_and_accumulate)
+      + SUITE(test_chain)
+      + SUITE(test_sort);
 
     std::cout << ( failed == 0  ? "ALL OK" : "FAILURE" ) << std::endl;
     return failed;
