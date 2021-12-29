@@ -5,12 +5,17 @@ namespace {
   template <typename T>
   bool cmp_eq( T a, T b ) {  return a == b; }
   template<>
-  bool cmp_eq<float>( float a, float b ) { return std::abs(a - b) < 1.e-4; }
+  [[maybe_unused]] bool cmp_eq<float>( float a, float b ) { return std::abs(a - b) < 1.e-4; }
   template<>
-  bool cmp_eq<double>( double a, double b ) { return std::abs(a - b) < 1.e-6; }
+  [[maybe_unused]] bool cmp_eq<double>( double a, double b ) { return std::abs(a - b) < 1.e-6; }
 }
 
 // helper for comparisons, taken from ATLAS experiment at the LHC codebase
+
+class test_failure : public std::runtime_error {
+  public:
+    test_failure() : std::runtime_error("test failed") {}
+};
 template <typename T>
 class TestedValue {
 public:
@@ -22,14 +27,14 @@ public:
     if (not cmp_eq(e, m_value)) {
       std::cerr << m_file << ":" << m_line << ": error: Test failed, "
         << "expected: " << e << " obtained: " << m_value << "\n";
-      throw std::runtime_error("test failed");
+      throw test_failure();
     }
   }
   void NOT_EXPECTED(const T& e) {
     if (cmp_eq(e, m_value)) {
       std::cerr << m_file << ":" << m_line << ": error: Test failed, "
         << "NOT expected: " << e << " obtained: " << m_value << "\n";
-      throw std::runtime_error("test failed");
+      throw test_failure();
     }
   }
 private:
@@ -47,7 +52,7 @@ template<typename F>
 int _SUITE( F f, const char* name ) {
     try { 
         f(); 
-    } catch ( const std::exception& e) {       
+    } catch ( const test_failure& e) {       
       std::cout << "... " << name << " FAILED\n";
         return FAILED;
     }
