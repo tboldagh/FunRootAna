@@ -31,6 +31,8 @@ void test_count() {
     VALUE( count_below_50 ) EXPECTED (3);
     const size_t count_never = vt1.count( F(false));
     VALUE( count_never ) EXPECTED (0);
+
+    VALUE( vt1.empty() ) EXPECTED ( false );
 }
 
 void test_filter() {
@@ -45,6 +47,13 @@ void test_filter() {
     VALUE( int(r.at(0)) ) EXPECTED( 19 );
     size_t count_of_5 = ft2.count( F(_ ==5 ));
     VALUE( count_of_5 ) EXPECTED( 2 );
+
+    VALUE( ft1.empty() ) EXPECTED ( false );
+    auto ft3 = ft2.filter( F(false)); // impossible filter
+    VALUE( ft3.size() ) EXPECTED ( 0 );
+    VALUE( ft3.empty() ) EXPECTED ( true );
+
+
 
 }
 void test_map() {
@@ -120,7 +129,7 @@ void test_take() {
     VALUE(tt1.element_at(0)) EXPECTED(1);
     VALUE(tt1.element_at(2)) EXPECTED(4);
     // take element with stride
-    auto tt1s = vt1.take(flv::all_elements, 2);
+    auto tt1s = vt1.take(lfv::all_elements, 2);
     VALUE(tt1s.size()) EXPECTED( 4 );
     VALUE (tt1s.element_at(1)) EXPECTED( 4);
     VALUE (tt1s.element_at(3)) EXPECTED( 5);
@@ -187,7 +196,47 @@ void test_sort() {
     VALUE(st1.element_at(1)) EXPECTED( 1);
     VALUE(st1.element_at(6)) EXPECTED( 19);
 
+    auto rst1 = vt1.sorted(F(-_)); // reverse sort
+    VALUE(rst1.size()) EXPECTED( t1.size());
+    VALUE(rst1.element_at(0)) EXPECTED( 19);
 }
+
+void test_enumerate() {
+    // test first the indexed struct helper
+    lfv::indexed<int> a;
+    VALUE( a.index()) EXPECTED( lfv::invalid_index);
+    int i = 77;
+    lfv::indexed<int> b(2, i);
+    VALUE( b.index()) EXPECTED( 2 );
+    VALUE( b.data()) EXPECTED( 77 );
+    a = b;
+    VALUE( a.index()) EXPECTED( b.index() );
+    VALUE( a.data()) EXPECTED( b.data() );
+    lfv::indexed<int> c(a);
+    VALUE( c.index()) EXPECTED( b.index() );
+    VALUE( c.data()) EXPECTED( b.data() );
+    int j = 100;
+    lfv::indexed<int> d(12, j);
+    a = d;
+    VALUE( a.index()) EXPECTED( 12 );
+    VALUE( a.data()) EXPECTED( 100 );
+
+
+    std::vector<int> t1({1,19,4, 2, 5, -1, 5});
+    auto vt1 = wrap(t1);
+    auto en1 = vt1.enumerate();
+    en1.foreach( S( std::cout << _.index()  << ":" << _.data() << "\n" ));
+
+    // }
+    VALUE( en1.element_at(0).index()) EXPECTED(0);
+    VALUE( en1.element_at(0).data()) EXPECTED(1);
+    VALUE( en1.element_at(1).index()) EXPECTED(1);
+    VALUE( en1.element_at(1).data()) EXPECTED(19);
+
+
+}
+
+
 
 int main() {
     const int failed =
@@ -200,7 +249,8 @@ int main() {
       + SUITE(test_take)
       + SUITE(test_sum_and_accumulate)
       + SUITE(test_chain)
-      + SUITE(test_sort);
+      + SUITE(test_sort)
+      + SUITE(test_enumerate);
 
     std::cout << ( failed == 0  ? "ALL OK" : "FAILURE" ) << std::endl;
     return failed;

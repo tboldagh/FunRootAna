@@ -26,14 +26,14 @@ public:
   void EXPECTED(const T& e) {
     if (not cmp_eq(e, m_value)) {
       std::cerr << m_file << ":" << m_line << ": error: Test failed, "
-        << "expected: " << e << " obtained: " << m_value << "\n";
+        << " obtained: " << m_value << "expected: " << e << "\n";
       throw test_failure();
     }
   }
   void NOT_EXPECTED(const T& e) {
     if (cmp_eq(e, m_value)) {
       std::cerr << m_file << ":" << m_line << ": error: Test failed, "
-        << "NOT expected: " << e << " obtained: " << m_value << "\n";
+        << " obtained: " << m_value << "NOT expected: " << e << "\n";
       throw test_failure();
     }
   }
