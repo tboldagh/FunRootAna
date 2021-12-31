@@ -85,8 +85,8 @@ for (PointsTreeAccess event(t); event; ++event) {
 ```
 
 # The functional container
-A concise set of transformations that get us from the data to the data summary (histogram in this case) is possible thanks to the WrappedSequenceContainer.
-It is really a conveniently wrapped `std::vector` (see TODO if want to make it better). 
+A concise set of transformations that get us from the data to the data summary (histogram in this case) is possible thanks to the EagerFunctionalVector.
+It is really a conveniently wrapped `std::vector`. 
 Among many functions it offers, this three are the most important:
 * `map` - that takes function defining the mapping operation i.e. can be as simple as taking attribute of an object or as complicated as ... 
 * `filter` - that produces another container with potentially reduced set of elements
@@ -116,6 +116,22 @@ Other, maybe less commonly used functions, but still good to know about are:
 * `max` & `min`
 * `first`, `last`, `element_at` or `[]` for single element access
 * ... and couple more.
+
+## Lazy vs eager evaluation
+Each transformation performed by the EagerFunctionalVector result in another instance of this class.
+If the containers are large in your particular problem it may be expensive to make many such copies. 
+Another strategy can be used in this case. That is *lazy* evaluation. In this approach objects crated by every transformation are in fact very lightweight (i.e. no data is copied). Instead of copies, the *recipes* of how to transform the data when it will be needed are kept in these intermediate objects. 
+This functionality is provided by several classes residing in LazyFunctionalVector _(still under development)_.
+You can switch between one or the other implementation quite conveniently by just changing the include file which you use and rename `wrap` into `lazy`.
+
+An additional functionality that you should be aware of is the `stage()` method that produces intermediate copy that is operated on by further transformations. 
+```c++
+auto prefiltered = container.filter(F(_.x < 2)).filter(F(_.y >5 )).filter(F(_.r() < 10)).stage(); // skipping stage() would result in filtering operations to be repeated when calculating x
+auto x = prefiltered.map(F(_.x)).sort(F(_.x)).element_at(0); // here, the filtering from the line above does not happen, however the "prefilterd" is still lazy evaluating container
+```
+
+In fact you can mix the two approaches if needed calling `as_eager()` and `as_lazy()` _(still under consideration/development)_;
+
 
 # Histograms handling
 To keep to the promise of "one line per histogram" the histogram can't be declared / booked / registered / filled / saved separately. Right!?

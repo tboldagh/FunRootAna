@@ -1,10 +1,17 @@
-//LazyFunctionalVector
-// lazy version of WrappedVector
-// TODO
-// provide more optimal foreach_imp with option of early return
+#ifndef LazyFunctionalVector_h
+#define LazyFunctionalVector_h
 
-
+#include "futils.h"
+#include "EagerFunctionalVector.h"
 #include <type_traits>
+
+#include <TH1.h>
+#include <TH2.h>
+#include <TEfficiency.h>
+#include <TProfile.h>
+#include "Weights.h"
+#include "HIST.h"
+
 
 template< typename Container, typename Filter> class FilteredView;
 template< typename Container, typename Map> class MappedView;
@@ -185,6 +192,48 @@ public:
 
 
     // ROOT histograms fill
+    // note returned same container, another histogram can be filled 
+    // TODO test if weighting is applied correctly
+    const auto& fill(WeightedHist<TH1> h) const {
+        m_actual_container.foreach_imp([&h](auto el){ h.fill(el); return true;});
+        return *this;
+    }
+
+    const auto& qwfill(WeightedHist<TH1> h) const {
+        m_actual_container.foreach_imp([&h](auto el){ h.wfill(el); return true;});
+        return *this;
+    }
+
+    const auto& wfill(WeightedHist<TH1> h) const {
+        m_actual_container.foreach_imp([&h](auto el){ h.fill(el.first, el.second); return true;});
+        return *this;
+    }
+
+
+    const auto& fill(WeightedHist<TH2> h) const {
+        m_actual_container.foreach_imp([&h](auto el){ h.fill(el.first, el.second); return true;});
+        return *this;
+    }
+
+    const auto& wfill(WeightedHist<TH2> h) const {
+        m_actual_container.foreach_imp([&h](auto el){ h.fill(el.first, el.second, el.third); return true;});
+        return *this;
+    }
+
+    const auto& wfill(WeightedHist<TProfile> h) const {
+        m_actual_container.foreach_imp([&h](auto el){ h.fill(el.first, el.second, el.third); return true;});
+        return *this;
+    }
+
+    const auto& gwfill(WeightedHist<TH2> h) const {
+        m_actual_container.foreach_imp([&h](auto el){ h.fill(el.first, el.second); return true;});
+        return *this;
+    }
+
+    const auto& fill(WeightedHist<TEfficiency> h) const {
+        m_actual_container.foreach_imp([&h](auto el){ h.fill(el.first, el.second); return true;});
+        return *this;
+    }
 
     // access
     virtual auto element_at(size_t  n) const -> Stored {
@@ -193,13 +242,13 @@ public:
         m_actual_container.foreach_imp([&temp, n, &i](auto el) {
             if (i == n) {
                 temp = el;
-//                std::cout << " element at " << n << "/" << i << " -> " << el << std::endl;
+                //                std::cout << " element at " << n << "/" << i << " -> " << el << std::endl;
                 return false;
             }
             i++;
             return true;
             });
-//        std::cout << " element at out " << n << " -> " << temp << std::endl;
+        //        std::cout << " element at out " << n << " -> " << temp << std::endl;
         return temp;
     }
 
@@ -216,6 +265,12 @@ public:
         m_actual_container.foreach_imp([&result](auto el) {
             result.insert(el); return true;
             });
+    }
+
+    EagerFunctionalVector<Stored> as_eager() const {
+        EagerFunctionalVector<Stored> tmp;
+        m_actual_container.foreach([&tmp](auto el) { tmp.__push_back(el); return true; });
+        return tmp;
     }
 
 protected:
@@ -353,7 +408,7 @@ private:
     skip_take_logic_t m_logic;
 };
 
-
+// TODO, this needs work!
 template<typename Container>
 class EnumeratedView : public FunctionalInterface<EnumeratedView<Container>, lfv::indexed<typename Container::value_type>> {
 public:
@@ -521,6 +576,11 @@ public:
 
     OwningView()
         : FunctionalInterface<container, value_type>(*this) {}
+
+    OwningView(const std::vector<T>& data)
+        : FunctionalInterface<container, value_type>(*this),
+        m_data(data) {}
+
     void insert(const_reference_type d) { m_data.push_back(d); }
     template<typename F>
     void foreach_imp(F&& f) const {
@@ -571,15 +631,9 @@ private:
     std::vector<const std::reference_wrapper<T>> m_data;
 };
 
-
-// macro generating generic, single agument, returning lambda
-// example use: filter( F(_ < 0)) - the _ is the lambda argument
-#define F(CODE) [&](const auto &_) { return CODE; }
-// subroutine (nothing is returned)
-#define S(CODE) [&](const auto &_) { CODE; }
-
 template<typename T>
-auto wrap(const std::vector<T>& vec) {
+auto lazy(const std::vector<T>& vec) {
     return DirectView(vec);
 }
 
+#endif

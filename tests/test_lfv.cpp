@@ -5,7 +5,7 @@
 
 void test_type_presentation() {
     std::vector<int> t1({1,19,4});
-    auto vt1 = wrap(t1);
+    auto vt1 = lazy(t1);
     decltype(vt1)::value_type x;
     VALUE( typeid(x) == typeid(int) ) EXPECTED( true );
     VALUE( typeid(x) == typeid(float) ) EXPECTED( false );
@@ -23,7 +23,7 @@ void test_type_presentation() {
 
 void test_count() {
     std::vector<int> t1({1,19,4});
-    auto vt1 = wrap(t1);
+    auto vt1 = lazy(t1);
     VALUE( vt1.size() ) EXPECTED (3 );
     const size_t count_below_5 = vt1.count( F(_<5));
     VALUE( count_below_5 ) EXPECTED (2);
@@ -37,7 +37,7 @@ void test_count() {
 
 void test_filter() {
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
-    auto vt1 = wrap(t1);
+    auto vt1 = lazy(t1);
     auto ft1 = vt1.filter( F( _ > 2));
     VALUE( ft1.size() ) EXPECTED( 4 );
     auto ft2 = ft1.filter( F( _ >= 5));
@@ -58,7 +58,7 @@ void test_filter() {
 }
 void test_map() {
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
-    auto vt1 = wrap(t1);
+    auto vt1 = lazy(t1);
     {
         auto mt1 = vt1.map( F(_+2) );
         std::vector<int> r;
@@ -79,7 +79,7 @@ void test_map() {
 
 void test_filter_map() {
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
-    auto vt1 = wrap(t1);
+    auto vt1 = lazy(t1);
     {
         auto mt1 = vt1.map( F(_+2) ).filter(F(_>4));
         VALUE(mt1.size()) EXPECTED(4);
@@ -111,7 +111,7 @@ void test_filter_map() {
 
 void test_staging() {
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
-    auto vt1 = wrap(t1);
+    auto vt1 = lazy(t1);
     auto mt1 = vt1.map( F(_+2) ).filter(F(_<4)).filter(F(_==1)).map(F(_*_*0.1)).stage();
     // one element (initially -1) should survive
     VALUE( mt1.size() ) EXPECTED ( 1 );
@@ -123,7 +123,7 @@ void test_staging() {
 
 void test_take() {
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
-    auto vt1 = wrap(t1);
+    auto vt1 = lazy(t1);
     auto tt1 = vt1.take(3);
     VALUE(tt1.size()) EXPECTED( 3 );
     VALUE(tt1.element_at(0)) EXPECTED(1);
@@ -162,7 +162,7 @@ void test_take() {
 
 void test_sum_and_accumulate() {
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
-    auto vt1 = wrap(t1);
+    auto vt1 = lazy(t1);
     VALUE( vt1.sum() ) EXPECTED (35);
     VALUE( vt1.take(3).sum()) EXPECTED (24);
     const int multiply_el = vt1.take(4).skip(2).accumulate( [](int t, int el){return t*el;} , 1);
@@ -172,8 +172,8 @@ void test_sum_and_accumulate() {
 void test_chain() {
     std::vector<int> t1({1,19,4, 2});
     std::vector<int> t2({5, -1, 5});
-    auto vt1 = wrap(t1);
-    auto vt2 = wrap(t2);
+    auto vt1 = lazy(t1);
+    auto vt2 = lazy(t2);
     auto jt =  vt1.chain(vt2);
     VALUE( jt.size() ) EXPECTED ( 7 );
     VALUE( jt.element_at(0)) EXPECTED ( 1 );
@@ -189,7 +189,7 @@ void test_chain() {
 
 void test_sort() {
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
-    auto vt1 = wrap(t1);
+    auto vt1 = lazy(t1);
     auto st1 = vt1.sorted(F(_));
     VALUE(st1.size()) EXPECTED( t1.size());
     VALUE(st1.element_at(0)) EXPECTED( -1);
@@ -223,7 +223,7 @@ void test_enumerate() {
 
 
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
-    auto vt1 = wrap(t1);
+    auto vt1 = lazy(t1);
     auto en1 = vt1.enumerate();
     en1.foreach( S( std::cout << _.index()  << ":" << _.data() << "\n" ));
 
@@ -232,6 +232,11 @@ void test_enumerate() {
     VALUE( en1.element_at(0).data()) EXPECTED(1);
     VALUE( en1.element_at(1).index()) EXPECTED(1);
     VALUE( en1.element_at(1).data()) EXPECTED(19);
+
+
+    // auto sen1 = en1.sorted(F(_.data()));
+    // VALUE( sen1.element_at(0).data()) EXPECTED(-1);
+    // VALUE( sen1.element_at(0).index()) EXPECTED(6);
 
 
 }

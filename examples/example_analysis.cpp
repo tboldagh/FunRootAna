@@ -50,7 +50,7 @@ class PointsTreeAccess : public Access{
 
 
 #include "HIST.h"
-#include "WrappedSequenceContainer.h"
+#include "EagerFunctionalVector.h"
 
 class MyAnalysis : public HandyHists {
 public:
