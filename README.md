@@ -27,12 +27,12 @@ for (Access event(t); event; ++event) {
     auto category = event.get<int>("category");
     const auto x = wrap(event.get<std::vector<float>>("x")); // get vector of data & wrap it into functional style container
 
-    HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5).fill( category ); // create & fill the histogram, (creation done on demand and only once)
-    x.fill(HIST1("x", ";x[mm]", 100, 0, 100)); // fill the histogram with the x coordinate
-    x.fill(HIST1("x_wide", ";x[mm]", 100, 0, 1000)); // fill another histogram with the x coordinate
-    x.filter( F(category==0)).fill(HIST1("x_cat_0", ";x[mm]", 100, 0, 100)); // we can filter the data before filling
-    x.filter( F(category==0 && std::fabs(_) < 5 )).fill(HIST1("x_cat_0_near_range", ";x[mm]", 100, 0, 5)); // the filtering can depend on the variable
-    x.map( F(1./std::sqrt(_)) ).fill(HIST1("sq_x", ";x[mm]^{-1/2}", 100, 0, 5)); // and transform as needed
+    HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5).fill( category ); // create & fill the histogram, (creation done on demand and only once, the >> operator is responsible for filling)
+    x >> HIST1("x", ";x[mm]", 100, 0, 100); // fill the histogram with the x coordinate
+    x >> HIST1("x_wide", ";x[mm]", 100, 0, 1000); // fill another histogram with the x coordinate
+    x.filter( F(category==0)) >> HIST1("x_cat_0", ";x[mm]", 100, 0, 100); // we can filter the data before filling
+    x.filter( F(category==0 && std::fabs(_) < 5 )) >> HIST1("x_cat_0_near_range", ";x[mm]", 100, 0, 5); // the filtering can depend on the variable
+    x.map( F(1./std::sqrt(_)) ) >> HIST1("sq_x", ";x[mm]^{-1/2}", 100, 0, 5); // and transform as needed
 
 
     HIST2("number_of_x_outliers_above_10_vs_category", ";count;category", 10, 0, 10,  5, -0.5, 4.5).fill( x.count( F( std::fabs(_)>10 ) ), category ); 
@@ -72,14 +72,14 @@ How do profit from the fact the fact that we have objects. Is it still single li
 for (PointsTreeAccess event(t); event; ++event) {
     auto points = wrap(event.getPoints());
     // let's profit from the fact that we have an object    
-    points.map( F(_.rho_xy()) ).fill(HIST1("rho_xy", ";rho", 100, 0, 100)); // to extract the a quantity of interest for filling we need the "map" operation, that maps (sic!) from object to a number to be used when filling
+    points.map( F(_.rho_xy()) ) >> HIST1("rho_xy", ";rho", 100, 0, 100); // to extract the a quantity of interest for filling we need the "map" operation, that maps (sic!) from object to a number to be used when filling
     // let's go fancy and add make 2D plots (mapping needs to produce 2-tuple - that is the pair), let's also throw in some filtering
     points.filter( F(_.r() < 10 && _.z>5) )
           .map( F( std::make_pair(_.x, _.y)) )
-          .fill(HIST2("xy/points_close_to_center_high_z", ";x;y", 20, 0, 20, 20, 0, 20));
+          >> (HIST2("xy/points_close_to_center_high_z", ";x;y", 20, 0, 20, 20, 0, 20);
     points.filter( F(_.r() < 10 && _.z<5) )
           .map( F( std::make_pair(_.x, _.y)) )
-          .fill(HIST2("xy/points_close_to_center_low_z", ";x;y", 20, 0, 20, 20, 0, 20));
+          >> (HIST2("xy/points_close_to_center_low_z", ";x;y", 20, 0, 20, 20, 0, 20);
     // ... again one line per histogram
 }
 ```

@@ -26,9 +26,9 @@ add_executable(example_analysis examples/example_analysis.cpp)
 target_link_libraries(example_analysis ${ROOT_LIBRARIES} FunRootAna)
 target_compile_features(example_analysis PRIVATE cxx_std_17)
 
-add_executable( test_wsc tests/test_wsc.cpp )
-target_link_libraries(test_wsc ${ROOT_LIBRARIES} FunRootAna)
-target_compile_features(test_wsc PRIVATE cxx_std_17)
+add_executable( test_efv tests/test_efv.cpp )
+target_link_libraries(test_efv ${ROOT_LIBRARIES} FunRootAna)
+target_compile_features(test_efv PRIVATE cxx_std_17)
 
 add_executable( test_hist tests/test_hist.cpp )
 target_link_libraries(test_hist ${ROOT_LIBRARIES} FunRootAna)

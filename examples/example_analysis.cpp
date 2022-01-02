@@ -16,7 +16,8 @@ struct Point{
 #include <utility>
 
 #include "Access.h"
-
+#include "EagerFunctionalVector.h"
+#include "filling.h"
 class PointsTreeAccess : public Access{
     public:
         using Access::Access;
@@ -63,18 +64,18 @@ public:
 
         for (PointsTreeAccess event(t); event; ++event) {
             auto category = event.get<int>("category");
-            HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5).fill( category ); // create & fill the histogram, (creation done on demand and only once)
+            HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5).fill(category); // create & fill the histogram, (creation done on demand and only once)
             const auto x = wrap(event.get<std::vector<float>>("x")); // get vector of data & wrap it into a functional style container
-            x.fill(HIST1("x", "x[mm]", 100, 0, 100)); // fill the histogram with the x coordinate
-            x.fill(HIST1("x_wide", "x[mm]", 100, 0, 1000)); // fill another histogram with the x coordinate
+            x >> HIST1("x", "x[mm]", 100, 0, 100); // fill the histogram with the x coordinate
+            x >> HIST1("x_wide", "x[mm]", 100, 0, 1000); // fill another histogram with the x coordinate
 
             HIST2("number_of_x_outliers_above_10_vs_category", ";count;category", 10, 0, 10,  5, -0.5, 4.5).fill(x.filter( F( std::fabs(_) ) ).filter( F(_ > 10) ).size(), category); // a super complicated plot, 2D histogram of number of outlayers vs, category
 
             auto points = wrap(event.getPoints());
             // let's profit from the fact that we have an object
-            points.map( F(_.rho_xy()) ).fill(HIST1("rho_xy", ";rho", 100, 0, 100)); // to extract the a quantity of interest for filling we do the "map" operation
-            points.filter( F(_.r() < 10 && _.z>5) ).map( F( std::make_pair(_.x, _.y)) ).fill(HIST2("xy/points_close_to_center_high_z", ";x;y", 20, 0, 20, 20, 0, 20));
-            points.filter( F(_.r() < 10 && _.z<5) ).map( F( std::make_pair(_.x, _.y)) ).fill(HIST2("xy/points_close_to_center_low_z", ";x;y", 20, 0, 20, 20, 0, 20));
+            points.map( F(_.rho_xy()) ) >> HIST1("rho_xy", ";rho", 100, 0, 100); // to extract the a quantity of interest for filling we do the "map" operation
+            points.filter( F(_.r() < 10 && _.z>5) ).map( F( std::make_pair(_.x, _.y)) ) >> HIST2("xy/points_close_to_center_high_z", ";x;y", 20, 0, 20, 20, 0, 20);
+            points.filter( F(_.r() < 10 && _.z<5) ).map( F( std::make_pair(_.x, _.y)) ) >> HIST2("xy/points_close_to_center_low_z", ";x;y", 20, 0, 20, 20, 0, 20);
         }
         f->Close();
     }

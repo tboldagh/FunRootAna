@@ -5,13 +5,6 @@
 #include "EagerFunctionalVector.h"
 #include <type_traits>
 
-#include <TH1.h>
-#include <TH2.h>
-#include <TEfficiency.h>
-#include <TProfile.h>
-#include "Weights.h"
-#include "HIST.h"
-
 
 template< typename Container, typename Filter> class FilteredView;
 template< typename Container, typename Map> class MappedView;
@@ -187,52 +180,6 @@ public:
         Stored s = unit;
         m_actual_container.foreach_imp([&s, f](auto el) { s = f(s, el);  return true; });
         return s;
-    }
-    // stat
-
-
-    // ROOT histograms fill
-    // note returned same container, another histogram can be filled 
-    // TODO test if weighting is applied correctly
-    const auto& fill(WeightedHist<TH1> h) const {
-        m_actual_container.foreach_imp([&h](auto el){ h.fill(el); return true;});
-        return *this;
-    }
-
-    const auto& qwfill(WeightedHist<TH1> h) const {
-        m_actual_container.foreach_imp([&h](auto el){ h.wfill(el); return true;});
-        return *this;
-    }
-
-    const auto& wfill(WeightedHist<TH1> h) const {
-        m_actual_container.foreach_imp([&h](auto el){ h.fill(el.first, el.second); return true;});
-        return *this;
-    }
-
-
-    const auto& fill(WeightedHist<TH2> h) const {
-        m_actual_container.foreach_imp([&h](auto el){ h.fill(el.first, el.second); return true;});
-        return *this;
-    }
-
-    const auto& wfill(WeightedHist<TH2> h) const {
-        m_actual_container.foreach_imp([&h](auto el){ h.fill(el.first, el.second, el.third); return true;});
-        return *this;
-    }
-
-    const auto& wfill(WeightedHist<TProfile> h) const {
-        m_actual_container.foreach_imp([&h](auto el){ h.fill(el.first, el.second, el.third); return true;});
-        return *this;
-    }
-
-    const auto& gwfill(WeightedHist<TH2> h) const {
-        m_actual_container.foreach_imp([&h](auto el){ h.fill(el.first, el.second); return true;});
-        return *this;
-    }
-
-    const auto& fill(WeightedHist<TEfficiency> h) const {
-        m_actual_container.foreach_imp([&h](auto el){ h.fill(el.first, el.second); return true;});
-        return *this;
     }
 
     // access

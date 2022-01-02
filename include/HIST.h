@@ -141,7 +141,7 @@ void is_naming_consistent( const std::vector<std::tuple<hcoord, std::string, Wei
 // @warning - ANYHIST registration is not supported
 
 #define HIST1( __NAME,__TITLE,__XBINS,__XMIN,__XMAX ) \
-  ([&]() { \
+  ([this]() -> WeightedHist<TH1>& { \
     static std::vector< std::pair<hcoord, WeightedHist<TH1>>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
@@ -151,11 +151,11 @@ void is_naming_consistent( const std::vector<std::tuple<hcoord, std::string, Wei
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return newh; \
+    return cache.back().second; \
   }())
 
 #define HIST1V( __NAME,__TITLE,__VEC ) \
-  ([&]() { \
+  ([this]() -> WeightedHist<TH1>& { \
     static std::vector< std::pair<hcoord, WeightedHist<TH1>>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
@@ -165,12 +165,12 @@ void is_naming_consistent( const std::vector<std::tuple<hcoord, std::string, Wei
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return newh; \
+    return cache.back().second; \
   }())
 
 
 #define PROF1( __NAME,__TITLE,__XBINS,__XMIN,__XMAX ) \
-  ([&]() { \
+  ([this]() -> WeightedHist<TProfile>& { \
     static std::vector< std::pair<hcoord, WeightedHist<TProfile>>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
@@ -180,11 +180,11 @@ void is_naming_consistent( const std::vector<std::tuple<hcoord, std::string, Wei
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return newh; \
+    return cache.back().second; \
   }())
 
 #define PROF1V( __NAME,__TITLE,__VEC ) \
-  ([&]() { \
+  ([this]() -> WeightedHist<TProfile>& { \
     static std::vector< std::pair<hcoord, WeightedHist<TProfile>>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
@@ -194,12 +194,12 @@ void is_naming_consistent( const std::vector<std::tuple<hcoord, std::string, Wei
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return newh; \
+    return cache.back().second; \
   }())
 
 
 #define EFF1( __NAME,__TITLE,__XBINS,__XMIN,__XMAX ) \
-  ([&]() { \
+  ([&]() -> WeightedHist<TEfficiency>& { \
     static std::vector< std::pair<hcoord, WeightedHist<TEfficiency>>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
@@ -209,12 +209,12 @@ void is_naming_consistent( const std::vector<std::tuple<hcoord, std::string, Wei
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return newh; \
+    return cache.back().second; \
   }())
 
 
 #define EFF1V( __NAME,__TITLE,__VEC ) \
-  ([&]() { \
+  ([&]() -> WeightedHist<TEfficiency>& { \
     static std::vector< std::pair<hcoord, WeightedHist<TEfficiency>>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
@@ -224,12 +224,12 @@ void is_naming_consistent( const std::vector<std::tuple<hcoord, std::string, Wei
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return newh; \
+    return cache.back().second; \
   }())
 
 
 #define HIST2( __NAME,__TITLE,__XBINS,__XMIN,__XMAX,__YBINS,__YMIN,__YMAX ) \
-  ([&]() { \
+  ([&]() -> WeightedHist<TH2>& { \
     static std::vector< std::pair<hcoord, WeightedHist<TH2>>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
@@ -239,7 +239,7 @@ void is_naming_consistent( const std::vector<std::tuple<hcoord, std::string, Wei
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return newh; \
+    return cache.back().second; \
   }())
 
 

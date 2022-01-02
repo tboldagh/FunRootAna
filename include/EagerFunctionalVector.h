@@ -7,12 +7,7 @@
 #include <iostream>
 #include <type_traits>
 #include "futils.h"
-#include <TH1.h>
-#include <TH2.h>
-#include <TEfficiency.h>
-#include <TProfile.h>
-#include "Weights.h"
-#include "HIST.h"
+#
 
 struct StatInfo {
   double count = {};
@@ -22,15 +17,6 @@ struct StatInfo {
   double var() const { return sum2 / count - std::pow(mean(), 2); }
   double sigma() const { return std::sqrt(var()); }
 };
-
-template<typename T, typename U, typename V>
-struct triple {
-  T first;
-  U second;
-  V third;
-};
-template<typename T, typename U, typename V>
-triple<T, U, V> make_triple(T t, U u, V v) { return { t,u,v }; }
 
 template<typename T>
 class EagerFunctionalVector
@@ -300,58 +286,6 @@ public:
   //   return OwningView(container);
   // }
 
-
-  const EagerFunctionalVector<T>& fill(WeightedHist<TH1> h) const {
-    for (auto e : container)
-      h.fill(e);
-    return *this;
-  }
-
-  const EagerFunctionalVector<T>& qwfill(WeightedHist<TH1> h) const {
-    for (auto e : container)
-      h.wfill(e);
-    return *this;
-  }
-
-  const EagerFunctionalVector<T>& wfill(WeightedHist<TH1> h) const {
-    for (auto e : container)
-      h.fill(e.first, e.second);
-    return *this;
-  }
-
-
-  const EagerFunctionalVector<T>& fill(WeightedHist<TH2> h) const {
-    for (auto e : container)
-      h.fill(e.first, e.second);
-    return *this;
-  }
-
-  const EagerFunctionalVector<T>& wfill(WeightedHist<TH2> h) const {
-    for (auto e : container)
-      h.fill(e.first, e.second, e.third);
-    return *this;
-  }
-
-  const EagerFunctionalVector<T>& wfill(WeightedHist<TProfile> h) const {
-    for (auto e : container)
-      h.fill(e.first, e.second, e.third);
-    return *this;
-  }
-
-
-
-  const EagerFunctionalVector<T>& gwfill(WeightedHist<TH2> h) const {
-    for (auto e : container)
-      h.wfill(e.first, e.second);
-    return *this;
-  }
-
-
-  const EagerFunctionalVector<T>& fill(WeightedHist<TEfficiency> h) const {
-    for (auto e : container)
-      h.fill(e.first, e.second);
-    return *this;
-  }
 };
 
 template<typename T>
