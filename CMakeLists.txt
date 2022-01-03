@@ -38,10 +38,16 @@ add_executable( test_lfv tests/test_lfv.cpp )
 target_link_libraries(test_lfv ${ROOT_LIBRARIES} FunRootAna)
 target_compile_features(test_lfv PRIVATE cxx_std_17)
 
+add_executable( benchmark tests/benchmark.cpp )
+target_link_libraries(benchmark ${ROOT_LIBRARIES} FunRootAna)
+target_compile_features(benchmark PRIVATE cxx_std_17)
+
 
 enable_testing() 
 add_test(NAME test_HIST COMMAND test_hist)
 add_test(NAME test_EagerFunctionalVector COMMAND test_wsc)
 add_test(NAME test_LazyFunctionalVector COMMAND test_lfv)
+add_test(NAME benchmark COMMAND benchmark)
+
 
 #target_compile_features(example_analysis PRIVATE cxx_std_17)

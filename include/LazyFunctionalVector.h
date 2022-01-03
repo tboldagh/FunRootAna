@@ -10,18 +10,19 @@
 #include <type_traits>
 
 
-/* 
+/*
 The goal of the code below is to create functional vector wrapper
 with all expensive operations done in a lazy manner.
-E.g. a -> filter 1 -> map 1 -> filter 2 -> map 2 
-take no CPU time except for construction of functions involved in filtering & mapping. 
+E.g. a -> filter 1 -> map 1 -> filter 2 -> map 2
+take no CPU time except for construction of functions involved in filtering & mapping.
 
-Implementation is inspired by Scala collections where the rich collections API is implemented 
+Implementation is inspired by Scala collections where the rich collections API is implemented
 using solely foreach method provided by actual container. In contrast though, here the operations are lazy where possible.
-The actual containers are wrapped std::vectors but expansion to other containers is straightforward as only one method needs to be provided. 
+The actual containers are wrapped std::vectors but expansion to other containers is straightforward as only one method needs to be provided.
 
-The foreach should take function object that is applied to element of the collection. 
+The foreach should take function object that is applied to element of the collection.
 The function should return boolean, when the false is returned the iteration is interrupted.
+The foreach takes additional instructions that can be used to optimize it's operation or affect the order of operations.
 
 
 */
@@ -34,12 +35,13 @@ template<typename T> class DirectView;
 template<typename T> class OwningView;
 template<typename Container> class TakeNView;
 template<typename Container> class EnumeratedView;
+template<typename Container> class ReverseView;
 template<typename Container, typename Filter> class TakeWhileView;
 template<typename Container1, typename Container2> class ChainView;
 template<typename Container1, typename Container2> class ZipView;
 template<typename Container1, typename Comparator> class SortedView;
-
-template<typename Container1, typename Comparator> class MarginalView;
+// TODO
+template<typename Container1, typename Comparator> class ExtreamsView;
 
 
 namespace lfv {
@@ -72,6 +74,12 @@ namespace lfv {
 namespace {
     enum skip_take_logic_t { skip_elements, take_elements };
     enum min_max_logic_t { min_elements, max_elements };
+    enum preserve_t { temporary, store }; // instruct if the results of for-each will be refereed to afterwards
+    enum order_t { forward, reverse, any }; // direction of the foreach
+    struct foreach_instructions {
+        order_t order = forward;
+        preserve_t preserve = temporary;
+    };
 };
 
 
@@ -111,21 +119,22 @@ public:
 
     // finds if an element is in the container
     template<typename Predicate>
-    bool contains(Predicate f) const { 
+    bool contains(Predicate f) const {
         bool found = false;
-        m_actual_container.foreach_imp([f, &found](typename Container::const_reference_type el){ 
-            if ( f(el) ) {
+        m_actual_container.foreach_imp([f, &found](typename Container::const_reference_type el) {
+            if (f(el)) {
                 found = true;
                 return false;
-            } else {
+            }
+            else {
                 return true;
             }
             });
         return found;
     }
     // as above, but require identity
-    bool contains(const Stored& x) const { 
-        return contains([x](typename Container::const_reference_type el){ return el == x; });
+    bool contains(const Stored& x) const {
+        return contains([x](typename Container::const_reference_type el) { return el == x; });
     }
 
 
@@ -177,17 +186,20 @@ public:
         m_actual_container.foreach_imp([&c](auto el) { c.insert(el); return true; });
         return c;
     }
+    auto reverse() const {
+        return ReverseView<Container>(m_actual_container);
+    }
 
 
     // max and min
-    // TODO provide implementation of MarginalView, not sure if can be implemented efficiencly with howMany != 1
+    // TODO provide implementation of ExtreamsView, not sure if can be implemented efficiencly with howMany != 1
     template<typename KeyExtractor>
     auto max(KeyExtractor by, size_t n) const {
-        return MarginalView<Container, KeyExtractor>(m_actual_container, by, n, max_elements);
+        return ExtreamsView<Container, KeyExtractor>(m_actual_container, by, n, max_elements);
     }
     template<typename KeyExtractor>
     auto min(KeyExtractor by, size_t n) const {
-        return MarginalView<Container, KeyExtractor>(m_actual_container, by, n, min_elements);
+        return ExtreamsView<Container, KeyExtractor>(m_actual_container, by, n, min_elements);
     }
 
 
@@ -221,7 +233,7 @@ public:
     // accumulate, function us used as: total = f(total, element), also take starting element
     template<typename F, typename R>
     auto accumulate(F f, R initial = {}) const {
-        static_assert( std::is_same<R, typename std::invoke_result<F, R, typename Container::const_reference_type>::type>::value, "function return type different than initial value");
+        static_assert(std::is_same<R, typename std::invoke_result<F, R, typename Container::const_reference_type>::type>::value, "function return type different than initial value");
         R s = initial;
         m_actual_container.foreach_imp([&s, f](const auto& el) { s = f(s, el);  return true; });
         return s;
@@ -229,8 +241,8 @@ public:
 
     // access by index
     // TODO, move to a reference, return std::optional
-    virtual auto element_at(size_t  n) const -> Stored {
-        Stored temp;
+    virtual auto element_at(size_t  n) const -> std::optional<Stored> {
+        std::optional<Stored> temp = {};
         size_t i = 0;
         m_actual_container.foreach_imp([&temp, n, &i](const auto& el) {
             if (i == n) {
@@ -242,12 +254,13 @@ public:
             });
         return temp;
     }
+
     // first element satisfying predicate
     template<typename Predicate>
-    auto first_of(Predicate f) const -> Stored { 
-        Stored temp;
+    auto first_of(Predicate f) const -> std::optional<Stored> {
+        std::optional<Stored> temp = {};
         m_actual_container.foreach_imp([&temp, f](auto& el) {
-            if ( f(el) ) {
+            if (f(el)) {
                 temp = el;
                 return false;
             }
@@ -255,21 +268,21 @@ public:
             });
         return temp;
     }
+
     // returns an index of first element satisfying the predicate
     template<typename Predicate>
-    size_t first_of_index(Predicate f) const { 
-        Stored temp;
+    std::optional<size_t> first_of_index(Predicate f) const {
         size_t i = 0;
-        size_t found = lfv::invalid_index;
+        std::optional<size_t> found;
         m_actual_container.foreach_imp([&i, f, &found](auto& el) {
-            if ( f(el) ) {
+            if (f(el)) {
                 found = i;
                 return false;
             }
             ++i;
             return true;
             });
-        return temp;
+        return found;
     }
 
 
@@ -287,7 +300,7 @@ public:
             result.insert(el); return true;
             });
     }
-
+    // to non-lazy implementation
     EagerFunctionalVector<Stored> as_eager() const {
         EagerFunctionalVector<Stored> tmp;
         m_actual_container.foreach([&tmp](auto el) { tmp.__push_back(el); return true; });
@@ -429,6 +442,34 @@ private:
     skip_take_logic_t m_logic;
 };
 
+
+template<typename Container>
+class ReverseView : public FunctionalInterface<ReverseView<Container>, typename Container::value_type> {
+public:
+    using value_type = typename Container::value_type;
+    using const_value_type = const value_type;
+    using const_reference_type = const_value_type&;
+    using container = FunctionalInterface<Container, value_type>;
+
+    ReverseView(const Container& c)
+        : FunctionalInterface<ReverseView<Container>, typename Container::value_type>(*this),
+        m_foreach_imp_provider(c) {}
+
+    template<typename F>
+    void foreach_imp(F f, foreach_instructions how = {}) const {
+        m_foreach_imp_provider.foreach_imp([f](auto el) {
+            const bool go = f(el);
+            if (not go)
+                return false;
+            return true;
+            },
+            { (how.order == forward ? reverse : forward), how.preserve }); // here we rotate the order
+    }
+private:
+    const Container& m_foreach_imp_provider;
+};
+
+
 // TODO, this needs work!
 template<typename Container>
 class EnumeratedView : public FunctionalInterface<EnumeratedView<Container>, lfv::indexed<typename Container::value_type>> {
@@ -564,16 +605,27 @@ public:
         : FunctionalInterface<container, value_type>(*this), m_data(m) {}
 
     template<typename F>
-    void foreach_imp(F f) const {
-        for (const auto& el : m_data) {
-            const bool go = f(el);
-            if (not go)
-                break;
+    void foreach_imp(F f, foreach_instructions how = {}) const {
+        if (how.order == reverse) {
+            for (auto riter = std::rbegin(m_data), riterend = std::rend(m_data); riter != riterend; ++riter) {
+                const bool go = f(*riter);
+                if (not go)
+                    break;
+            }
+        }
+        else {
+            for (const auto& el : m_data) {
+                const bool go = f(el);
+                if (not go)
+                    break;
+            }
         }
     };
 
-    virtual auto element_at(size_t  n) const -> value_type override final {
-        return m_data.at(n);
+    virtual auto element_at(size_t  n) const -> std::optional<value_type> override final {
+        if (n < m_data.size())
+            return m_data.at(n);
+        return {};
     }
     virtual size_t size() const  override final {
         return m_data.size();
@@ -601,16 +653,27 @@ public:
 
     void insert(const_reference_type d) { m_data.push_back(d); }
     template<typename F>
-    void foreach_imp(F f) const {
-        for (const auto& el : m_data) {
-            const bool go = f(el);
-            if (not go)
-                break;
+    void foreach_imp(F f, foreach_instructions how = {}) const {
+        if (how.order == reverse) {
+            for (auto riter = std::rbegin(m_data), riterend = std::rend(m_data); riter != riterend; ++riter) {
+                const bool go = f(*riter);
+                if (not go)
+                    break;
+            }
+        }
+        else {
+            for (const auto& el : m_data) {
+                const bool go = f(el);
+                if (not go)
+                    break;
+            }
         }
     };
 
-    virtual auto element_at(size_t  n) const -> value_type override final {
-        return m_data.at(n);
+    virtual auto element_at(size_t  n) const -> std::optional<value_type> override final {
+        if (n < m_data.size())
+            return m_data.at(n);
+        return {};
     }
     virtual size_t size() const  override final {
         return m_data.size();
@@ -631,16 +694,27 @@ public:
         : FunctionalInterface<container, value_type>(*this) {}
     void insert(const_reference_type d) { m_data.push_back(d); }
     template<typename F>
-    void foreach_imp(F f) const {
-        for (const auto& el : m_data) {
-            const bool go = f(el);
-            if (not go)
-                break;
+    void foreach_imp(F f, foreach_instructions how = {}) const {
+        if (how.order == reverse) {
+            for (auto riter = std::rbegin(m_data), riterend = std::rend(m_data); riter != riterend; ++riter) {
+                const bool go = f(*riter);
+                if (not go)
+                    break;
+            }
+        }
+        else {
+            for (const auto& el : m_data) {
+                const bool go = f(el.value());
+                if (not go)
+                    break;
+            }
         }
     };
 
-    virtual auto element_at(size_t  n) const -> value_type override final {
-        return m_data.at(n);
+    virtual auto element_at(size_t  n) const -> std::optional<value_type> override final {
+        if (n < m_data.size())
+            return m_data.at(n);
+        return {};
     }
     virtual size_t size() const  override final {
         return m_data.size();

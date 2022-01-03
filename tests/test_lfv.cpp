@@ -45,9 +45,12 @@ void test_count_and_find() {
     VALUE( contains_mod_3 ) EXPECTED (false);
     const bool contains_mod_2 = vt1.contains(F( _ %2 == 0));
     VALUE( contains_mod_2 ) EXPECTED (true);
-    const bool contains_above_10 = vt1.first_of(F( _ > 10));
-    VALUE( contains_above_10 ) EXPECTED (19);
-    
+    const auto first_above_10 = vt1.first_of(F( _ > 10));
+    VALUE( first_above_10.value() ) EXPECTED (19);
+    const auto contains_above_100 = vt1.first_of(F( _ > 100));
+    VALUE( contains_above_100.has_value() ) EXPECTED (false);
+
+
 
 }
 
@@ -131,7 +134,7 @@ void test_staging() {
     VALUE( mt1.size() ) EXPECTED ( 1 );
     OwningView<double> r;
     VALUE( typeid(mt1) == typeid(r)) EXPECTED ( true );
-    VALUE( mt1.element_at(0) ) EXPECTED ( 0.1 );
+    VALUE( mt1.element_at(0).value() ) EXPECTED ( 0.1 );
 }
 
 
@@ -140,37 +143,37 @@ void test_take() {
     auto vt1 = lazy(t1);
     auto tt1 = vt1.take(3);
     VALUE(tt1.size()) EXPECTED( 3 );
-    VALUE(tt1.element_at(0)) EXPECTED(1);
-    VALUE(tt1.element_at(2)) EXPECTED(4);
+    VALUE(tt1.element_at(0).value()) EXPECTED(1);
+    VALUE(tt1.element_at(2).value()) EXPECTED(4);
     // take element with stride
     auto tt1s = vt1.take(lfv::all_elements, 2);
     VALUE(tt1s.size()) EXPECTED( 4 );
-    VALUE (tt1s.element_at(1)) EXPECTED( 4);
-    VALUE (tt1s.element_at(3)) EXPECTED( 5);
+    VALUE (tt1s.element_at(1).value()) EXPECTED( 4);
+    VALUE (tt1s.element_at(3).value()) EXPECTED( 5);
 
 
     auto tt2 = vt1.take_while(F(_>0));
     VALUE(tt2.size()) EXPECTED( 5 );
-    VALUE(tt2.element_at(4)) EXPECTED(5);
+    VALUE(tt2.element_at(4).value()) EXPECTED(5);
 
     auto tt3 = vt1.skip(3);
     VALUE( tt3.size()) EXPECTED( 4 );
-    VALUE( tt3.element_at(0)) EXPECTED (2);
+    VALUE( tt3.element_at(0).value()) EXPECTED (2);
 
     auto tt4 = vt1.skip_while(F(_>0));
     VALUE( tt4.size()) EXPECTED( 2 );
-    VALUE( tt4.element_at(0)) EXPECTED (-1);
+    VALUE( tt4.element_at(0).value()) EXPECTED (-1);
 
     // combine
     auto tt5 = vt1.take(5).skip(3);
     VALUE( tt5.size()) EXPECTED( 2 );
-    VALUE( tt5.element_at(0)) EXPECTED (2);
-    VALUE( tt5.element_at(1)) EXPECTED (5);
+    VALUE( tt5.element_at(0).value()) EXPECTED (2);
+    VALUE( tt5.element_at(1).value()) EXPECTED (5);
 
     auto tt6 = vt1.take_while(F(_!=5)).skip_while(F( _!= 4));
     VALUE( tt6.size()) EXPECTED( 2 );
-    VALUE( tt6.element_at(0)) EXPECTED (4);
-    VALUE( tt6.element_at(1)) EXPECTED (2);
+    VALUE( tt6.element_at(0).value()) EXPECTED (4);
+    VALUE( tt6.element_at(1).value()) EXPECTED (2);
 }
 
 
@@ -190,14 +193,14 @@ void test_chain() {
     auto vt2 = lazy(t2);
     auto jt =  vt1.chain(vt2);
     VALUE( jt.size() ) EXPECTED ( 7 );
-    VALUE( jt.element_at(0)) EXPECTED ( 1 );
-    VALUE( jt.element_at(4)) EXPECTED ( 5 );
-    VALUE( jt.element_at(5)) EXPECTED ( -1 );
+    VALUE( jt.element_at(0).value()) EXPECTED ( 1 );
+    VALUE( jt.element_at(4).value()) EXPECTED ( 5 );
+    VALUE( jt.element_at(5).value()) EXPECTED ( -1 );
 
     auto ajt = vt1.skip(1).chain( vt2.filter(F(_<0)));
     VALUE(ajt.size()) EXPECTED( 4 );
-    VALUE(ajt.element_at(0)) EXPECTED (19);
-    VALUE( ajt.element_at(3)) EXPECTED(-1);
+    VALUE(ajt.element_at(0).value()) EXPECTED (19);
+    VALUE( ajt.element_at(3).value()) EXPECTED(-1);
 }
 
 
@@ -206,13 +209,13 @@ void test_sort() {
     auto vt1 = lazy(t1);
     auto st1 = vt1.sorted(F(_));
     VALUE(st1.size()) EXPECTED( t1.size());
-    VALUE(st1.element_at(0)) EXPECTED( -1);
-    VALUE(st1.element_at(1)) EXPECTED( 1);
-    VALUE(st1.element_at(6)) EXPECTED( 19);
+    VALUE(st1.element_at(0).value()) EXPECTED( -1);
+    VALUE(st1.element_at(1).value()) EXPECTED( 1);
+    VALUE(st1.element_at(6).value()) EXPECTED( 19);
 
     auto rst1 = vt1.sorted(F(-_)); // reverse sort
     VALUE(rst1.size()) EXPECTED( t1.size());
-    VALUE(rst1.element_at(0)) EXPECTED( 19);
+    VALUE(rst1.element_at(0).value()) EXPECTED( 19);
 }
 
 void test_enumerate() {
@@ -242,16 +245,28 @@ void test_enumerate() {
     en1.foreach( S( std::cout << _.index()  << ":" << _.data() << "\n" ));
 
     // }
-    VALUE( en1.element_at(0).index()) EXPECTED(0);
-    VALUE( en1.element_at(0).data()) EXPECTED(1);
-    VALUE( en1.element_at(1).index()) EXPECTED(1);
-    VALUE( en1.element_at(1).data()) EXPECTED(19);
+    VALUE( en1.element_at(0).value().index()) EXPECTED(0);
+    VALUE( en1.element_at(0).value().data()) EXPECTED(1);
+    VALUE( en1.element_at(1).value().index()) EXPECTED(1);
+    VALUE( en1.element_at(1).value().data()) EXPECTED(19);
 
-
+    // this is failing and needs upgrade of foreach
     // auto sen1 = en1.sorted(F(_.data()));
     // VALUE( sen1.element_at(0).data()) EXPECTED(-1);
     // VALUE( sen1.element_at(0).index()) EXPECTED(6);
+}
 
+void test_reversal() {
+    std::vector<int> t1({1,19,4, 2, 5, -1, 5});
+    auto vt1 = lazy(t1);
+    auto r1 = vt1.reverse();
+    VALUE(r1.element_at(0).value()) EXPECTED(5);
+
+    // double reverse
+    auto r2 = r1.reverse();
+    VALUE(r2.element_at(1).value()) EXPECTED(19);
+
+    // TODO try sorting 
 
 }
 
@@ -269,7 +284,8 @@ int main() {
       + SUITE(test_sum_and_accumulate)
       + SUITE(test_chain)
       + SUITE(test_sort)
-      + SUITE(test_enumerate);
+      + SUITE(test_enumerate)
+      + SUITE(test_reversal);
 
     std::cout << ( failed == 0  ? "ALL OK" : "FAILURE" ) << std::endl;
     return failed;

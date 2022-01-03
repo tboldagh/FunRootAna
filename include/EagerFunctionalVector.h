@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <memory>
 #include <map>
+#include <cmath>
 #include <iostream>
 #include <type_traits>
 #include "futils.h"

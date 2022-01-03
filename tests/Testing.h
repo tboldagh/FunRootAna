@@ -20,18 +20,19 @@ class test_failure : public std::runtime_error {
 template <typename T>
 class TestedValue {
 public:
-  TestedValue(T v, std::string&& f, int l)
+  using value_type = typename std::remove_reference<typename std::remove_cv<T>::type>::type;
+  TestedValue(const value_type& v, std::string&& f, int l)
     : m_value(v),
     m_file(std::move(f)),
     m_line(l) {}
-  void EXPECTED(const T& e) {
+  void EXPECTED(const value_type& e) {
     if (not cmp_eq(e, m_value)) {
       std::cerr << m_file << ":" << m_line << ": error: Test failed, "
         << " obtained: " << m_value << " expected: " << e << "\n";
       throw test_failure();
     }
   }
-  void NOT_EXPECTED(const T& e) {
+  void NOT_EXPECTED(const value_type& e) {
     if (cmp_eq(e, m_value)) {
       std::cerr << m_file << ":" << m_line << ": error: Test failed, "
         << " obtained: " << m_value << " NOT expected: " << e << "\n";
@@ -39,7 +40,7 @@ public:
     }
   }
 private:
-  T m_value;
+  value_type m_value;
   std::string m_file;
   int m_line;
 };
