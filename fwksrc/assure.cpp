@@ -1,3 +1,7 @@
+// Copyright 2022, Tomasz Bold
+// https://github.com/tboldagh/FunRootAna
+// Distributed under the MIT License
+// (See accompanying file LICENSE file)
 #include <stdlib.h>
 #include <iostream>
 #include <cmath>

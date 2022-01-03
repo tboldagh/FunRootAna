@@ -1,9 +1,31 @@
+// Copyright 2022, Tomasz Bold
+// https://github.com/tboldagh/FunRootAna
+// Distributed under the MIT License
+// (See accompanying file LICENSE file)
 #ifndef LazyFunctionalVector_h
 #define LazyFunctionalVector_h
 
 #include "futils.h"
 #include "EagerFunctionalVector.h"
 #include <type_traits>
+
+
+/* 
+The goal of the code below is to create functional vector wrapper
+with all expensive operations done in a lazy manner.
+E.g. a -> filter 1 -> map 1 -> filter 2 -> map 2 
+take no CPU time except for construction of functions involved in filtering & mapping. 
+
+Implementation is inspired by Scala collections where the rich collections API is implemented 
+using solely foreach method provided by actual container. In contrast though, here the operations are lazy where possible.
+The actual containers are wrapped std::vectors but expansion to other containers is straightforward as only one method needs to be provided. 
+
+The foreach should take function object that is applied to element of the collection. 
+The function should return boolean, when the false is returned the iteration is interrupted.
+
+
+*/
+
 
 
 template< typename Container, typename Filter> class FilteredView;
@@ -24,6 +46,7 @@ namespace lfv {
     constexpr size_t all_elements = std::numeric_limits<size_t>::max();
     constexpr size_t invalid_index = std::numeric_limits<size_t>::max();
 
+    // TODO avoid copying into this structure
     template<typename T>
     class indexed {
     public:
@@ -57,13 +80,13 @@ class FunctionalInterface {
 public:
     FunctionalInterface(const Container& cont) : m_actual_container(cont) {}
 
-    // subclasses need to implement this method
+    // invoke function on each element of the container
     template<typename F>
     void foreach(F f) const {
         m_actual_container.foreach_imp([f](auto el) { f(el); return true; });
     }
 
-    // count of elements, this eager operation
+    // count of elements, this is an eager operation
     virtual size_t size() const {
         size_t c = 0;
         m_actual_container.foreach_imp([&c](typename Container::const_reference_type) { c++; return true;});
@@ -77,14 +100,34 @@ public:
     }
 
 
-    // count element satisfying predicate, this eager operation
+    // count element satisfying predicate, this is an eager operation
     template<typename Predicate>
-    size_t count(Predicate&& pred) const {
+    size_t count(Predicate pred) const {
         size_t c = 0;
         m_actual_container.foreach_imp([&c, pred](typename Container::const_reference_type el) {
             c += (pred(el) ? 1 : 0); return true; });
         return c;
     }
+
+    // finds if an element is in the container
+    template<typename Predicate>
+    bool contains(Predicate f) const { 
+        bool found = false;
+        m_actual_container.foreach_imp([f, &found](typename Container::const_reference_type el){ 
+            if ( f(el) ) {
+                found = true;
+                return false;
+            } else {
+                return true;
+            }
+            });
+        return found;
+    }
+    // as above, but require identity
+    bool contains(const Stored& x) const { 
+        return contains([x](typename Container::const_reference_type el){ return el == x; });
+    }
+
 
     // transform using function provided, this is lazy operation
     template<typename F>
@@ -137,13 +180,14 @@ public:
 
 
     // max and min
+    // TODO provide implementation of MarginalView, not sure if can be implemented efficiencly with howMany != 1
     template<typename KeyExtractor>
-    auto max(KeyExtractor by, size_t howMany) const {
-        return MarginalView<Container, KeyExtractor>(m_actual_container, by, max_elements);
+    auto max(KeyExtractor by, size_t n) const {
+        return MarginalView<Container, KeyExtractor>(m_actual_container, by, n, max_elements);
     }
     template<typename KeyExtractor>
-    auto min(KeyExtractor by, size_t howMany) const {
-        return MarginalView<Container, KeyExtractor>(m_actual_container, by, min_elements);
+    auto min(KeyExtractor by, size_t n) const {
+        return MarginalView<Container, KeyExtractor>(m_actual_container, by, n, min_elements);
     }
 
 
@@ -154,7 +198,7 @@ public:
     }
 
     // combine pairwise
-    // TODO provide implementation
+    // TODO provide implementation (so far no idea how to do it)
     template<typename Other>
     auto zip(const Other& c) const {
         static_assert(true, "zip implementation is missing");
@@ -175,29 +219,59 @@ public:
         return s;
     }
     // accumulate, function us used as: total = f(total, element), also take starting element
-    template<typename F>
-    auto accumulate(F f, Stored unit = {}) const {
-        Stored s = unit;
-        m_actual_container.foreach_imp([&s, f](auto el) { s = f(s, el);  return true; });
+    template<typename F, typename R>
+    auto accumulate(F f, R initial = {}) const {
+        static_assert( std::is_same<R, typename std::invoke_result<F, R, typename Container::const_reference_type>::type>::value, "function return type different than initial value");
+        R s = initial;
+        m_actual_container.foreach_imp([&s, f](const auto& el) { s = f(s, el);  return true; });
         return s;
     }
 
-    // access
+    // access by index
+    // TODO, move to a reference, return std::optional
     virtual auto element_at(size_t  n) const -> Stored {
         Stored temp;
         size_t i = 0;
-        m_actual_container.foreach_imp([&temp, n, &i](auto el) {
+        m_actual_container.foreach_imp([&temp, n, &i](const auto& el) {
             if (i == n) {
                 temp = el;
-                //                std::cout << " element at " << n << "/" << i << " -> " << el << std::endl;
                 return false;
             }
             i++;
             return true;
             });
-        //        std::cout << " element at out " << n << " -> " << temp << std::endl;
         return temp;
     }
+    // first element satisfying predicate
+    template<typename Predicate>
+    auto first_of(Predicate f) const -> Stored { 
+        Stored temp;
+        m_actual_container.foreach_imp([&temp, f](auto& el) {
+            if ( f(el) ) {
+                temp = el;
+                return false;
+            }
+            return true;
+            });
+        return temp;
+    }
+    // returns an index of first element satisfying the predicate
+    template<typename Predicate>
+    size_t first_of_index(Predicate f) const { 
+        Stored temp;
+        size_t i = 0;
+        size_t found = lfv::invalid_index;
+        m_actual_container.foreach_imp([&i, f, &found](auto& el) {
+            if ( f(el) ) {
+                found = i;
+                return false;
+            }
+            ++i;
+            return true;
+            });
+        return temp;
+    }
+
 
     // back to regular vector
     template<typename R>
@@ -239,7 +313,7 @@ public:
         m_filterOp(f) {};
 
     template<typename F>
-    void foreach_imp(F&& f) const {
+    void foreach_imp(F f) const {
         m_foreach_imp_provider.foreach_imp([f, this](auto el) {
             if (this->m_filterOp(el)) {
                 const bool go = f(el);
@@ -269,7 +343,7 @@ public:
         m_keyExtractor(f) {};
 
     template<typename F>
-    void foreach_imp(F&& f) const {
+    void foreach_imp(F f) const {
         std::vector< std::reference_wrapper<const value_type>> lookup;
         m_foreach_imp_provider.foreach_imp([&lookup](const_reference_type el) { lookup.push_back(std::cref(el)); return true; });
         auto sorter = [this](auto a, auto b) { return m_keyExtractor(a) < m_keyExtractor(b); };
@@ -303,7 +377,7 @@ public:
         m_mappingOp(m) {};
 
     template<typename F>
-    void foreach_imp(F&& f) const {
+    void foreach_imp(F f) const {
         m_foreach_imp_provider.foreach_imp([f, this](auto el) {
             const bool go = f(m_mappingOp(el));
             if (not go)
@@ -333,7 +407,7 @@ public:
         m_logic(l) {}
 
     template<typename F>
-    void foreach_imp(F&& f) const {
+    void foreach_imp(F f) const {
         size_t n = 0;
         m_foreach_imp_provider.foreach_imp([f, &n, this](auto el) {
             const bool needed = n % m_stride == 0
@@ -369,12 +443,9 @@ public:
         m_foreach_imp_provider(c),
         m_offset(offset) {}
 
-    // virtual auto element_at(size_t  n) const -> value_type override final {
-    //     static_assert(false, "elements access not possible for enumerated container");
-    // }
 
     template<typename F>
-    void foreach_imp(F&& f) const {
+    void foreach_imp(F f) const {
         size_t index = m_offset;
         m_foreach_imp_provider.foreach_imp([f, &index](auto el) {
             const bool go = f(lfv::indexed(index, el));
@@ -405,7 +476,7 @@ public:
         m_logic(l) {};
 
     template<typename F>
-    void foreach_imp(F&& f) const {
+    void foreach_imp(F f) const {
         bool take = m_logic == take_elements;
         bool need_deciding = true; // to save on  calling to f once decided
         m_foreach_imp_provider.foreach_imp([f, &take, &need_deciding, this](auto el) {
@@ -451,8 +522,9 @@ public:
         : FunctionalInterface<ChainView<Container1, Container2>, value_type>(*this),
         m_foreach_imp_provider1(c1),
         m_foreach_imp_provider2(c2) {}
+
     template<typename F>
-    void foreach_imp(F&& f) const {
+    void foreach_imp(F f) const {
         bool need_to_access_second_container = true;
         m_foreach_imp_provider1.foreach_imp([f, &need_to_access_second_container](auto el) {
             const bool go = f(el);
@@ -492,10 +564,9 @@ public:
         : FunctionalInterface<container, value_type>(*this), m_data(m) {}
 
     template<typename F>
-    void foreach_imp(F&& f) const {
+    void foreach_imp(F f) const {
         for (const auto& el : m_data) {
             const bool go = f(el);
-            //            std::cout << "DirectView::foreach_imp " << el << " " << go << "\n";
             if (not go)
                 break;
         }
@@ -530,7 +601,7 @@ public:
 
     void insert(const_reference_type d) { m_data.push_back(d); }
     template<typename F>
-    void foreach_imp(F&& f) const {
+    void foreach_imp(F f) const {
         for (const auto& el : m_data) {
             const bool go = f(el);
             if (not go)
@@ -560,7 +631,7 @@ public:
         : FunctionalInterface<container, value_type>(*this) {}
     void insert(const_reference_type d) { m_data.push_back(d); }
     template<typename F>
-    void foreach_imp(F&& f) const {
+    void foreach_imp(F f) const {
         for (const auto& el : m_data) {
             const bool go = f(el);
             if (not go)

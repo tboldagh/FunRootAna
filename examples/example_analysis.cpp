@@ -1,3 +1,8 @@
+// Copyright 2022, Tomasz Bold
+// https://github.com/tboldagh/FunRootAna
+// Distributed under the MIT License
+// (See accompanying file LICENSE file)
+
 /*
     This is an example analysis code.
     In real life this code shoudl be split into several files (one "responsibility" in each).

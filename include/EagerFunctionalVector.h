@@ -1,3 +1,7 @@
+// Copyright 2022, Tomasz Bold
+// https://github.com/tboldagh/FunRootAna
+// Distributed under the MIT License
+// (See accompanying file LICENSE file)
 #ifndef EagerFunctionalVector_h
 #define EagerFunctionalVector_h
 #include <algorithm>
@@ -7,7 +11,7 @@
 #include <iostream>
 #include <type_traits>
 #include "futils.h"
-#
+
 
 struct StatInfo {
   double count = {};

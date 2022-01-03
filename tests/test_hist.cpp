@@ -1,3 +1,8 @@
+// Copyright 2022, Tomasz Bold
+// https://github.com/tboldagh/FunRootAna
+// Distributed under the MIT License
+// (See accompanying file LICENSE file)
+
 #include "Testing.h"
 #include "TFile.h"
 #include "TSystem.h"

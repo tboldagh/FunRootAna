@@ -1,3 +1,5 @@
+// helper for comparisons, taken from ATLAS experiment at the LHC codebase
+// same author
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
@@ -10,7 +12,6 @@ namespace {
   [[maybe_unused]] bool cmp_eq<double>( double a, double b ) { return std::abs(a - b) < 1.e-6; }
 }
 
-// helper for comparisons, taken from ATLAS experiment at the LHC codebase
 
 class test_failure : public std::runtime_error {
   public:

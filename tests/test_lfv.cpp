@@ -1,3 +1,8 @@
+// Copyright 2022, Tomasz Bold
+// https://github.com/tboldagh/FunRootAna
+// Distributed under the MIT License
+// (See accompanying file LICENSE file)
+
 #include "Testing.h"
 #include "LazyFunctionalVector.h"
 #include <vector>
@@ -21,7 +26,7 @@ void test_type_presentation() {
     VALUE( typeid(z2) == typeid(double) ) EXPECTED( true );
 }
 
-void test_count() {
+void test_count_and_find() {
     std::vector<int> t1({1,19,4});
     auto vt1 = lazy(t1);
     VALUE( vt1.size() ) EXPECTED (3 );
@@ -33,6 +38,17 @@ void test_count() {
     VALUE( count_never ) EXPECTED (0);
 
     VALUE( vt1.empty() ) EXPECTED ( false );
+
+    VALUE( vt1.contains(2) ) EXPECTED (false);
+    VALUE( vt1.contains(4) ) EXPECTED (true);
+    const bool contains_mod_3 = vt1.contains(F( _ %3 == 0));
+    VALUE( contains_mod_3 ) EXPECTED (false);
+    const bool contains_mod_2 = vt1.contains(F( _ %2 == 0));
+    VALUE( contains_mod_2 ) EXPECTED (true);
+    const bool contains_above_10 = vt1.first_of(F( _ > 10));
+    VALUE( contains_above_10 ) EXPECTED (19);
+    
+
 }
 
 void test_filter() {
@@ -52,10 +68,8 @@ void test_filter() {
     auto ft3 = ft2.filter( F(false)); // impossible filter
     VALUE( ft3.size() ) EXPECTED ( 0 );
     VALUE( ft3.empty() ) EXPECTED ( true );
-
-
-
 }
+
 void test_map() {
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
     auto vt1 = lazy(t1);
@@ -246,7 +260,7 @@ void test_enumerate() {
 int main() {
     const int failed =
       + SUITE(test_type_presentation)
-      + SUITE(test_count)
+      + SUITE(test_count_and_find)
       + SUITE(test_filter)
       + SUITE(test_map)
       + SUITE(test_filter_map)

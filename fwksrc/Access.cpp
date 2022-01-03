@@ -1,3 +1,7 @@
+// Copyright 2022, Tomasz Bold
+// https://github.com/tboldagh/FunRootAna
+// Distributed under the MIT License
+// (See accompanying file LICENSE file)
 #include "Access.h"
 
 #include <string>
@@ -5,7 +9,6 @@
 #include <type_traits>
 #include "TTree.h"
 #include "TLeaf.h"
-
 #include "Math/Vector4D.h"
 #include "TLorentzVector.h"
 #include "assure.h"
