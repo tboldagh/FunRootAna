@@ -422,7 +422,7 @@ public:
     template<typename F>
     void foreach_imp(F f) const {
         size_t n = 0;
-        m_foreach_imp_provider.foreach_imp([f, &n, this](auto el) {
+        m_foreach_imp_provider.foreach_imp([f, &n, this](const auto& el) {
             const bool needed = n % m_stride == 0
                 and ((m_logic == take_elements and n < m_elementsToTake)
                     or (m_logic == skip_elements and n >= m_elementsToTake));
@@ -457,7 +457,7 @@ public:
 
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
-        m_foreach_imp_provider.foreach_imp([f](auto el) {
+        m_foreach_imp_provider.foreach_imp([f](const auto& el) {
             const bool go = f(el);
             if (not go)
                 return false;
@@ -488,7 +488,7 @@ public:
     template<typename F>
     void foreach_imp(F f) const {
         size_t index = m_offset;
-        m_foreach_imp_provider.foreach_imp([f, &index](auto el) {
+        m_foreach_imp_provider.foreach_imp([f, &index](const auto& el) {
             const bool go = f(lfv::indexed(index, el));
             //            std::cout << "EnumeratedView " << go << "\n";
             if (not go)
@@ -520,7 +520,7 @@ public:
     void foreach_imp(F f) const {
         bool take = m_logic == take_elements;
         bool need_deciding = true; // to save on  calling to f once decided
-        m_foreach_imp_provider.foreach_imp([f, &take, &need_deciding, this](auto el) {
+        m_foreach_imp_provider.foreach_imp([f, &take, &need_deciding, this](const auto& el) {
             if (need_deciding) {
                 if (m_logic == take_elements) {
                     if (not m_filterOp(el)) {
@@ -567,7 +567,7 @@ public:
     template<typename F>
     void foreach_imp(F f) const {
         bool need_to_access_second_container = true;
-        m_foreach_imp_provider1.foreach_imp([f, &need_to_access_second_container](auto el) {
+        m_foreach_imp_provider1.foreach_imp([f, &need_to_access_second_container](const auto& el) {
             const bool go = f(el);
             if (not go) {
                 need_to_access_second_container = false;
