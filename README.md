@@ -38,6 +38,9 @@ for (Access event(t); event; ++event) {
     HIST2("number_of_x_outliers_above_10_vs_category", ";count;category", 10, 0, 10,  5, -0.5, 4.5).fill( x.count( F( std::fabs(_)>10 ) ), category ); 
     // a super complicated plot, 2histogram of number of outliers vs, category
     // and so on .. one line per histogram
+
+    // for symmetry the operator >> also works for plain-old-data types e.g.
+    3.1415 >> HIST1("pi", "where is pi;values", 10, 0, 10);
 }
 ```
 
@@ -45,7 +48,7 @@ As a result of running that code over the TTree, histograms are made and saved i
 
 
 
-# Grouping related info
+# Grouping a related info
 
 Now think that we would like to treat the `x,y,z` as a whole, in the end they represent one object, a point in 3D space. We need to do this with plain Ntuples but if the TTree contains object already then the functionality comes for free.
 So let's make the points look like objects. For that we would need to create a structure to hold the three coordinates together (we can also use the class but we have no reason for it here).
@@ -85,9 +88,9 @@ for (PointsTreeAccess event(t); event; ++event) {
 ```
 
 # The functional container
-A concise set of transformations that get us from the data to the data summary (histogram in this case) is possible thanks to the EagerFunctionalVector.
-It is really a conveniently wrapped `std::vector`. 
-Among many functions it offers, this three are the most important:
+A concise set of transformations that get us from the data to the data summary (histogram in this case) is possible thanks to the Functional Vector wrappers.
+It is really a`std::vector` with extra methods. 
+Among many functions it offers, this three are the most relevant:
 * `map` - that takes function defining the mapping operation i.e. can be as simple as taking attribute of an object or as complicated as ... 
 * `filter` - that produces another container with potentially reduced set of elements
 * reduce - there is several methods in ths category, most commonly used in ROOT analysis are various `fill`
@@ -118,13 +121,15 @@ Other, maybe less commonly used functions, but still good to know about are:
 * ... and couple more.
 
 ## Lazy vs eager evaluation
-Each transformation performed by the EagerFunctionalVector result in another instance of this class.
+The transformations performed  can be evaluated immediately or left till actual histogram filling is needed.  The EagerFunctionalVector features the first approach.
 If the containers are large in your particular problem it may be expensive to make many such copies. 
-Another strategy can be used in this case. That is *lazy* evaluation. In this approach objects crated by every transformation are in fact very lightweight (i.e. no data is copied). Instead of copies, the *recipes* of how to transform the data when it will be needed are kept in these intermediate objects. 
-This functionality is provided by several classes residing in LazyFunctionalVector _(still under development)_.
+Another strategy can be used in this case. That is *lazy* evaluation. In this approach objects crated by every transformation are in fact very lightweight (i.e. no data is copied). 
+Instead, the *recipes* of how to transform the data when it will be needed are kept in these intermediate objects. 
+This functionality is provided by several classes residing in LazyFunctionalVector _(still under some development)_.
 You can switch between one or the other implementation quite conveniently by just changing the include file which you use and rename `wrap` into `lazy`.
+In general the lazy vector starts to beat the eager one in terms of performance with as little as 3 transformations and size of 10 _(an effort top optimise both implementation is ongoing so, it may change)_.
 
-An additional functionality that you should be aware of is the `stage()` method that produces intermediate copy that is operated on by further transformations. 
+In the lazy wrapper there is a `stage()` method that can improve the performance. It produces an intermediate copy that is operated on by further transformations. This way, some transformations can be skipped.
 ```c++
 auto prefiltered = container.filter(F(_.x < 2)).filter(F(_.y >5 )).filter(F(_.r() < 10)).stage(); // skipping stage() would result in filtering operations to be repeated when calculating x
 auto x = prefiltered.map(F(_.x)).sort(F(_.x)).element_at(0); // here, the filtering from the line above does not happen, however the "prefilterd" is still lazy evaluating container
@@ -184,7 +189,6 @@ Input file with the points can be generated using generateTree.C
 Attached makefile should be sufficient to compile this lib, generate the test file and so on.
 # TODO 
 * more tests
-* Move to better implementations of functional container (std::ranges/std::views) or [FTL](https://github.com/ftlorg/ftl).
 * HIST cleanup - remove unnecessary hashing entirely
 
 
