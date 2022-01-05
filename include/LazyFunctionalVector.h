@@ -4,10 +4,11 @@
 // (See accompanying file LICENSE file)
 #ifndef LazyFunctionalVector_h
 #define LazyFunctionalVector_h
+#include <type_traits>
+#include <set>
 
 #include "futils.h"
 #include "EagerFunctionalVector.h"
-#include <type_traits>
 
 
 /*
@@ -40,8 +41,7 @@ template<typename Container, typename Filter> class TakeWhileView;
 template<typename Container1, typename Container2> class ChainView;
 template<typename Container1, typename Container2> class ZipView;
 template<typename Container1, typename Comparator> class SortedView;
-// TODO
-template<typename Container1, typename Comparator> class ExtreamsView;
+template<typename Container1, typename Comparator> class MMView;
 
 
 namespace lfv {
@@ -196,14 +196,13 @@ public:
 
 
     // max and min
-    // TODO provide implementation of ExtreamsView, not sure if can be implemented efficiencly with howMany != 1
     template<typename KeyExtractor = decltype(identity)>
-    auto max(KeyExtractor by = identity, size_t n = 1) const {
-        return ExtreamsView<Container, KeyExtractor>(m_actual_container, by, n, max_elements);
+    auto max(KeyExtractor by = identity) const {
+        return MMView<Container, KeyExtractor>(m_actual_container, by, max_elements);
     }
     template<typename KeyExtractor = decltype(identity)>
-    auto min(KeyExtractor by = identity, size_t n = 1) const {
-        return ExtreamsView<Container, KeyExtractor>(m_actual_container, by, n, min_elements);
+    auto min(KeyExtractor by = identity) const {
+        return MMView<Container, KeyExtractor>(m_actual_container, by, min_elements);
     }
 
 
@@ -312,9 +311,10 @@ public:
         return tmp;
     }
 
+
+
 protected:
     const Container& m_actual_container;
-
 };
 template<typename Container, typename Stored>
 std::function<const Stored& (const Stored& x) > FunctionalInterface<Container, Stored>::identity = [](const Stored& x) { return x; };
@@ -379,6 +379,52 @@ public:
 private:
     const Container& m_foreach_imp_provider;
     KeyExtractor m_keyExtractor;
+};
+
+
+// min max view
+template< typename Container, typename KeyExtractor>
+class MMView : public FunctionalInterface<MMView<Container, KeyExtractor>, typename Container::value_type> {
+public:
+    using value_type = typename Container::value_type;
+    using reference_type = value_type&;
+    using const_reference_type = const value_type&;
+    using compared_type = typename std::remove_const<typename std::remove_reference<typename std::invoke_result<KeyExtractor, const_reference_type>::type>::type>::type;
+
+    MMView(const Container& c, KeyExtractor f, min_max_logic_t logic)
+        : FunctionalInterface<MMView<Container, KeyExtractor>, value_type >(*this),
+        m_actual_container(c),
+        m_keyExtractor(f),
+        m_logic(logic) {};
+
+    template<typename F>
+    void foreach_imp(F f, foreach_instructions how = {}) const {
+        if (m_actual_container.empty()) return;
+        std::vector< compared_type > extremeValue;
+        std::vector< std::reference_wrapper<const value_type> > extremeElement;
+
+        m_actual_container.foreach_imp([&extremeValue, &extremeElement, this](const_reference_type el) {
+            compared_type val = m_keyExtractor(el);
+            if (extremeValue.empty()) {
+                extremeValue.push_back(val);
+                extremeElement.push_back(std::cref(el));
+            }
+            if ((m_logic == max_elements and val >= extremeValue.at(0))
+                or
+                (m_logic == min_elements and val < extremeValue.at(0))) {
+                extremeValue[0] = val;
+                extremeElement[0] = std::cref(el);
+            }
+            return true;
+            }, how);
+
+        f(extremeElement[0].get());
+    };
+    MMView() = delete;
+private:
+    const Container& m_actual_container;
+    KeyExtractor m_keyExtractor;
+    min_max_logic_t m_logic;
 };
 
 
@@ -616,8 +662,6 @@ private:
     const Container2& m_foreach_imp_provider2;
 
 };
-
-
 
 
 template<typename Stored>

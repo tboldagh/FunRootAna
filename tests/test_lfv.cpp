@@ -297,6 +297,22 @@ void test_reversal() {
     VALUE(s2.element_at(0).value()) EXPECTED(-1);
 }
 
+void test_min_max() {
+    std::vector<int> t1({1, 19, 4, 2, 5, -1, 5});
+    auto vt1 = lazy(t1);
+
+
+    auto max1 = vt1.max(F(_));
+    VALUE( max1.contains(19)) EXPECTED(true);
+
+    auto min1 = vt1.min();
+    VALUE( min1.contains(-1)) EXPECTED(true);
+
+    auto min2 = vt1.take(5).skip(2).min();
+    vt1.take(5).skip(2).foreach(S( std::cout << _ <<" "));
+    VALUE( min2.element_at(0).value()) EXPECTED(2);
+
+}
 
 
 int main() {
@@ -312,7 +328,8 @@ int main() {
       + SUITE(test_chain)
       + SUITE(test_sort)
       + SUITE(test_enumerate)
-      + SUITE(test_reversal);
+      + SUITE(test_reversal)
+      + SUITE(test_min_max);
 
     std::cout << ( failed == 0  ? "ALL OK" : "FAILURE" ) << std::endl;
     return failed;
