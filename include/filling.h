@@ -16,8 +16,15 @@
 #include "LazyFunctionalVector.h"
 
 
+// operators to streamline ROOT histograms filling
+// - from PODs
+// - eager functional vectors
+// - lazy functional vectors
+
 // fill from PODs 
 // 0.7 >> hist;
+
+
 void operator >> ( double v, WeightedHist<TH1> & h) {
     h.fill(v);
 }

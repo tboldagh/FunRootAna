@@ -14,6 +14,8 @@
 #include "Weights.h"
 #include "assure.h"
 
+#define USE_INLINE_HISTOGRAMS_CACHE
+
 constexpr uint32_t chash(const char* str) {
   uint32_t seed = 0xd2d84a61;
   for ( const char* c = str; *c != '\0'; ++c )
@@ -118,7 +120,6 @@ private:
 constexpr uint32_t filecoord( const char* file_name, unsigned line) { return chash(file_name) + line ; }
 #define COORD(F, L) HistContext::context_key(filecoord(F, L))
 
-#define USE_INLINE_HISTOGRAMS_CACHE
 
 #ifdef USE_INLINE_HISTOGRAMS_CACHE
 

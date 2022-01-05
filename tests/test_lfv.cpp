@@ -188,7 +188,7 @@ void test_sum_and_accumulate() {
 
 void test_chain() {
     std::vector<int> t1({1,19,4, 2});
-    std::vector<int> t2({5, -1, 5});
+    std::vector<int> t2({5, -1, 3});
     auto vt1 = lazy(t1);
     auto vt2 = lazy(t2);
     auto jt =  vt1.chain(vt2);
@@ -201,21 +201,28 @@ void test_chain() {
     VALUE(ajt.size()) EXPECTED( 4 );
     VALUE(ajt.element_at(0).value()) EXPECTED (19);
     VALUE( ajt.element_at(3).value()) EXPECTED(-1);
+
+    auto r = jt.reverse();
+    VALUE( r.element_at(0).value()) EXPECTED ( 3 );
+
+
 }
 
 
 void test_sort() {
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
     auto vt1 = lazy(t1);
-    auto st1 = vt1.sorted(F(_));
+    auto st1 = vt1.sorted(); // default use values themselves
     VALUE(st1.size()) EXPECTED( t1.size());
     VALUE(st1.element_at(0).value()) EXPECTED( -1);
     VALUE(st1.element_at(1).value()) EXPECTED( 1);
     VALUE(st1.element_at(6).value()) EXPECTED( 19);
 
-    auto rst1 = vt1.sorted(F(-_)); // reverse sort
+    auto rst1 = vt1.sorted(F(-std::abs(_))); // reverse sort
     VALUE(rst1.size()) EXPECTED( t1.size());
     VALUE(rst1.element_at(0).value()) EXPECTED( 19);
+
+
 }
 
 void test_enumerate() {
@@ -242,7 +249,10 @@ void test_enumerate() {
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
     auto vt1 = lazy(t1);
     auto en1 = vt1.enumerate();
-    en1.foreach( S( std::cout << _.index()  << ":" << _.data() << "\n" ));
+    std::cout << "..... ";
+    en1.foreach( S( std::cout << _.index()  << ":" << _.data() << " " ));
+    std::cout << "\n";
+
 
     // }
     VALUE( en1.element_at(0).value().index()) EXPECTED(0);
@@ -250,8 +260,13 @@ void test_enumerate() {
     VALUE( en1.element_at(1).value().index()) EXPECTED(1);
     VALUE( en1.element_at(1).value().data()) EXPECTED(19);
 
+    auto index_greater_than_value = en1.first_of( F( _.index() > _.data() ));
+    VALUE( index_greater_than_value.value().index()) EXPECTED(3);
+    VALUE( index_greater_than_value.value().data()) EXPECTED(2);
+
     // this is failing and needs upgrade of foreach
-    // auto sen1 = en1.sorted(F(_.data()));
+//    auto sen1 = en1.sorted(F(_.get().data()));
+
     // VALUE( sen1.element_at(0).data()) EXPECTED(-1);
     // VALUE( sen1.element_at(0).index()) EXPECTED(6);
 }
@@ -262,12 +277,24 @@ void test_reversal() {
     auto r1 = vt1.reverse();
     VALUE(r1.element_at(0).value()) EXPECTED(5);
 
+    auto last_3 = r1.reverse().take(3).reverse();
+    VALUE(last_3.size()) EXPECTED(3);
+    VALUE(last_3.element_at(0).value()) EXPECTED(5);
+    VALUE(last_3.element_at(1).value()) EXPECTED(-1);
+    VALUE(last_3.element_at(2).value()) EXPECTED(5);
+
+
+
+    auto s1 = r1.sorted();
+    VALUE(s1.element_at(0).value()) EXPECTED(-1);
+
     // double reverse
     auto r2 = r1.reverse();
     VALUE(r2.element_at(1).value()) EXPECTED(19);
 
-    // TODO try sorting 
-
+    // TODO try sorting
+    auto s2 = r2.sorted();
+    VALUE(s2.element_at(0).value()) EXPECTED(-1);
 }
 
 

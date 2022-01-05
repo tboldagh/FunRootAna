@@ -86,24 +86,28 @@ namespace {
 template<typename Container, typename Stored>
 class FunctionalInterface {
 public:
+    using value_type = Stored;
+    using const_reference_type = const value_type&;
+    static std::function<const_reference_type(const_reference_type) > identity;
+
     FunctionalInterface(const Container& cont) : m_actual_container(cont) {}
 
     // invoke function on each element of the container
     template<typename F>
     void foreach(F f) const {
-        m_actual_container.foreach_imp([f](auto el) { f(el); return true; });
+        m_actual_container.foreach_imp([f](const_reference_type el) { f(el); return true; });
     }
 
     // count of elements, this is an eager operation
     virtual size_t size() const {
         size_t c = 0;
-        m_actual_container.foreach_imp([&c](typename Container::const_reference_type) { c++; return true;});
+        m_actual_container.foreach_imp([&c](const_reference_type) { c++; return true;});
         return c;
     }
 
     virtual bool empty() const {
         size_t c = 0;
-        m_actual_container.foreach_imp([&c](typename Container::const_reference_type) { c++; return false;});
+        m_actual_container.foreach_imp([&c](const_reference_type) { c++; return false;});
         return c == 0;
     }
 
@@ -112,7 +116,7 @@ public:
     template<typename Predicate>
     size_t count(Predicate pred) const {
         size_t c = 0;
-        m_actual_container.foreach_imp([&c, pred](typename Container::const_reference_type el) {
+        m_actual_container.foreach_imp([&c, pred](const_reference_type el) {
             c += (pred(el) ? 1 : 0); return true; });
         return c;
     }
@@ -121,7 +125,7 @@ public:
     template<typename Predicate>
     bool contains(Predicate f) const {
         bool found = false;
-        m_actual_container.foreach_imp([f, &found](typename Container::const_reference_type el) {
+        m_actual_container.foreach_imp([f, &found](const_reference_type el) {
             if (f(el)) {
                 found = true;
                 return false;
@@ -133,8 +137,8 @@ public:
         return found;
     }
     // as above, but require identity
-    bool contains(const Stored& x) const {
-        return contains([x](typename Container::const_reference_type el) { return el == x; });
+    bool contains(const_reference_type x) const {
+        return contains([x](const_reference_type el) { return el == x; });
     }
 
 
@@ -151,8 +155,8 @@ public:
     }
 
     // sort according to the key extractor @arg f, this is lazy operation
-    template<typename F >
-    auto sorted(F f) const {
+    template<typename F = decltype(identity)>
+    auto sorted(F f = identity) const {
         return SortedView<Container, F>(m_actual_container, f);
     }
 
@@ -183,7 +187,7 @@ public:
     // creates intermediate container to speed following up operations, typically useful after sorting
     auto stage() const -> OwningView<Stored> {
         OwningView<Stored> c;
-        m_actual_container.foreach_imp([&c](auto el) { c.insert(el); return true; });
+        m_actual_container.foreach_imp([&c](const_reference_type el) { c.insert(el); return true; });
         return c;
     }
     auto reverse() const {
@@ -193,12 +197,12 @@ public:
 
     // max and min
     // TODO provide implementation of ExtreamsView, not sure if can be implemented efficiencly with howMany != 1
-    template<typename KeyExtractor>
-    auto max(KeyExtractor by, size_t n) const {
+    template<typename KeyExtractor = decltype(identity)>
+    auto max(KeyExtractor by = identity, size_t n = 1) const {
         return ExtreamsView<Container, KeyExtractor>(m_actual_container, by, n, max_elements);
     }
-    template<typename KeyExtractor>
-    auto min(KeyExtractor by, size_t n) const {
+    template<typename KeyExtractor = decltype(identity)>
+    auto min(KeyExtractor by = identity, size_t n = 1) const {
         return ExtreamsView<Container, KeyExtractor>(m_actual_container, by, n, min_elements);
     }
 
@@ -223,28 +227,29 @@ public:
         static_assert(true, "compare implementation is missing");
     }
 
-
     // sum
-    Stored sum() const {
+    template<typename F = decltype(identity)>
+    Stored sum(F f = identity) const {
         Stored s = {};
-        m_actual_container.foreach_imp([&s](auto el) { s = s + el; return true; });
+        m_actual_container.foreach_imp([&s, f](const_reference_type el) { s = s + f(el); return true; });
         return s;
     }
+
     // accumulate, function us used as: total = f(total, element), also take starting element
     template<typename F, typename R>
     auto accumulate(F f, R initial = {}) const {
         static_assert(std::is_same<R, typename std::invoke_result<F, R, typename Container::const_reference_type>::type>::value, "function return type different than initial value");
         R s = initial;
-        m_actual_container.foreach_imp([&s, f](const auto& el) { s = f(s, el);  return true; });
+        m_actual_container.foreach_imp([&s, f](const_reference_type el) { s = f(s, el);  return true; });
         return s;
     }
 
     // access by index
     // TODO, move to a reference, return std::optional
-    virtual auto element_at(size_t  n) const -> std::optional<Stored> {
-        std::optional<Stored> temp = {};
+    virtual auto element_at(size_t  n) const -> std::optional<value_type> {
+        std::optional<value_type> temp = {};
         size_t i = 0;
-        m_actual_container.foreach_imp([&temp, n, &i](const auto& el) {
+        m_actual_container.foreach_imp([&temp, n, &i](const_reference_type el) {
             if (i == n) {
                 temp = el;
                 return false;
@@ -257,9 +262,9 @@ public:
 
     // first element satisfying predicate
     template<typename Predicate>
-    auto first_of(Predicate f) const -> std::optional<Stored> {
-        std::optional<Stored> temp = {};
-        m_actual_container.foreach_imp([&temp, f](auto& el) {
+    auto first_of(Predicate f) const -> std::optional<value_type> {
+        std::optional<value_type> temp = {};
+        m_actual_container.foreach_imp([&temp, f](const_reference_type el) {
             if (f(el)) {
                 temp = el;
                 return false;
@@ -274,7 +279,7 @@ public:
     std::optional<size_t> first_of_index(Predicate f) const {
         size_t i = 0;
         std::optional<size_t> found;
-        m_actual_container.foreach_imp([&i, f, &found](auto& el) {
+        m_actual_container.foreach_imp([&i, f, &found](const_reference_type el) {
             if (f(el)) {
                 found = i;
                 return false;
@@ -289,21 +294,21 @@ public:
     // back to regular vector
     template<typename R>
     void push_back_to(R& result) const {
-        m_actual_container.foreach_imp([&result](auto el) {
+        m_actual_container.foreach_imp([&result](const_reference_type el) {
             result.push_back(el); return true;
             });
     }
 
     template<typename R>
     void insert_to(R& result) const {
-        m_actual_container.foreach_imp([&result](auto el) {
+        m_actual_container.foreach_imp([&result](const_reference_type el) {
             result.insert(el); return true;
             });
     }
     // to non-lazy implementation
-    EagerFunctionalVector<Stored> as_eager() const {
+    EagerFunctionalVector<value_type> as_eager() const {
         EagerFunctionalVector<Stored> tmp;
-        m_actual_container.foreach([&tmp](auto el) { tmp.__push_back(el); return true; });
+        m_actual_container.foreach([&tmp](const_reference_type el) { tmp.__push_back(el); return true; });
         return tmp;
     }
 
@@ -311,6 +316,9 @@ protected:
     const Container& m_actual_container;
 
 };
+template<typename Container, typename Stored>
+std::function<const Stored& (const Stored& x) > FunctionalInterface<Container, Stored>::identity = [](const Stored& x) { return x; };
+
 
 // provides view of subset of element which satisfy the predicate
 template< typename Container, typename Filter>
@@ -326,15 +334,15 @@ public:
         m_filterOp(f) {};
 
     template<typename F>
-    void foreach_imp(F f) const {
-        m_foreach_imp_provider.foreach_imp([f, this](auto el) {
+    void foreach_imp(F f, foreach_instructions how = {}) const {
+        m_foreach_imp_provider.foreach_imp([f, this](const_reference_type el) {
             if (this->m_filterOp(el)) {
                 const bool go = f(el);
                 if (not go)
                     return false;
             }
             return true;
-            });
+            }, how);
     };
     FilteredView() = delete;
 private:
@@ -356,9 +364,9 @@ public:
         m_keyExtractor(f) {};
 
     template<typename F>
-    void foreach_imp(F f) const {
+    void foreach_imp(F f, foreach_instructions how = {}) const {
         std::vector< std::reference_wrapper<const value_type>> lookup;
-        m_foreach_imp_provider.foreach_imp([&lookup](const_reference_type el) { lookup.push_back(std::cref(el)); return true; });
+        m_foreach_imp_provider.foreach_imp([&lookup](const_reference_type el) { lookup.push_back(std::cref(el)); return true; }, how);
         auto sorter = [this](auto a, auto b) { return m_keyExtractor(a) < m_keyExtractor(b); };
         std::sort(std::begin(lookup), std::end(lookup), sorter);
         for (auto ref : lookup) {
@@ -390,13 +398,13 @@ public:
         m_mappingOp(m) {};
 
     template<typename F>
-    void foreach_imp(F f) const {
-        m_foreach_imp_provider.foreach_imp([f, this](auto el) {
+    void foreach_imp(F f, foreach_instructions how = {}) const {
+        m_foreach_imp_provider.foreach_imp([f, this](const auto& el) {
             const bool go = f(m_mappingOp(el));
             if (not go)
                 return false;
             return true;
-            });
+            }, how);
     }
     MappedView() = delete;
 private:
@@ -420,9 +428,9 @@ public:
         m_logic(l) {}
 
     template<typename F>
-    void foreach_imp(F f) const {
+    void foreach_imp(F f, foreach_instructions how = {}) const {
         size_t n = 0;
-        m_foreach_imp_provider.foreach_imp([f, &n, this](const auto& el) {
+        m_foreach_imp_provider.foreach_imp([f, &n, this](const_reference_type el) {
             const bool needed = n % m_stride == 0
                 and ((m_logic == take_elements and n < m_elementsToTake)
                     or (m_logic == skip_elements and n >= m_elementsToTake));
@@ -433,7 +441,7 @@ public:
             }
             n++;
             return true;
-            });
+            }, how);
     }
 private:
     const Container& m_foreach_imp_provider;
@@ -486,16 +494,15 @@ public:
 
 
     template<typename F>
-    void foreach_imp(F f) const {
+    void foreach_imp(F f, foreach_instructions how = {}) const {
         size_t index = m_offset;
         m_foreach_imp_provider.foreach_imp([f, &index](const auto& el) {
             const bool go = f(lfv::indexed(index, el));
-            //            std::cout << "EnumeratedView " << go << "\n";
             if (not go)
                 return false;
             ++index;
             return true;
-            });
+            }, how);
     }
 private:
     const Container& m_foreach_imp_provider;
@@ -517,10 +524,10 @@ public:
         m_logic(l) {};
 
     template<typename F>
-    void foreach_imp(F f) const {
+    void foreach_imp(F f, foreach_instructions how = {}) const {
         bool take = m_logic == take_elements;
         bool need_deciding = true; // to save on  calling to f once decided
-        m_foreach_imp_provider.foreach_imp([f, &take, &need_deciding, this](const auto& el) {
+        m_foreach_imp_provider.foreach_imp([f, &take, &need_deciding, this](const_reference_type el) {
             if (need_deciding) {
                 if (m_logic == take_elements) {
                     if (not m_filterOp(el)) {
@@ -541,7 +548,7 @@ public:
                     return false;
             }
             return true;
-            });
+            }, how);
     };
     TakeWhileView() = delete;
 private:
@@ -565,24 +572,44 @@ public:
         m_foreach_imp_provider2(c2) {}
 
     template<typename F>
-    void foreach_imp(F f) const {
+    void foreach_imp(F f, foreach_instructions how = {}) const {
         bool need_to_access_second_container = true;
-        m_foreach_imp_provider1.foreach_imp([f, &need_to_access_second_container](const auto& el) {
-            const bool go = f(el);
-            if (not go) {
-                need_to_access_second_container = false;
-                return false;
-            }
-            return true;
-            });
-        if (not need_to_access_second_container) return;
-        m_foreach_imp_provider2.foreach_imp([f](auto el) {
-            const bool go = f(el);
-            if (not go) {
-                return false;
-            }
-            return true;
-            });
+        if (how.order == reverse) {
+            m_foreach_imp_provider2.foreach_imp([f, &need_to_access_second_container](auto el) {
+                const bool go = f(el);
+                if (not go) {
+                    need_to_access_second_container = false;
+                    return false;
+                }
+                return true;
+                }, how);
+            if (not need_to_access_second_container) return;
+            m_foreach_imp_provider1.foreach_imp([f](const_reference_type el) {
+                const bool go = f(el);
+                if (not go) {
+                    return false;
+                }
+                return true;
+                }, how);
+        }
+        else {
+            m_foreach_imp_provider1.foreach_imp([f, &need_to_access_second_container](const_reference_type el) {
+                const bool go = f(el);
+                if (not go) {
+                    need_to_access_second_container = false;
+                    return false;
+                }
+                return true;
+                }, how);
+            if (not need_to_access_second_container) return;
+            m_foreach_imp_provider2.foreach_imp([f](auto el) {
+                const bool go = f(el);
+                if (not go) {
+                    return false;
+                }
+                return true;
+                }, how);
+        }
     }
 private:
     const Container1& m_foreach_imp_provider1;
