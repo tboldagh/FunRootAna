@@ -332,6 +332,10 @@ void test_zip() {
     VALUE( z.element_at(0).value().first) EXPECTED( 1 );
     VALUE( z.element_at(0).value().second) EXPECTED( -4 );
 
+    const bool same = vt1.is_same(vt1);
+    const bool diff = vt1.is_same(vt2);
+    VALUE(same) EXPECTED(true);
+    VALUE(diff) EXPECTED(false);
 }
 
 

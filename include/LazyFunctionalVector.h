@@ -52,13 +52,13 @@ namespace {
         T* ptr = nullptr;
         char data[sizeof(T)];
 
-        template<typename U>        
+        template<typename U>
         void insert(const U& el) {
             static_assert(std::is_same<U, T>::value, "one_element_container cant handle plymorphic data");
-            if ( ptr != nullptr ) throw std::runtime_error("one_element_container already has content");
+            if (ptr != nullptr) throw std::runtime_error("one_element_container already has content");
             ptr = new (reinterpret_cast<T*>(data)) T(el);
         }
-        template<typename U>        
+        template<typename U>
         void replace(const U& el) {
             static_assert(std::is_same<U, T>::value, "one_element_container cant handle plymorphic data");
             ptr = new (reinterpret_cast<T*>(data)) T(el);
@@ -248,11 +248,28 @@ public:
         return ZipView<Container, Other>(m_actual_container, c);
     }
 
-    // compare pairwise
-    template<typename Other>
-    auto compare(const Other& c) const {
-        static_assert(true, "compare implementation is missing");
+    // compare pairwise, if the containers have diffrent len,  the comparison is performed only until smaller of the sizes
+    // the comparator obtains a pair from first element is from 1st container, and second from container c
+    template<typename Other, typename Comp>
+    auto is_same(const Other& c, Comp comparator ) const {
+        bool same = true;
+        zip(c).foreach([&same, &comparator](const auto& el) {
+            if ( comparator(el) ) {
+                same = false;
+                return false;
+            }
+            return true;
+            });
+        return same;
     }
+
+    // compare for equality
+    template<typename Other>
+    auto is_same(const Other& c ) const {
+        return is_same(c, []( const auto& el ){ return el.first != el.second; } );
+    }
+
+
 
     // sum
     template<typename F = decltype(identity)>
@@ -450,7 +467,7 @@ public:
             }
             return true;
             }, how);
-        if ( not extremeElement.empty() )
+        if (not extremeElement.empty())
             f(extremeElement.get().get());
     };
     MMView() = delete;
@@ -702,7 +719,7 @@ public:
     using value_type = typename std::pair<const typename Container1::value_type&, const typename Container2::value_type&>;
     using const_value_type = const value_type;
     using const_reference_type = const_value_type&;
-
+    static_assert(has_fast_element_access_tag<Container1>::value or has_fast_element_access_tag<Container2>::value, "At least one container needs to to provide fast element access, consider calling stage() ");
     ZipView(const Container1& c1, const Container2& c2)
         : FunctionalInterface<ZipView<Container1, Container2>, value_type>(*this),
         m_foreach_imp_provider1(c1),
@@ -711,28 +728,29 @@ public:
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
         size_t index = 0;
-        if ( has_fast_element_access_tag<Container2>::value ) {
-            m_foreach_imp_provider1.foreach_imp( [f, &index, this]( typename Container1::const_reference_type el1 ) {
+        if (has_fast_element_access_tag<Container2>::value) {
+            m_foreach_imp_provider1.foreach_imp([f, &index, this](typename Container1::const_reference_type el1) {
                 auto el2 = m_foreach_imp_provider2.element_at(index);
-                if ( el2.has_value() == false ) // reached end cof container 2
+                if (el2.has_value() == false) // reached end cof container 2
                     return false;
-                const bool go = f( std::pair<typename Container1::const_reference_type , typename Container2::const_reference_type>(el1, el2.value()) );
-                if ( not go )
+                const bool go = f(std::pair<typename Container1::const_reference_type, typename Container2::const_reference_type>(el1, el2.value()));
+                if (not go)
                     return false;
-                index ++;
+                index++;
                 return true;
-            }, how );
-        } else {
-            m_foreach_imp_provider2.foreach_imp( [f, &index, this]( typename Container2::const_reference_type el2 ) {
+                }, how);
+        }
+        else {
+            m_foreach_imp_provider2.foreach_imp([f, &index, this](typename Container2::const_reference_type el2) {
                 auto el1 = m_foreach_imp_provider1.element_at(index);
-                if ( el1.has_value() == false ) // reached end cof container 2
+                if (el1.has_value() == false) // reached end cof container 2
                     return false;
-                const bool go = f( std::pair<typename Container1::const_reference_type , typename Container2::const_reference_type>(el1.value(), el2) );
-                if ( not go )
+                const bool go = f(std::pair<typename Container1::const_reference_type, typename Container2::const_reference_type>(el1.value(), el2));
+                if (not go)
                     return false;
-                index ++;
+                index++;
                 return true;
-            }, how );
+                }, how);
         }
     }
 private:
