@@ -24,6 +24,9 @@ void test_type_presentation() {
     auto mt2 = vt1.map(F( _ * 0.1 ));
     decltype(mt2)::value_type z2;
     VALUE( typeid(z2) == typeid(double) ) EXPECTED( true );
+
+    static_assert(has_fast_element_access_tag<int>::value == false);
+    static_assert(has_fast_element_access_tag<DirectView<double>>::value == true);
 }
 
 void test_count_and_find() {
@@ -314,6 +317,23 @@ void test_min_max() {
 
 }
 
+void test_zip() {
+    std::vector<int> t1({1, 19, 4, 2, 5, -1, 5});
+    auto vt1 = lazy(t1);
+
+    std::vector<int> t2({0, -1, -2, -3, -4});
+    auto vt2 = lazy(t2).reverse();    
+    auto z = vt1.zip(vt2);
+    std::cout << "..... ";
+    z.foreach(S( std::cout << _.first << ":" << _.second << ", "));
+    std::cout << "\n";
+
+    VALUE( z.size() ) EXPECTED( std::min(t1.size(), t2.size()));
+    VALUE( z.element_at(0).value().first) EXPECTED( 1 );
+    VALUE( z.element_at(0).value().second) EXPECTED( -4 );
+
+}
+
 
 int main() {
     const int failed =
@@ -329,7 +349,8 @@ int main() {
       + SUITE(test_sort)
       + SUITE(test_enumerate)
       + SUITE(test_reversal)
-      + SUITE(test_min_max);
+      + SUITE(test_min_max)
+      + SUITE(test_zip);
 
     std::cout << ( failed == 0  ? "ALL OK" : "FAILURE" ) << std::endl;
     return failed;

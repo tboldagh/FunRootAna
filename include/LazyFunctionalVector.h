@@ -29,7 +29,6 @@ The foreach takes additional instructions that can be used to optimize it's oper
 */
 
 
-
 template< typename Container, typename Filter> class FilteredView;
 template< typename Container, typename Map> class MappedView;
 template<typename T> class DirectView;
@@ -42,6 +41,34 @@ template<typename Container1, typename Container2> class ChainView;
 template<typename Container1, typename Container2> class ZipView;
 template<typename Container1, typename Comparator> class SortedView;
 template<typename Container1, typename Comparator> class MMView;
+
+namespace {
+    template<typename C> struct has_fast_element_access_tag { static constexpr bool value = false; };
+    template<typename T> struct has_fast_element_access_tag<DirectView<T>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<OwningView<T>> { static constexpr bool value = true; };
+
+    template<typename T>
+    struct one_element_stack_container {
+        T* ptr = nullptr;
+        char data[sizeof(T)];
+
+        template<typename U>        
+        void insert(const U& el) {
+            static_assert(std::is_same<U, T>::value, "one_element_container cant handle plymorphic data");
+            if ( ptr != nullptr ) throw std::runtime_error("one_element_container already has content");
+            ptr = new (reinterpret_cast<T*>(data)) T(el);
+        }
+        template<typename U>        
+        void replace(const U& el) {
+            static_assert(std::is_same<U, T>::value, "one_element_container cant handle plymorphic data");
+            ptr = new (reinterpret_cast<T*>(data)) T(el);
+        }
+        bool empty() const { return ptr == nullptr; }
+
+        T& get() { return *ptr; }
+    };
+}
+
 
 
 namespace lfv {
@@ -69,6 +96,7 @@ namespace lfv {
     std::ostream& operator<<(std::ostream& out, const indexed<T>& i) {
         return out << i.index() << ":" << i.data() << "(" << i.ptr() << ")";
     }
+
 };
 
 namespace {
@@ -213,7 +241,7 @@ public:
     }
 
     // combine pairwise
-    // TODO provide implementation (so far no idea how to do it)
+    // the implementation is suboptimal, that is, it involves inexed access to one of the containers, it is therefore better if one of them is staged
     template<typename Other>
     auto zip(const Other& c) const {
         static_assert(true, "zip implementation is missing");
@@ -246,17 +274,22 @@ public:
     // access by index
     // TODO, move to a reference, return std::optional
     virtual auto element_at(size_t  n) const -> std::optional<value_type> {
-        std::optional<value_type> temp = {};
+        // std::optional<value_type> temp = {};
+//        std::vector<value_type> temp;
+        one_element_stack_container<value_type> temp;
         size_t i = 0;
         m_actual_container.foreach_imp([&temp, n, &i](const_reference_type el) {
             if (i == n) {
-                temp = el;
+                temp.insert(el);
                 return false;
             }
             i++;
             return true;
             });
-        return temp;
+        if (temp.empty())
+            return {};
+        else
+            return temp.get();
     }
 
     // first element satisfying predicate
@@ -400,25 +433,25 @@ public:
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
         if (m_actual_container.empty()) return;
-        std::vector< compared_type > extremeValue;
-        std::vector< std::reference_wrapper<const value_type> > extremeElement;
+        one_element_stack_container< compared_type > extremeValue;
+        one_element_stack_container< std::reference_wrapper<const value_type> > extremeElement;
 
         m_actual_container.foreach_imp([&extremeValue, &extremeElement, this](const_reference_type el) {
             compared_type val = m_keyExtractor(el);
             if (extremeValue.empty()) {
-                extremeValue.push_back(val);
-                extremeElement.push_back(std::cref(el));
+                extremeValue.insert(val);
+                extremeElement.insert(std::cref(el));
             }
-            if ((m_logic == max_elements and val >= extremeValue.at(0))
+            if ((m_logic == max_elements and val >= extremeValue.get())
                 or
-                (m_logic == min_elements and val < extremeValue.at(0))) {
-                extremeValue[0] = val;
-                extremeElement[0] = std::cref(el);
+                (m_logic == min_elements and val < extremeValue.get())) {
+                extremeValue.replace(val);
+                extremeElement.replace(std::cref(el));
             }
             return true;
             }, how);
-
-        f(extremeElement[0].get());
+        if ( not extremeElement.empty() )
+            f(extremeElement.get().get());
     };
     MMView() = delete;
 private:
@@ -661,6 +694,50 @@ private:
     const Container1& m_foreach_imp_provider1;
     const Container2& m_foreach_imp_provider2;
 
+};
+
+template<typename Container1, typename Container2>
+class ZipView : public FunctionalInterface<ZipView<Container1, Container2>, typename std::pair<const typename Container1::value_type&, const typename Container2::value_type&> > {
+public:
+    using value_type = typename std::pair<const typename Container1::value_type&, const typename Container2::value_type&>;
+    using const_value_type = const value_type;
+    using const_reference_type = const_value_type&;
+
+    ZipView(const Container1& c1, const Container2& c2)
+        : FunctionalInterface<ZipView<Container1, Container2>, value_type>(*this),
+        m_foreach_imp_provider1(c1),
+        m_foreach_imp_provider2(c2) {}
+
+    template<typename F>
+    void foreach_imp(F f, foreach_instructions how = {}) const {
+        size_t index = 0;
+        if ( has_fast_element_access_tag<Container2>::value ) {
+            m_foreach_imp_provider1.foreach_imp( [f, &index, this]( typename Container1::const_reference_type el1 ) {
+                auto el2 = m_foreach_imp_provider2.element_at(index);
+                if ( el2.has_value() == false ) // reached end cof container 2
+                    return false;
+                const bool go = f( std::pair<typename Container1::const_reference_type , typename Container2::const_reference_type>(el1, el2.value()) );
+                if ( not go )
+                    return false;
+                index ++;
+                return true;
+            }, how );
+        } else {
+            m_foreach_imp_provider2.foreach_imp( [f, &index, this]( typename Container2::const_reference_type el2 ) {
+                auto el1 = m_foreach_imp_provider1.element_at(index);
+                if ( el1.has_value() == false ) // reached end cof container 2
+                    return false;
+                const bool go = f( std::pair<typename Container1::const_reference_type , typename Container2::const_reference_type>(el1.value(), el2) );
+                if ( not go )
+                    return false;
+                index ++;
+                return true;
+            }, how );
+        }
+    }
+private:
+    const Container1& m_foreach_imp_provider1;
+    const Container2& m_foreach_imp_provider2;
 };
 
 
