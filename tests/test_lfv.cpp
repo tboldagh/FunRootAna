@@ -339,7 +339,7 @@ void test_zip() {
 }
 
 void test_series() {
-    auto s1 = geometric_seq( 2.5, 2 );
+    auto s1 = geometric_stream( 2.5, 2 );
     auto s1_5 = s1.take(5);
     VALUE( s1_5.size() ) EXPECTED (5);
     auto s1_10 = s1.take(10);
@@ -350,37 +350,39 @@ void test_series() {
     VALUE( s1_5.is_same(s1_10.stage())) EXPECTED( true ); // we compare only first 5 elements
 
 
-    auto s2 = arithmetic_seq(2, 3);
+    auto s2 = arithmetic_stream(2, 3);
     VALUE( s2.element_at(0).value() ) EXPECTED( 2 );
     VALUE( s2.element_at(1).value() ) EXPECTED( 5 );
     VALUE( s2.element_at(2).value() ) EXPECTED( 8 );
 
-    auto ra = range_seq(6, 12);
+    auto ra = range_stream(6, 12);
    VALUE(ra.size() ) EXPECTED(6);
    VALUE(ra.element_at(0).value()) EXPECTED( 6 );
    VALUE(ra.element_at(5).value()) EXPECTED( 11 );
 
     // randoms
-    auto r = crandom_seq();
+    auto r = crandom_stream();
     std::cout << "..... ";
     r.map( F(double(_)/RAND_MAX) ).take_while( F(_ < 0.9 )).stage().foreach(S(std::cout << _ << " "));
     // std::cout << "\n";
 
     // calculate pi for fun
     const size_t npoints = 10000;
-    auto points = crandom_seq().map(F(double(_)/RAND_MAX) ).group( 2 ).take( npoints );
+    auto points = crandom_stream().map(F(double(_)/RAND_MAX) ).group( 2 ).take( npoints );
     size_t points_in = points.map( F(_.map(F(_*_)).sum()) ).filter( F(_<1.0) ).size();
     std::cout << "..... pi " << 4.0*static_cast<double>(points_in)/npoints;
 
-    // TODO
-    // auto pytagorean_distance = point_free<double>().map( F(_.map(F(_*_)).sum()) );
-    // points.map( pytagorean_distance(_) ).filter( F(_<1.0)).size();
+
+    auto rand_to_radius = point_free().map(F(double(_)/RAND_MAX) ).group( 2 ).map( F(_.map(F(_*_)).sum()) );
+
+    crandom_stream().apply(rand_to_radius).filter( F(_<1.0) )
+
 }
 
 
 void test_cartesian() {
-    auto x = range_seq(2, 6);
-    auto y = range_seq(-3, 0);
+    auto x = range_stream(2, 6);
+    auto y = range_stream(-3, 0);
 
     auto z = x.cartesian(y);
     VALUE(z.size()) EXPECTED(12);

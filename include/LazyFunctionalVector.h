@@ -1128,7 +1128,7 @@ public:
         m_stride(stride) {
             if ( m_stride == 0 ) throw std::runtime_error("the stride can be zero");
             if ( m_stride > 0 and m_start > m_stop ) throw std::runtime_error("limits and stride will result in an infinite range");
-//            if ( m_stride < 0 and m_start < m_stop ) throw std::runtime_error("limits and stride will result in an infinite range");
+            if ( m_stride < 0 and m_start < m_stop ) throw std::runtime_error("limits and stride will result in an infinite range");
 
         }
 
@@ -1152,52 +1152,35 @@ private:
 
 
 
-Series<double> geometric_seq(double coeff, double ratio) {
+Series<double> geometric_stream(double coeff, double ratio) {
     return Series<double>([ratio](double c) { return c * ratio; }, coeff);
 }
 
 template<typename T>
-Series<T> arithmetic_seq(T initial, T increment) {
+Series<T> arithmetic_stream(T initial, T increment) {
     return Series<T>([increment](double c) { return c + increment; }, initial);
 }
 
-Series<size_t> iota_seq(size_t initial = 0) {
+Series<size_t> iota_stream(size_t initial = 0) {
     return Series<size_t>([](size_t c) { return c + 1; }, initial);;
 }
 
 
 // random integers using rand from c stdlib
 // @warning - not high quality randomisation
-Series<int> crandom_seq() {
+Series<int> crandom_stream() {
     return Series<int>([](int) { return rand(); }, rand());
 }
 
-
-// range from start to stop -1
+// range from x = begin until x < end
 template<typename T>
-Range<T> range_seq(T begin, T end, T stride = 1) {
+Range<T> range_stream(T begin, T end, T stride = 1) {
     return Range<T>(begin, end, stride);
 }
-
-
 
 template<typename T>
 DirectView<T> lazy(const std::vector<T>& vec) {
     return DirectView(vec);
-}
-
-// TODO
-// creates point free view (the view that needs to be applied later onl to actual data)
-//e.g.
-// auto my_transform = point_free<double>().filter(F(_>5)).map(F(std::sqrt(_)));
-// ...
-//std::vector<double> mydata;
-// ...
-// lazy(data).apply(transform)....
-// lazy(some_other_data).apply(transform)....
-template<typename T>
-auto point_free() {
-
 }
 
 
