@@ -30,6 +30,8 @@ public:
       std::cerr << m_file << ":" << m_line << ": error: Test failed, "
         << " obtained: " << m_value << " expected: " << e << "\n";
       throw test_failure();
+    } else {
+      std::cout << "OK:" << m_line << " ";
     }
   }
   void NOT_EXPECTED(const value_type& e) {
@@ -37,6 +39,8 @@ public:
       std::cerr << m_file << ":" << m_line << ": error: Test failed, "
         << " obtained: " << m_value << " NOT expected: " << e << "\n";
       throw test_failure();
+    } else {
+      std::cout << "OK:" << m_line << " ";
     }
   }
 private:
@@ -52,13 +56,14 @@ constexpr int FAILED = 1;
 
 template<typename F>
 int _SUITE( F f, const char* name ) {
+    std::cout << "... " << name << ": ";
     try { 
         f(); 
     } catch ( const test_failure& e) {       
-      std::cout << "... " << name << " FAILED\n";
+      std::cout << " " << name << " FAIL\n";
         return FAILED;
     }
-    std::cout << "... " << name << " OK\n";
+    std::cout << " "<< name << " SUCCESS\n";
     return ALLOK;
 }
 #define SUITE( f )  _SUITE(f, #f)

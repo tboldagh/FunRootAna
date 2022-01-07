@@ -20,7 +20,9 @@ void randfill(std::vector<double>& v) {
 
 template<typename V>
 double filter_map_sum(const V& v) {
+
     double result = v.filter(F(_ < 0.5)).map(F(_ + 1)).sum();
+
     return result;
 }
 

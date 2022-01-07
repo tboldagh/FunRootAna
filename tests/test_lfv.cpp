@@ -338,6 +338,59 @@ void test_zip() {
     VALUE(diff) EXPECTED(false);
 }
 
+void test_series() {
+    auto s1 = geometric_seq( 2.5, 2 );
+    auto s1_5 = s1.take(5);
+    VALUE( s1_5.size() ) EXPECTED (5);
+    auto s1_10 = s1.take(10);
+    VALUE( s1_10.size() ) EXPECTED (10);
+
+    VALUE(s1_5.element_at(0).value()) EXPECTED( 2.5 );
+    VALUE(s1_5.element_at(1).value()) EXPECTED( 5.0 );
+    VALUE( s1_5.is_same(s1_10.stage())) EXPECTED( true ); // we compare only first 5 elements
+
+
+    auto s2 = arithmetic_seq(2, 3);
+    VALUE( s2.element_at(0).value() ) EXPECTED( 2 );
+    VALUE( s2.element_at(1).value() ) EXPECTED( 5 );
+    VALUE( s2.element_at(2).value() ) EXPECTED( 8 );
+
+    auto ra = range_seq(6, 12);
+   VALUE(ra.size() ) EXPECTED(6);
+   VALUE(ra.element_at(0).value()) EXPECTED( 6 );
+   VALUE(ra.element_at(5).value()) EXPECTED( 11 );
+
+    // randoms
+    auto r = crandom_seq();
+    std::cout << "..... ";
+    r.map( F(double(_)/RAND_MAX) ).take_while( F(_ < 0.9 )).stage().foreach(S(std::cout << _ << " "));
+    // std::cout << "\n";
+
+    // calculate pi for fun
+    const size_t npoints = 10000;
+    auto points = crandom_seq().map(F(double(_)/RAND_MAX) ).group( 2 ).take( npoints );
+    size_t points_in = points.map( F(_.map(F(_*_)).sum()) ).filter( F(_<1.0) ).size();
+    std::cout << "..... pi " << 4.0*static_cast<double>(points_in)/npoints;
+
+    // TODO
+    // auto pytagorean_distance = point_free<double>().map( F(_.map(F(_*_)).sum()) );
+    // points.map( pytagorean_distance(_) ).filter( F(_<1.0)).size();
+}
+
+
+void test_cartesian() {
+    auto x = range_seq(2, 6);
+    auto y = range_seq(-3, 0);
+
+    auto z = x.cartesian(y);
+    VALUE(z.size()) EXPECTED(12);
+    z.foreach( S( std::cout << _.first << ":" << _.second << ", "));
+    auto permanent = z.map( F( std::make_pair(_.first, _.second) ));
+    // TODO fix an issue with element access and stage ( issue is in use of pair<&,&> which is evaporative)
+    VALUE( permanent.element_at(0).value().first ) EXPECTED(2);
+    VALUE( permanent.element_at(0).value().second ) EXPECTED(-3);
+
+}
 
 int main() {
     const int failed =
@@ -354,7 +407,9 @@ int main() {
       + SUITE(test_enumerate)
       + SUITE(test_reversal)
       + SUITE(test_min_max)
-      + SUITE(test_zip);
+      + SUITE(test_zip)
+      + SUITE(test_series)
+      + SUITE(test_cartesian);
 
     std::cout << ( failed == 0  ? "ALL OK" : "FAILURE" ) << std::endl;
     return failed;

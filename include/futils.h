@@ -7,8 +7,11 @@
 
 
 // macro generating generic, single agument, returning lambda
-// example use: filter( F(_ < 0)) - the _ is the lambda argument
-#define F(CODE) [&](const auto &_) { return CODE; }
+// example use: filter( F(_ < 0)) - the _ is the lambda argument, the function is pure (i.e. sees no outer scope), if that is needed use C
+#define F(CODE) [](const auto &_) { return CODE; }
+
+// closure, like function but see outer scope by reference (can change external variables)
+#define C(CODE) [&](const auto &_) { return CODE; }
 
 // subroutine (nothing is returned)
 #define S(CODE) [&](const auto &_) { CODE; }
