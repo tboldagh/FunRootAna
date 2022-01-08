@@ -371,12 +371,6 @@ void test_series() {
     auto points = crandom_stream().map(F(double(_)/RAND_MAX) ).group( 2 ).take( npoints );
     size_t points_in = points.map( F(_.map(F(_*_)).sum()) ).filter( F(_<1.0) ).size();
     std::cout << "..... pi " << 4.0*static_cast<double>(points_in)/npoints;
-
-
-    auto rand_to_radius = point_free().map(F(double(_)/RAND_MAX) ).group( 2 ).map( F(_.map(F(_*_)).sum()) );
-
-    crandom_stream().apply(rand_to_radius).filter( F(_<1.0) )
-
 }
 
 

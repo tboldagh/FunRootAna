@@ -25,85 +25,85 @@
 // 0.7 >> hist;
 
 
-void operator >> ( double v, WeightedHist<TH1> & h) {
-    h.fill(v);
+void operator >> ( double v, TH1 & h) {
+    h.Fill(v);
 }
 
 template<typename T, typename U>
-void operator >> ( const std::pair<T,U>& v, WeightedHist<TH2> & h) {
-    h.fill(v.first, v.second);
+void operator >> ( const std::pair<T,U>& v, TH2 & h) {
+    h.Fill(v.first, v.second);
 }
 
 template<typename T, typename U>
-void operator >> ( const std::pair<T,U>& v, WeightedHist<TProfile> & h) {
-    h.fill(v.first, v.second);
+void operator >> ( const std::pair<T,U>& v, TProfile & h) {
+    h.Fill(v.first, v.second);
 }
 
 template<typename T>
-void operator >> ( const std::pair<bool,T>& v, WeightedHist<TEfficiency> & h) {
-    h.fill(v.first, v.second);
+void operator >> ( const std::pair<bool,T>& v, TEfficiency & h) {
+    h.Fill(v.first, v.second);
 }
 
 // fill with the weight
 template<typename T, typename U>
-void operator >> ( const std::pair<T,U>& v, WeightedHist<TH1> & h) {
-    h.fill(v.first, v.second);
+void operator >> ( const std::pair<T,U>& v, TH1 & h) {
+    h.Fill(v.first, v.second);
 }
 
 template<typename T, typename U, typename V>
-void operator >> ( const triple<T,U,V>& v, WeightedHist<TH2> & h) {
-    h.fill(v.first, v.second, v.third);
+void operator >> ( const triple<T,U,V>& v, TH2 & h) {
+    h.Fill(v.first, v.second, v.third);
 }
 
 template<typename T, typename U, typename V>
-void operator >> ( const triple<T,U,V>& v, WeightedHist<TProfile> & h) {
-    h.fill(v.first, v.second, v.third);
+void operator >> ( const triple<T,U,V>& v, TProfile & h) {
+    h.Fill(v.first, v.second, v.third);
 }
 template<typename T, typename U>
-void operator >> ( const triple<bool,T,U>& v, WeightedHist<TEfficiency> & h) {
-    h.fill(v.first, v.second, v.third);
+void operator >> ( const triple<bool,T,U>& v, TEfficiency & h) {
+    h.Fill(v.first, v.second, v.third);
 }
 
 
 // Eager vector fill API
 template<typename T>
-void operator >> ( const EagerFunctionalVector<T>& v, WeightedHist<TH1> & h) {
+void operator >> ( const EagerFunctionalVector<T>& v, TH1 & h) {
     v.foreach( [&h]( const T& el){ el >> h; } );
 }
 template<typename T>
-void operator >> ( const EagerFunctionalVector<T>& v, WeightedHist<TH2> & h) {
+void operator >> ( const EagerFunctionalVector<T>& v, TH2 & h) {
     v.foreach( [&h]( const T& el){ el >> h; } );
 }
 
 template<typename T>
-void operator >> ( const EagerFunctionalVector<T>& v, WeightedHist<TProfile> & h) {
+void operator >> ( const EagerFunctionalVector<T>& v, TProfile & h) {
     v.foreach( [&h]( const T& el){ el >> h; } );
 }
 
 
 template<typename T>
-void operator >> ( const EagerFunctionalVector<T>& v, WeightedHist<TEfficiency> & h) {
+void operator >> ( const EagerFunctionalVector<T>& v, TEfficiency & h) {
     v.foreach( [&h]( const T& el){ el >> h; } );
 }
 
 // lazy vector
 template<typename A, typename T >
-void operator >> ( const FunctionalInterface<A,T>& v, WeightedHist<TH1> & h) {
+void operator >> ( const FunctionalInterface<A,T>& v, TH1 & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
 }
 
 template<typename A, typename T >
-void operator >> ( const FunctionalInterface<A,T>& v, WeightedHist<TH2> & h) {
+void operator >> ( const FunctionalInterface<A,T>& v, TH2 & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
 }
 
 template<typename A, typename T >
-void operator >> ( const FunctionalInterface<A,T>& v, WeightedHist<TProfile> & h) {
+void operator >> ( const FunctionalInterface<A,T>& v, TProfile & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
 }
 
 template<typename A, typename T >
-void operator >> ( const FunctionalInterface<A,T>& v, WeightedHist<TEfficiency> & h) {
+void operator >> ( const FunctionalInterface<A,T>& v, TEfficiency & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
 }
 

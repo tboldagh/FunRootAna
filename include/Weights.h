@@ -6,26 +6,51 @@
 #define Weights_H
 #include "stdexcept"
 
-struct FillWeight {
+struct Weight {
   static double m_w;
-  static void set( double w) { m_w = w; }
+  static void set(double w) { m_w = w; }
   static double value() { return m_w; }
 };
-struct WeightRAI{
+
+struct MultWeightRAI{
   double _old = {0};
-  WeightRAI(double w) {
-    _old = FillWeight::value();
-    FillWeight::set( _old * w );    
+  MultWeightRAI(double w) {
+    _old = Weight::value();
+    Weight::set( _old * w );    
   }
-  ~WeightRAI() {
-    FillWeight::set(_old);
+  ~MultWeightRAI() {
+    Weight::set(_old);
   }
-  [[nodiscard]] static WeightRAI weight(double w) {
-   return WeightRAI(w);  
+  [[nodiscard]] static MultWeightRAI weight(double w) {
+   return MultWeightRAI(w);  
   }
 };
-#define WEIGHT(_value) auto WEIGHT = WeightRAI::weight(_value);
 
+struct AbsWeightRAI{
+  double _old = {0};
+  AbsWeightRAI(double w) {
+    _old = Weight::value();
+    Weight::set( w );    
+  }
+  ~AbsWeightRAI() {
+    Weight::set(_old);
+  }
+  [[nodiscard]] static AbsWeightRAI weight(double w) {
+   return AbsWeightRAI(w);  
+  }
+};
+
+#define WEIGHT Weight::value()
+#define UPDATE_MULT_WEIGHT(_value) auto _WEIGHT_MULT = MultWeightRAI::weight(_value);
+#define UPDATE_ABS_WEIGHT(_value) auto _WEIGHT_ABS = AbsWeightRAI::weight(_value);
+
+
+// helper to streamline selection from set of values according to a boolean condition
+// e.g use: double value  = option(condA, 0.2)
+//                         .option(condB, 0.3)
+//                         .option(condC, 1.1)
+//                         .option(not condB, 0.9).select();
+// raises, if no condition is satisfied
 template<typename T = double>
 struct Selector {
     Selector<T> option( bool cond, T value) {

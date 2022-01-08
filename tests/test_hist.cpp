@@ -31,39 +31,38 @@ public:
         }
     }
     void test_fill() {
-        WeightRAI w(0.5);
         auto h1 = HIST1("fh1", ";x;y", 3, 0, 3);
-        h1.fill(0.5);
-        h1.fill(0.5);
-        h1.fill(1.5, 1.5);
-        h1.wfill(2.5); // weighted fill using external & global weight
+        h1.Fill(0.5);
+        h1.Fill(0.5);
+        h1.Fill(1.5, 1.5);
+        h1.Fill(2.5, 0.5);
         // fills using operators
         0.5 >> h1;
         1 >> h1;
         // weighted fills using operators
         std::make_pair(0.2, 7) >> h1;
 
-        VALUE(h1->GetEntries()) EXPECTED (7);
-        VALUE(h1->GetBinContent(1)) EXPECTED (10);
-        VALUE(h1->GetBinContent(2)) EXPECTED (2.5);
-        VALUE(h1->GetBinContent(3)) EXPECTED (0.5);
+        VALUE(h1.GetEntries()) EXPECTED (7);
+        VALUE(h1.GetBinContent(1)) EXPECTED (10);
+        VALUE(h1.GetBinContent(2)) EXPECTED (2.5);
+        VALUE(h1.GetBinContent(3)) EXPECTED (0.5);
 
         auto h2 = HIST2("fh2", ";x;y", 3, 0, 3, 3, 0, 3);
-        h2.fill(0.5, 0.5);
-        h2.fill(0.5, 0.5);
-        h2.fill(1.5, 1.5, 0.2);
-        h2.wfill(2.5, 2.5); 
+        h2.Fill(0.5, 0.5);
+        h2.Fill(0.5, 0.5);
+        h2.Fill(1.5, 1.5, 0.2);
+        h2.Fill(2.5, 2.5, 0.5); 
         // fills using operators
         std::make_pair(0.5, 1.5) >> h2;
         make_triple(2.5, 1.5, 2.7) >> h2;
 
 
-        VALUE(h2->GetEntries()) EXPECTED (6);
-        VALUE(h2->GetBinContent(1, 1)) EXPECTED (2);
-        VALUE(h2->GetBinContent(1, 2)) EXPECTED (1);
-        VALUE(h2->GetBinContent(2, 2)) EXPECTED (0.2);
-        VALUE(h2->GetBinContent(3, 3)) EXPECTED (0.5);
-        VALUE(h2->GetBinContent(3, 2)) EXPECTED (2.7);
+        VALUE(h2.GetEntries()) EXPECTED (6);
+        VALUE(h2.GetBinContent(1, 1)) EXPECTED (2);
+        VALUE(h2.GetBinContent(1, 2)) EXPECTED (1);
+        VALUE(h2.GetBinContent(2, 2)) EXPECTED (0.2);
+        VALUE(h2.GetBinContent(3, 3)) EXPECTED (0.5);
+        VALUE(h2.GetBinContent(3, 2)) EXPECTED (2.7);
 
 
         auto ef = EFF1("eff", "", 2, 0, 2);
@@ -81,15 +80,15 @@ public:
     void test_vec_fill( const V& vec) {
         auto h1 = HIST1("eh1", ";x;y", 4, 0, 1);
         vec >> h1;
-        VALUE( h1->GetEntries()) EXPECTED (6);
-        VALUE( h1->GetBinContent(0)) EXPECTED (2); // underflows
-        VALUE( h1->GetBinContent(1)) EXPECTED (1); // 0 - 0.25
+        VALUE( h1.GetEntries()) EXPECTED (6);
+        VALUE( h1.GetBinContent(0)) EXPECTED (2); // underflows
+        VALUE( h1.GetBinContent(1)) EXPECTED (1); // 0 - 0.25
 
         // generate weight
         auto h2 = HIST1("eh2", ";x;y", 4, 0, 1);
         vec.map(F( std::make_pair(_, 1.5))) >> h2;
-        VALUE( h2->GetEntries()) EXPECTED (6);
-        VALUE( h2->GetBinContent(1)) EXPECTED (1.5); // 0 - 0.25
+        VALUE( h2.GetEntries()) EXPECTED (6);
+        VALUE( h2.GetBinContent(1)) EXPECTED (1.5); // 0 - 0.25
 
         auto h3 = HIST2("eh3", ";x;y", 4, 0, 1, 4, 0, 1);
         vec.map(F( std::make_pair(_, 1.5))) >> h3;

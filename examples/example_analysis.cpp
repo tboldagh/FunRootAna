@@ -69,12 +69,14 @@ public:
 
         for (PointsTreeAccess event(t); event; ++event) {
             auto category = event.get<int>("category");
-            HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5).fill(category); // create & fill the histogram, (creation done on demand and only once)
+            category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram, (creation done on demand and only once)
             const auto x = wrap(event.get<std::vector<float>>("x")); // get vector of data & wrap it into a functional style container
             x >> HIST1("x", "x[mm]", 100, 0, 100); // fill the histogram with the x coordinate
             x >> HIST1("x_wide", "x[mm]", 100, 0, 1000); // fill another histogram with the x coordinate
 
-            HIST2("number_of_x_outliers_above_10_vs_category", ";count;category", 10, 0, 10,  5, -0.5, 4.5).fill(x.filter( F( std::fabs(_) ) ).filter( F(_ > 10) ).size(), category); // a super complicated plot, 2D histogram of number of outlayers vs, category
+            std::make_pair(x.filter( F( std::fabs(_) ) ).filter( F(_ > 10) ).size(), category) >> 
+                HIST2("number_of_x_outliers_above_10_vs_category", ";count;category", 10, 0, 10,  5, -0.5, 4.5)
+; // a super complicated plot, 2D histogram of number of outlayers vs, category
 
             auto points = wrap(event.getPoints());
             // let's profit from the fact that we have an object

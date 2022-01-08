@@ -4,7 +4,7 @@
 // (See accompanying file LICENSE file)
 #include "Weights.h"
 
-double FillWeight::m_w = 1.0;
+double Weight::m_w = 1.0;
 
 
 

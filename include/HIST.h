@@ -22,26 +22,7 @@ constexpr uint32_t chash(const char* str) {
     seed = (seed >> 5) + *c + (seed << 7);
   return seed;
 }
-
 typedef uint64_t hcoord;
-
-template<typename HISTCLASS>
-struct WeightedHist {
-
-  HISTCLASS *_h;
-  WeightedHist(HISTCLASS* h) : _h(h) {}
-
-  void wfill(double v) { _h->Fill( v, FillWeight::value()); }
-  void wfill(double v1, double v2) { _h->Fill( v1, v2, FillWeight::value()); }
-  void wfill(double v1, double v2, double v3 ) { _h->Fill( v1, v2, v3, FillWeight::value()); }
-  void fill(double v) { _h->Fill( v ); }
-  void fill(double v1, double v2) { _h->Fill( v1, v2); }
-  void fill(double v1, double v2, double v3 ) { _h->Fill( v1, v2, v3); }
-
-  HISTCLASS* operator->() { return _h; }
-  const HISTCLASS* operator->() const { return _h; }
-
-};
 
 struct HistContext {
   HistContext(const std::string& str)  {
@@ -79,7 +60,7 @@ class HandyHists {
     return h;  
   }
 
-  TH1* h1reg( TH1* h, hcoord place ) {
+  TH1D* h1reg( TH1D* h, hcoord place ) {
     //    assure(true, std::string("Registered histogram: ") +h->ClassName() + " " + h->GetName() + " defined in file::line " +std::to_string(place)  );
     //assure( true, std::string("Registering ") + h->GetName() + " on hash " + std::to_string(place) + " " + std::to_string(reinterpret_cast<uint64_t>(m_h1[place])) + " " + HistContext::current());
 //    assure( m_h1[place] == nullptr, std::string("Already registered histogram ")+ /*m_h1[place]->GetName() +*/ "under the hash " +std::to_string(place) + " new " +h->GetName());
@@ -93,7 +74,7 @@ class HandyHists {
     return h;      
   }
 
-  TH2* h2reg( TH2* h, hcoord place ) {
+  TH2D* h2reg( TH2D* h, hcoord place ) {
 //    assure( m_h2[place] != nullptr, std::string("Already registered histogram "));// + m_h2[place]->GetName() + "under the hash " +std::to_string(place));
     m_h2[place] = reg ( h );    
     return h;      
@@ -108,9 +89,9 @@ class HandyHists {
   void save( const std::string& fname);
   
  protected:
-  std::map<hcoord, TH1*> m_h1;
+  std::map<hcoord, TH1D*> m_h1;
   std::map<hcoord, TEfficiency*> m_eff;    
-  std::map<hcoord, TH2*> m_h2;
+  std::map<hcoord, TH2D*> m_h2;
   std::map<hcoord, TProfile*> m_prof;
 
 private:
@@ -124,7 +105,7 @@ constexpr uint32_t filecoord( const char* file_name, unsigned line) { return cha
 #ifdef USE_INLINE_HISTOGRAMS_CACHE
 
 template<typename H>
-void is_naming_consistent( const std::vector<std::tuple<hcoord, std::string, WeightedHist<H>>>& cache, const char* file, int line ) {
+void is_naming_consistent( const std::vector<std::tuple<hcoord, std::string, H>>& cache, const char* file, int line ) {
   if ( cache.empty() ) return;
   const std::string first_name = std::get<1>(cache.at(0));
   for ( auto & [hashedkey, name, wh]: cache)
@@ -132,7 +113,7 @@ void is_naming_consistent( const std::vector<std::tuple<hcoord, std::string, Wei
 }
 
 // Here be dragons, these macros can be used in methods of the class inherting from HandyHists, 
-// they are capable of exposing histogram (WeightedHist) to be filled and crate it if needed
+// they are capable of exposing histograms to be filled and crate it if needed
 // Each histogram is context aware, that is it has a name that depends on the concatenated contexts (made by HCONTEXT macro)
 // The histogram created in this particular line are cached locally so the lookup (if needed at all) is fast, 
 // therefore this locally generated lambda
@@ -146,105 +127,105 @@ void is_naming_consistent( const std::vector<std::tuple<hcoord, std::string, Wei
 // @warning - ANYHIST registration is not supported
 
 #define HIST1( __NAME,__TITLE,__XBINS,__XMIN,__XMAX ) \
-  ([this]() -> WeightedHist<TH1>& { \
-    static std::vector< std::pair<hcoord, WeightedHist<TH1>>> cache; \
+  ([this]() -> TH1D& { \
+    static std::vector< std::pair<hcoord, TH1D*>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
-      if ( c == current ) return h; \
-    WeightedHist<TH1> newh = this->h1reg ( new TH1D( HistContext::name(__NAME), __TITLE,__XBINS,__XMIN,__XMAX), current); \
+      if ( c == current ) return *h; \
+    TH1D* newh = this->h1reg ( new TH1D( HistContext::name(__NAME), __TITLE,__XBINS,__XMIN,__XMAX), current); \
     cache.emplace_back( current, newh); \
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return cache.back().second; \
+    return *cache.back().second; \
   }())
 
 #define HIST1V( __NAME,__TITLE,__VEC ) \
-  ([this]() -> WeightedHist<TH1>& { \
-    static std::vector< std::pair<hcoord, WeightedHist<TH1>>> cache; \
+  ([this]() -> TH1& { \
+    static std::vector< std::pair<hcoord, TH1*>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
-      if ( c == current ) return h; \
-    WeightedHist<TH1> newh = this->h1reg ( new TH1D( HistContext::name(__NAME),__TITLE,__VEC.size()-1,__VEC.data()), current); \
+      if ( c == current ) return *h; \
+    TH1* newh = this->h1reg ( new TH1D( HistContext::name(__NAME),__TITLE,__VEC.size()-1,__VEC.data()), current); \
     cache.emplace_back( current, newh); \
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return cache.back().second; \
+    return *cache.back().second; \
   }())
 
 
 #define PROF1( __NAME,__TITLE,__XBINS,__XMIN,__XMAX ) \
-  ([this]() -> WeightedHist<TProfile>& { \
-    static std::vector< std::pair<hcoord, WeightedHist<TProfile>>> cache; \
+  ([this]() -> TProfile& { \
+    static std::vector< std::pair<hcoord, TProfile*>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
-      if ( c == current ) return h; \
-    WeightedHist<TProfile> newh = this->profreg ( new TProfile(HistContext::name(__NAME),__TITLE,__XBINS,__XMIN,__XMAX), current); \
+      if ( c == current ) return *h; \
+    TProfile* newh = this->profreg ( new TProfile(HistContext::name(__NAME),__TITLE,__XBINS,__XMIN,__XMAX), current); \
     cache.emplace_back( current, newh); \
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return cache.back().second; \
+    return *cache.back().second; \
   }())
 
 #define PROF1V( __NAME,__TITLE,__VEC ) \
-  ([this]() -> WeightedHist<TProfile>& { \
-    static std::vector< std::pair<hcoord, WeightedHist<TProfile>>> cache; \
+  ([this]() -> TProfile& { \
+    static std::vector< std::pair<hcoord, TProfile*>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
-      if ( c == current ) return h; \
-    WeightedHist<TProfile> newh = this->profreg ( new TProfile(HistContext::name(__NAME),__TITLE,__VEC.size()-1,__VEC.data()), current); \
+      if ( c == current ) return *h; \
+    TProfile* newh = this->profreg ( new TProfile(HistContext::name(__NAME),__TITLE,__VEC.size()-1,__VEC.data()), current); \
     cache.emplace_back( current, newh); \
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return cache.back().second; \
+    return *cache.back().second; \
   }())
 
 
 #define EFF1( __NAME,__TITLE,__XBINS,__XMIN,__XMAX ) \
-  ([&]() -> WeightedHist<TEfficiency>& { \
-    static std::vector< std::pair<hcoord, WeightedHist<TEfficiency>>> cache; \
+  ([&]() -> TEfficiency& { \
+    static std::vector< std::pair<hcoord, TEfficiency*>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
-      if ( c == current ) return h; \
-    WeightedHist<TEfficiency> newh = this->effreg( new TEfficiency(HistContext::name(__NAME),__TITLE,__XBINS,__XMIN,__XMAX), current); \
+      if ( c == current ) return *h; \
+    TEfficiency* newh = this->effreg( new TEfficiency(HistContext::name(__NAME),__TITLE,__XBINS,__XMIN,__XMAX), current); \
     cache.emplace_back( current, newh); \
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return cache.back().second; \
+    return *cache.back().second; \
   }())
 
 
 #define EFF1V( __NAME,__TITLE,__VEC ) \
-  ([&]() -> WeightedHist<TEfficiency>& { \
-    static std::vector< std::pair<hcoord, WeightedHist<TEfficiency>>> cache; \
+  ([&]() -> TEfficiency& { \
+    static std::vector< std::pair<hcoord, TEfficiency*>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
-      if ( c == current ) return h; \
-    WeightedHist<TEfficiency> newh = this->effreg( new TEfficiency(HistContext::name(__NAME),__TITLE,__VEC.size()-1,__VEC.data()), current); \
+      if ( c == current ) return *h; \
+    TEfficiency* newh = this->effreg( new TEfficiency(HistContext::name(__NAME),__TITLE,__VEC.size()-1,__VEC.data()), current); \
     cache.emplace_back( current, newh); \
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return cache.back().second; \
+    return *cache.back().second; \
   }())
 
 
 #define HIST2( __NAME,__TITLE,__XBINS,__XMIN,__XMAX,__YBINS,__YMIN,__YMAX ) \
-  ([&]() -> WeightedHist<TH2>& { \
-    static std::vector< std::pair<hcoord, WeightedHist<TH2>>> cache; \
+  ([&]() -> TH2D& { \
+    static std::vector< std::pair<hcoord, TH2D*>> cache; \
     hcoord current = COORD(__FILE__, __LINE__); \
     for ( auto & [c, h]: cache) \
-      if ( c == current ) return h; \
-    WeightedHist<TH2> newh = this->h2reg( new TH2D( HistContext::name(__NAME),__TITLE,__XBINS,__XMIN,__XMAX,__YBINS,__YMIN,__YMAX ), current); \
+      if ( c == current ) return *h; \
+    TH2D* newh = this->h2reg( new TH2D( HistContext::name(__NAME),__TITLE,__XBINS,__XMIN,__XMAX,__YBINS,__YMIN,__YMAX ), current); \
     cache.emplace_back( current, newh ); \
     static std::string name; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     name = __NAME; \
-    return cache.back().second; \
+    return *cache.back().second; \
   }())
 
 
