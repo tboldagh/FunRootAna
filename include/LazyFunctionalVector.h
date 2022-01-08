@@ -66,6 +66,7 @@ namespace {
     template<typename C> struct has_fast_element_access_tag { static constexpr bool value = false; };
     template<typename T> struct has_fast_element_access_tag<DirectView<T>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<OwningView<T>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<RefView<T>> { static constexpr bool value = true; };
 
     template<typename T>
     struct one_element_stack_container {
@@ -94,29 +95,6 @@ namespace {
 namespace lfv {
     constexpr size_t all_elements = std::numeric_limits<size_t>::max();
     constexpr size_t invalid_index = std::numeric_limits<size_t>::max();
-
-    // TODO avoid copying into this structure
-    template<typename T>
-    class indexed {
-    public:
-        indexed() = default;
-        indexed(size_t i, const T& d) : m_index(i), m_data(d) {}
-        size_t index() const { return m_index; }
-        const T& data() const {
-            if (m_index == invalid_index) throw std::runtime_error("Invalid index");
-            return m_data;
-        }
-        const T* ptr() const { return &m_data; }
-    private:
-        size_t m_index = invalid_index;
-        T m_data;
-    };
-
-    template<typename T>
-    std::ostream& operator<<(std::ostream& out, const indexed<T>& i) {
-        return out << i.index() << ":" << i.data() << "(" << i.ptr() << ")";
-    }
-
 };
 
 
@@ -337,24 +315,21 @@ public:
             i++;
             return true;
             });
-        if (temp.empty())
-            return {};
-        else
-            return temp.get();
+        return temp.empty() ? std::optional<value_type>() : temp.get();
     }
 
     // first element satisfying predicate
     template<typename Predicate>
     auto first_of(Predicate f) const -> std::optional<value_type> {
-        std::optional<value_type> temp = {};
+        one_element_stack_container<value_type> temp;
         m_actual_container.foreach_imp([&temp, f](const_reference_type el) {
             if (f(el)) {
-                temp = el;
+                temp.insert(el);
                 return false;
             }
             return true;
             });
-        return temp;
+        return temp.empty() ? std::optional<value_type>() : temp.get();
     }
 
     // returns an index of first element satisfying the predicate
@@ -688,11 +663,18 @@ private:
 };
 
 
-// TODO, this needs work!
 template<typename Container>
-class EnumeratedView : public FunctionalInterface<EnumeratedView<Container>, lfv::indexed<typename Container::value_type>> {
+struct select_type_for_enumerated_view {
+    using value_type = typename std::conditional< Container::is_permanent,
+        typename Container::const_reference_type,
+        typename Container::value_type
+    >::type;
+    using type = std::pair<size_t, value_type>;
+};
+template<typename Container>
+class EnumeratedView : public FunctionalInterface<EnumeratedView<Container>, typename select_type_for_enumerated_view<Container>::type > {
 public:
-    using value_type = typename lfv::indexed<typename Container::value_type>;
+    using value_type = typename select_type_for_enumerated_view<Container>::type ;
     using const_value_type = const value_type;
     using const_reference_type = const_value_type&;
     using container = FunctionalInterface<Container, value_type>;
@@ -711,7 +693,7 @@ public:
     void foreach_imp(F f, foreach_instructions how = {}) const {
         size_t index = m_offset;
         m_foreach_imp_provider.foreach_imp([f, &index](const auto& el) {
-            const bool go = f(lfv::indexed(index, el));
+            const bool go = f(value_type(index, el));
             if (not go)
                 return false;
             ++index;
