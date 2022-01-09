@@ -250,10 +250,10 @@ void test_enumerate() {
     VALUE( index_greater_than_value.value().second) EXPECTED(2);
 
     // this is failing and needs upgrade of foreach
-    auto sen1 = en1.sorted(F(_.get().second));
-    
-    // VALUE( sen1.element_at(0).value().second) EXPECTED(-1);
-    // VALUE( sen1.element_at(0).value().first) EXPECTED(6);
+    auto sen1 = en1.stage().sorted(F(_.second)).stage();
+
+    VALUE( sen1.element_at(0).value().second) EXPECTED(-1);
+    VALUE( sen1.element_at(0).value().first) EXPECTED(5);
 }
 
 void test_reversal() {

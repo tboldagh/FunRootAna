@@ -174,6 +174,8 @@ public:
     // sort according to the key extractor @arg f, this is lazy operation
     template<typename F = decltype(identity)>
     auto sorted(F f = identity) const {
+        static_assert(Container::is_finite, "Can't sort in an infinite container");
+        static_assert(Container::is_permanent, "Can't sort container that generates element on the flight, stage() it before");
         return SortedView<Container, F>(m_actual_container, f);
     }
 
@@ -203,26 +205,26 @@ public:
 
     // creates intermediate container to speed following up operations, typically useful after sorting
     auto stage() const -> OwningView<Stored> {
-        static_assert( Container::is_finite, "Can't stage an infinite container");
+        static_assert(Container::is_finite, "Can't stage an infinite container");
         OwningView<Stored> c;
         m_actual_container.foreach_imp([&c](const_reference_type el) { c.insert(el); return true; });
         return c;
     }
 
     auto reverse() const {
-        static_assert( Container::is_finite, "Can't reverse an infinite container");
+        static_assert(Container::is_finite, "Can't reverse an infinite container");
         return ReverseView<Container>(m_actual_container);
     }
 
     // max and min
     template<typename KeyExtractor = decltype(identity)>
     auto max(KeyExtractor by = identity) const {
-        static_assert( Container::is_finite, "Can't find max in an infinite container");
+        static_assert(Container::is_finite, "Can't find max in an infinite container");
         return MMView<Container, KeyExtractor>(m_actual_container, by, max_elements);
     }
     template<typename KeyExtractor = decltype(identity)>
     auto min(KeyExtractor by = identity) const {
-        static_assert( Container::is_finite, "Can't find min in an infinite container");
+        static_assert(Container::is_finite, "Can't find min in an infinite container");
         return MMView<Container, KeyExtractor>(m_actual_container, by, min_elements);
     }
 
@@ -230,7 +232,7 @@ public:
     // concatenate two containers, in a lazy way
     template<typename Other>
     auto chain(const Other& c) const {
-        static_assert( Container::is_finite, "Can't chain with an infinite container");
+        static_assert(Container::is_finite, "Can't chain with an infinite container");
 
         return ChainView<Container, Other>(m_actual_container, c);
     }
@@ -239,7 +241,7 @@ public:
     // the implementation is suboptimal, that is, it involves inexed access to one of the containers, it is therefore better if one of them is staged
     template<typename Other>
     auto zip(const Other& c) const {
-        static_assert( Container::is_finite or Other::is_finite, "Can't compare infinite containers");
+        static_assert(Container::is_finite or Other::is_finite, "Can't compare infinite containers");
         return ZipView<Container, Other>(m_actual_container, c);
     }
 
@@ -247,7 +249,7 @@ public:
     // the comparator obtains a pair from first element is from 1st container, and second from container c
     template<typename Other, typename Comp>
     auto is_same(const Other& c, Comp comparator) const {
-        static_assert( Container::is_finite or Other::is_finite, "Can't compare infinite containers");
+        static_assert(Container::is_finite or Other::is_finite, "Can't compare infinite containers");
 
         bool same = true;
         zip(c).foreach([&same, &comparator](const auto& el) {
@@ -286,7 +288,7 @@ public:
     // sum
     template<typename F = decltype(identity)>
     Stored sum(F f = identity) const {
-        static_assert( Container::is_finite, "Can't sum an infinite container");
+        static_assert(Container::is_finite, "Can't sum an infinite container");
 
         Stored s = {};
         m_actual_container.foreach_imp([&s, f](const_reference_type el) { s = s + f(el); return true; });
@@ -296,7 +298,7 @@ public:
     // accumulate, function us used as: total = f(total, element), also take starting element
     template<typename F, typename R>
     auto accumulate(F f, R initial = {}) const {
-        static_assert( Container::is_finite, "Can't sum an infinite container");
+        static_assert(Container::is_finite, "Can't sum an infinite container");
         static_assert(std::is_same<R, typename std::invoke_result<F, R, typename Container::const_reference_type>::type>::value, "function return type different than initial value");
         R s = initial;
         m_actual_container.foreach_imp([&s, f](const_reference_type el) { s = f(s, el);  return true; });
@@ -358,7 +360,7 @@ public:
     // back to regular vector
     template<typename R>
     void push_back_to(R& result) const {
-        static_assert( Container::is_finite, "Can't save an infinite container");
+        static_assert(Container::is_finite, "Can't save an infinite container");
         m_actual_container.foreach_imp([&result](const_reference_type el) {
             result.push_back(el); return true;
             });
@@ -366,14 +368,14 @@ public:
 
     template<typename R>
     void insert_to(R& result) const {
-        static_assert( Container::is_finite, "Can't save an infinite container");
+        static_assert(Container::is_finite, "Can't save an infinite container");
         m_actual_container.foreach_imp([&result](const_reference_type el) {
             result.insert(el); return true;
             });
     }
     // to non-lazy implementation
     EagerFunctionalVector<value_type> as_eager() const {
-        static_assert( Container::is_finite, "Can't save an infinite container");
+        static_assert(Container::is_finite, "Can't save an infinite container");
         EagerFunctionalVector<Stored> tmp;
         m_actual_container.foreach([&tmp](const_reference_type el) { tmp.__push_back(el); return true; });
         return tmp;
@@ -437,7 +439,7 @@ public:
     void foreach_imp(F f, foreach_instructions how = {}) const {
         std::vector< std::reference_wrapper<const value_type>> lookup;
         m_foreach_imp_provider.foreach_imp([&lookup](const_reference_type el) { lookup.push_back(std::cref(el)); return true; }, how);
-        auto sorter = [this](auto a, auto b) { return m_keyExtractor(a) < m_keyExtractor(b); };
+        auto sorter = [this](auto a, auto b) { return m_keyExtractor(a.get()) < m_keyExtractor(b.get()); };
         std::sort(std::begin(lookup), std::end(lookup), sorter);
         for (auto ref : lookup) {
             const bool go = f(ref.get());
@@ -559,7 +561,7 @@ public:
         value_type group;
         m_foreach_imp_provider.foreach_imp([f, this, &group](const auto& el) {
             group.insert(el);
-//            std::cout << "NView " << group.size() << " " << el << std::endl;
+            //            std::cout << "NView " << group.size() << " " << el << std::endl;
             if (group.size() == m_group) {
                 const bool go = f(group);
                 if (not go)
@@ -643,6 +645,8 @@ public:
     using const_reference_type = const_value_type&;
     using container = FunctionalInterface<Container, value_type>;
     static constexpr bool is_finite = Container::is_finite;
+    static constexpr bool is_permanent = Container::is_permanent;
+
 
     ReverseView(const Container& c)
         : FunctionalInterface<ReverseView<Container>, typename Container::value_type>(*this),
@@ -674,7 +678,7 @@ struct select_type_for_enumerated_view {
 template<typename Container>
 class EnumeratedView : public FunctionalInterface<EnumeratedView<Container>, typename select_type_for_enumerated_view<Container>::type > {
 public:
-    using value_type = typename select_type_for_enumerated_view<Container>::type ;
+    using value_type = typename select_type_for_enumerated_view<Container>::type;
     using const_value_type = const value_type;
     using const_reference_type = const_value_type&;
     using container = FunctionalInterface<Container, value_type>;
@@ -741,7 +745,7 @@ public:
                     keep_taking = true;
                 }
             }
-            if ( keep_taking ) {
+            if (keep_taking) {
                 const bool go = f(el);
                 if (not go)
                     return false;
@@ -880,7 +884,7 @@ public:
     using const_value_type = const value_type;
     using const_reference_type = const_value_type&;
     static constexpr bool is_permanent = Container1::is_permanent && Container2::is_permanent;
-    static_assert( Container1::is_finite and Container2::is_finite, "Cartesian product makes sense only for finite containers");
+    static_assert(Container1::is_finite && Container2::is_finite, "Cartesian product makes sense only for finite containers");
     static constexpr bool is_finite = true;
 
     CartesianView(const Container1& c1, const Container2& c2)
@@ -891,19 +895,19 @@ public:
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
         bool can_go = true;
-        m_foreach_imp_provider1.foreach_imp( [f, this, how, &can_go ]( typename Container1::const_reference_type el1 ) {
-            m_foreach_imp_provider2.foreach_imp( [f, el1, &can_go]( typename Container2::const_reference_type el2 ) {
+        m_foreach_imp_provider1.foreach_imp([f, this, how, &can_go](typename Container1::const_reference_type el1) {
+            m_foreach_imp_provider2.foreach_imp([f, el1, &can_go](typename Container2::const_reference_type el2) {
                 const bool go = f(std::pair<typename Container1::const_reference_type, typename Container2::const_reference_type>(el1, el2));
-                if (not go){
+                if (not go) {
                     can_go = false;
                     return false;
                 }
                 return true;
-            }, how);
-            if ( not can_go )
+                }, how);
+            if (not can_go)
                 return false;
             return true;
-        }
+            }
         , how);
     }
 private:
@@ -1103,22 +1107,22 @@ public:
     static constexpr bool is_finite = true;
 
 
-    Range(const T& start, const T& stop,  const T& stride = 1)
+    Range(const T& start, const T& stop, const T& stride = 1)
         : FunctionalInterface<Range<T>, T >(*this),
         m_start(start),
-        m_stop(stop), 
+        m_stop(stop),
         m_stride(stride) {
-            if ( m_stride == 0 ) throw std::runtime_error("the stride can be zero");
-            if ( m_stride > 0 and m_start > m_stop ) throw std::runtime_error("limits and stride will result in an infinite range");
-            if ( m_stride < 0 and m_start < m_stop ) throw std::runtime_error("limits and stride will result in an infinite range");
+        if (m_stride == 0) throw std::runtime_error("the stride can be zero");
+        if (m_stride > 0 and m_start > m_stop) throw std::runtime_error("limits and stride will result in an infinite range");
+        if (m_stride < 0 and m_start < m_stop) throw std::runtime_error("limits and stride will result in an infinite range");
 
-        }
+    }
 
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
         if (how.order == reverse) throw std::runtime_error("can not process infinite series in reverse");
         T current = m_start;
-        while (  (m_stride >0 and current < m_stop) or (current > m_stop)) {
+        while ((m_stride > 0 and current < m_stop) or (current > m_stop)) {
             const bool go = f(current);
             if (not go)
                 break;
