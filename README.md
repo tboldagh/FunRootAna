@@ -1,8 +1,8 @@
 # FunRootAna
 
-This is basic framework allowing to do [ROOT](https://root.cern.ch/) analysis in a more functional way.
+This is a basic framework allowing to do [ROOT](https://root.cern.ch/) analysis in a more functional way.
 In comparison to RDFrame it offers more functional feel for the data analysis (in particular histograms filling) and is overall a bit more holistic. 
-As consequence, typical a single line containing selection, data extraction & histogram definition is sufficient to obtain one unit of result.
+As consequence, <span style="color:red">a single line</span> containing selection, data extraction & histogram definition is sufficient to obtain one unit of result (one histogram).
 
 The promise is: 
 
@@ -48,7 +48,7 @@ As a result of running that code over the TTree, histograms are made and saved i
 
 
 
-# Grouping a related info
+# Analysis objects  
 
 Now think that we would like to treat the `x,y,z` as a whole, in the end they represent one object, a point in 3D space. We need to do this with plain Ntuples but if the TTree contains object already then the functionality comes for free.
 So let's make the points look like objects. For that we would need to create a structure to hold the three coordinates together (we can also use the class but we have no reason for it here).

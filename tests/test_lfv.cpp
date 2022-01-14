@@ -251,7 +251,7 @@ void test_enumerate() {
 
     // this is failing and needs upgrade of foreach
     auto sen1 = en1.stage().sorted(F(_.second)).stage();
-
+    // TODO figure out why staging was needed after sort
     VALUE( sen1.element_at(0).value().second) EXPECTED(-1);
     VALUE( sen1.element_at(0).value().first) EXPECTED(5);
 }
@@ -273,7 +273,7 @@ void test_reversal() {
     auto s1 = r1.sorted();
     VALUE(s1.element_at(0).value()) EXPECTED(-1);
 
-    // double reverse
+    // double reversescala
     auto r2 = r1.reverse();
     VALUE(r2.element_at(1).value()) EXPECTED(19);
 
