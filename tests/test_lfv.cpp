@@ -53,6 +53,11 @@ void test_count_and_find() {
     const auto contains_above_100 = vt1.first_of(F( _ > 100));
     VALUE( contains_above_100.has_value() ) EXPECTED (false);
 
+    const bool gt_10 = vt1.all(F(_>10));
+    VALUE( gt_10) EXPECTED( false );
+    const bool gt_0 = vt1.all(F(_>0));
+    VALUE(gt_0) EXPECTED ( true );
+
 
 
 }
@@ -370,6 +375,30 @@ void test_cartesian() {
 
 }
 
+void test_cache() {
+    const int N = 10;
+    auto x = range_stream(0, N);
+    int sum = 0;
+    auto n = x.inspect( [&sum](int x){sum += x; }).map( F( _*2 )).cache();
+    VALUE(sum) EXPECTED( 0 ); // inspect is lazy, so not executed
+    n.sum(); // now the execution hapens
+    VALUE(sum) EXPECTED( N*(N-1)/2 );
+
+    auto m = n.filter(F(_<5)).sum();
+    VALUE(sum) EXPECTED( N*(N-1)/2 ); // sum would not increase because of cache
+    m++;
+}
+
+void test_group() {
+    auto x = range_stream(0, 4);
+    const size_t s2 = x.group(2).size();
+    VALUE( s2) EXPECTED (2);
+    const size_t s2_by_1 = x.group(2, 1).size();
+    VALUE( s2_by_1) EXPECTED (3);
+    x.group(2, 1).foreach( S( std::cout << _.element_at(0).value() <<":" << _.element_at(1).value() << " ") );
+}
+
+
 int main() {
     const int failed =
       + SUITE(test_type_presentation)
@@ -387,7 +416,9 @@ int main() {
       + SUITE(test_min_max)
       + SUITE(test_zip)
       + SUITE(test_series)
-      + SUITE(test_cartesian);
+      + SUITE(test_cartesian)
+      + SUITE(test_cache)
+      + SUITE(test_group);
 
     std::cout << ( failed == 0  ? "ALL OK" : "FAILURE" ) << std::endl;
     return failed;

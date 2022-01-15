@@ -6,6 +6,7 @@
 #define LazyFunctionalVector_h
 #include <type_traits>
 #include <set>
+#include <deque>
 
 #include "futils.h"
 #include "EagerFunctionalVector.h"
@@ -43,14 +44,16 @@ namespace {
 
 template< typename Container, typename Filter> class FilteredView;
 template< typename Container, typename Map> class MappedView;
-template<typename T> class DirectView;
-template<typename T> class OwningView;
-template<typename T> class RefView;
+template<typename T, template<typename, typename> typename Container = std::vector> class DirectView;
+template<typename T, template<typename, typename> typename Container = std::vector> class OwningView;
+template<typename T, template<typename, typename> typename Container = std::vector> class RefView;
 
 template<typename Container, skip_take_logic_t> class TakeSkipNView;
 template<typename Container> class NView;
 template<typename Container> class EnumeratedView;
 template<typename Container> class ReverseView;
+template<typename Container> class CachedView;
+template<typename Container, typename Subroutine> class InspectView;
 template<typename Container, typename Filter, skip_take_logic_t> class TakeSkipWhileView;
 template<typename Container1, typename Container2> class ChainView;
 template<typename Container1, typename Container2> class ZipView;
@@ -60,13 +63,15 @@ template<typename Container> class PermutationsView;
 template<typename Container1, typename Comparator> class SortedView;
 template<typename Container1, typename Comparator> class MMView;
 
-template<typename T> DirectView<T> lazy(const std::vector<T>&);
 
 namespace {
     template<typename C> struct has_fast_element_access_tag { static constexpr bool value = false; };
-    template<typename T> struct has_fast_element_access_tag<DirectView<T>> { static constexpr bool value = true; };
-    template<typename T> struct has_fast_element_access_tag<OwningView<T>> { static constexpr bool value = true; };
-    template<typename T> struct has_fast_element_access_tag<RefView<T>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<DirectView<T, std::vector>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<OwningView<T, std::vector>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<DirectView<T, std::deque>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<OwningView<T, std::deque>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<RefView<T, std::vector>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<RefView<T, std::deque>> { static constexpr bool value = true; };
 
     template<typename T>
     struct one_element_stack_container {
@@ -109,11 +114,19 @@ public:
     FunctionalInterface(const Container& cont) : m_actual_container(cont) {}
     ~FunctionalInterface() {}
 
-    // invoke function on each element of the container
+    // invoke function on each element of the container, 
+    // can be followed by other operations, this is not lazy operation, for lazy operation like this see inspect
     template<typename F>
-    void foreach(F f) const {
+    auto foreach(F f) const -> const FunctionalInterface<Container, Stored>& {
         m_actual_container.foreach_imp([f](const_reference_type el) { f(el); return true; });
+        return *this;
     }
+
+    template<typename S>
+    auto inspect(S s) const -> InspectView<Container, S> {
+        return InspectView<Container, S>(m_actual_container, s);
+    }
+
 
     // count of elements, this is an eager operation
     virtual size_t size() const {
@@ -139,6 +152,8 @@ public:
     }
 
     // finds if an element is in the container
+    // sometimes referetd to as any()
+    // returns false for empty container
     template<typename Predicate>
     bool contains(Predicate f) const {
         bool found = false;
@@ -156,6 +171,26 @@ public:
     // as above, but require identity
     bool contains(const_reference_type x) const {
         return contains([x](const_reference_type el) { return el == x; });
+    }
+
+    // mirror of contains()
+    // returns true if all elements satisfy predicate, 
+    // returns false for empty container
+    template<typename Predicate>
+    bool all(Predicate f) const {
+        bool found = true;
+        bool has_elements = false;
+        m_actual_container.foreach_imp([f, &found, &has_elements](const_reference_type el) {
+            has_elements = true;
+            if (not f(el)) { // offending element
+                found = false;
+                return false;
+            }
+            else {
+                return true;
+            }
+            });
+        return found and has_elements;
     }
 
 
@@ -209,6 +244,12 @@ public:
         OwningView<Stored> c;
         m_actual_container.foreach_imp([&c](const_reference_type el) { c.insert(el); return true; });
         return c;
+    }
+
+    // lazy stage, that is, the data will be staged when needed
+    auto cache() const -> CachedView<Container> {
+        static_assert(Container::is_finite, "Can't cache an infinite container");
+        return CachedView<Container>(m_actual_container);
     }
 
     auto reverse() const {
@@ -270,9 +311,15 @@ public:
 
     // produce container of elements grouped by n
     // the elements are packaged in vector<optional<optimal_reference>> (tha "optimal" can be either refernce_wrapper or value - depends on underlying container that is grouped)
+    // jump parameter informs how if elements would be reused
+    // e.g. assume container: 0,1,2,3 and size=2, jump=2 then such groups will be formed (0,1)(2,3)
+    // if the jump=1 the groups (0,1)(1,2)(2,3) will be formed
     // @warning if the container size is not a multiple of n, the trailing elements are not exposed, e.g. sth.take(8).group(3) will process only first 6 elements
-    auto group(size_t n = 2) const {
-        return NView<Container>(m_actual_container, n);
+    auto group(size_t size = 2, size_t jump = std::numeric_limits<size_t>::max() ) const {
+        if (jump == std::numeric_limits<size_t>::max() )
+            return NView<Container>(m_actual_container, size, size);
+        else
+            return NView<Container>(m_actual_container, size, jump);            
     }
 
     // forms container of all pairs from this and other container
@@ -285,7 +332,7 @@ public:
     auto combinations(size_t) {}
     auto permutations(size_t) {}
 
-    // sum
+    // sum, allows to transform the object before summation (i.e. can act like map + sum)
     template<typename F = decltype(identity)>
     Stored sum(F f = identity) const {
         static_assert(Container::is_finite, "Can't sum an infinite container");
@@ -305,7 +352,7 @@ public:
         return s;
     }
 
-    // access by index
+    // access by index (not good idea to overuse)
     virtual auto element_at(size_t  n) const -> std::optional<value_type> {
         one_element_stack_container<value_type> temp;
         size_t i = 0;
@@ -319,6 +366,13 @@ public:
             });
         return temp.empty() ? std::optional<value_type>() : temp.get();
     }
+
+    // similar to the above, but returns default value (provided as second arg) if element is absent
+    virtual auto element_at(size_t  n, const value_type& def) const -> value_type {
+        auto value_or_nothing = element_at(n);
+        return value_or_nothing.has_value() ? value_or_nothing.value() : def;
+    }
+
 
     // first element satisfying predicate
     template<typename Predicate>
@@ -356,7 +410,6 @@ public:
         //        retrun DirectView(data).go();
     }
 
-
     // back to regular vector
     template<typename R>
     void push_back_to(R& result) const {
@@ -381,13 +434,13 @@ public:
         return tmp;
     }
 
-
-
 protected:
     const Container& m_actual_container;
 };
+
 template<typename Container, typename Stored>
 std::function<const Stored& (const Stored& x) > FunctionalInterface<Container, Stored>::identity = [](const Stored& x) { return x; };
+
 
 
 // provides view of subset of element which satisfy the predicate
@@ -522,7 +575,7 @@ public:
 
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
-        m_foreach_imp_provider.foreach_imp([f, this](const auto& el) {
+        m_foreach_imp_provider.foreach_imp([f, this](const auto& el) -> bool {
             const bool go = f(m_mappingOp(el));
             if (not go)
                 return false;
@@ -539,8 +592,8 @@ namespace {
     template<typename Container>
     struct select_type_for_n_view {
         using type = typename std::conditional< Container::is_permanent,
-            RefView<typename Container::value_type>,
-            OwningView<typename Container::value_type> >::type;
+            RefView<typename Container::value_type, std::deque>,
+            OwningView<typename Container::value_type, std::deque> >::type;
     };
 }
 template<typename Container>
@@ -551,22 +604,27 @@ public:
     using const_reference_type = const_value_type&;
     static constexpr bool is_finite = Container::is_finite;
 
-    NView(const Container& c, size_t n)
+    NView(const Container& c, size_t n, size_t jump)
         : FunctionalInterface<NView<Container>, value_type>(*this),
         m_foreach_imp_provider(c),
-        m_group(n) { }
+        m_group(n), 
+        m_jump(jump) { }
 
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
         value_type group;
         m_foreach_imp_provider.foreach_imp([f, this, &group](const auto& el) {
             group.insert(el);
-            //            std::cout << "NView " << group.size() << " " << el << std::endl;
+//                       std::cout << "NView " << group.size() << " " << el << std::endl;
             if (group.size() == m_group) {
                 const bool go = f(group);
                 if (not go)
                     return false;
-                group.clear();
+//                std::cout << m_group << " " << m_jump << " " << group.size() << std::endl;
+                if ( m_group == m_jump)
+                    group.clear();
+                else
+                    for ( size_t p = 0; p < m_jump; p++) group._underlying().pop_front();
             }
             return true;
             }, how);
@@ -574,6 +632,7 @@ public:
 private:
     const Container& m_foreach_imp_provider;
     size_t m_group;
+    size_t m_jump;
 };
 
 template<typename Container, skip_take_logic_t logic>
@@ -917,8 +976,8 @@ private:
 
 
 
-template<typename Stored>
-class DirectView final : public FunctionalInterface<DirectView<Stored>, Stored> {
+template<typename Stored, template<typename, typename> typename Container>
+class DirectView final : public FunctionalInterface<DirectView<Stored, Container>, Stored> {
 public:
     using value_type = Stored;
     using const_value_type = const value_type;
@@ -927,7 +986,7 @@ public:
     static constexpr bool is_permanent = true;
     static constexpr bool is_finite = true;
 
-    DirectView(const std::vector<value_type>& m)
+    DirectView(const Container<value_type, std::allocator<value_type>>& m)
         : FunctionalInterface<container, value_type>(*this), m_data(m) {}
 
     template<typename F>
@@ -958,30 +1017,31 @@ public:
     }
 
 private:
-    const std::vector<value_type>& m_data;
+    const Container<value_type, std::allocator<value_type>>& m_data;
 };
 
 
-template<typename T>
-class OwningView final : public FunctionalInterface<OwningView<T>, T> {
+template<typename T, template<typename, typename> typename Container>
+class OwningView final : public FunctionalInterface<OwningView<T, Container>, T> {
 public:
     using value_type = T;
     using const_value_type = const value_type;
     using const_reference_type = const_value_type&;
-    using container = OwningView<T>;
+    using container = OwningView<T, Container>;
     static constexpr bool is_permanent = true;
     static constexpr bool is_finite = true;
 
     OwningView()
         : FunctionalInterface<container, value_type>(*this) {}
 
-    OwningView(const std::vector<T>& data)
+    OwningView(const Container<T, std::allocator<T>>& data)
         : FunctionalInterface<container, value_type>(*this),
         m_data(data) {}
 
     void insert(const_reference_type d) { m_data.push_back(d); }
     void clear() { m_data.clear(); }
 
+    Container<T, std::allocator<T>>& _underlying() { return m_data; }
 
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
@@ -1010,11 +1070,74 @@ public:
         return m_data.size();
     }
 private:
-    std::vector<T> m_data;
+    Container<T, std::allocator<T>> m_data;
 };
 
-template<typename T>
-class RefView final : public FunctionalInterface<RefView<T>, T> {
+
+template<typename Container>
+class CachedView : public FunctionalInterface<CachedView<Container>, typename Container::value_type> {
+public:
+    using value_type = typename Container::value_type;
+    using const_value_type = const value_type;
+    using const_reference_type = const_value_type&;
+    using container = FunctionalInterface<Container, value_type>;
+    static constexpr bool is_finite = Container::is_finite;
+    static constexpr bool is_permanent = true;
+
+
+    CachedView(const Container& c)
+        : FunctionalInterface<CachedView<Container>, typename Container::value_type>(*this),
+        m_foreach_imp_provider(c) {}
+
+    template<typename F>
+    void foreach_imp(F f, foreach_instructions how = {}) const {
+        if (not m_filled) {
+            m_foreach_imp_provider.foreach_imp([this](const auto& el){  
+                m_cache.insert(el);
+                return true;
+            });
+        }
+        m_filled = true;
+        m_cache.foreach_imp(f, how);
+    }
+private:
+    const Container& m_foreach_imp_provider;
+    mutable bool m_filled = false;
+    mutable OwningView<value_type> m_cache;
+};
+
+
+template<typename Container, typename S>
+class InspectView : public FunctionalInterface<InspectView<Container, S>, typename Container::value_type> {
+public:
+    using value_type = typename Container::value_type;
+    using const_value_type = const value_type;
+    using const_reference_type = const_value_type&;
+    using container = FunctionalInterface<Container, value_type>;
+    static constexpr bool is_finite = Container::is_finite;
+    static constexpr bool is_permanent = Container::is_permanent;
+
+
+    InspectView(const Container& c, S subroutine)
+        : FunctionalInterface<InspectView<Container, S>, typename Container::value_type>(*this),
+        m_foreach_imp_provider(c), 
+        m_subroutine(subroutine) {}
+
+    template<typename F>
+    void foreach_imp(F f, foreach_instructions how = {}) const {
+        m_foreach_imp_provider.foreach_imp([this, f](const auto& el ) -> bool {
+            m_subroutine(el);
+            return f(el); }, 
+        how);
+    }
+private:
+    const Container& m_foreach_imp_provider;
+    S m_subroutine;
+};
+
+
+template<typename T, template<typename, typename> typename Container>
+class RefView final : public FunctionalInterface<RefView<T, Container>, T> {
 public:
     using value_type = T;
     using const_value_type = const value_type;
@@ -1058,7 +1181,7 @@ public:
         return m_data.size();
     }
 private:
-    std::vector<const std::reference_wrapper<T>> m_data;
+    Container<const std::reference_wrapper<T>, std::allocator<std::reference_wrapper<T>>> m_data;
 };
 
 
@@ -1136,21 +1259,21 @@ private:
     T m_stride;
 };
 
-
-
+// infinite series of doubled where each next is the previous multiplied by ratio
 Series<double> geometric_stream(double coeff, double ratio) {
     return Series<double>([ratio](double c) { return c * ratio; }, coeff);
 }
 
+// infinite series if starting from initial value incremented by increment
 template<typename T>
 Series<T> arithmetic_stream(T initial, T increment) {
     return Series<T>([increment](double c) { return c + increment; }, initial);
 }
 
+// infinite series if integers incremented by 1
 Series<size_t> iota_stream(size_t initial = 0) {
     return Series<size_t>([](size_t c) { return c + 1; }, initial);;
 }
-
 
 // random integers using rand from c stdlib
 // @warning - not high quality randomisation
@@ -1158,14 +1281,14 @@ Series<int> crandom_stream() {
     return Series<int>([](int) { return rand(); }, rand());
 }
 
-// range from x = begin until x < end
+// finite range from x = begin until x < end
 template<typename T>
 Range<T> range_stream(T begin, T end, T stride = 1) {
     return Range<T>(begin, end, stride);
 }
 
 template<typename T>
-DirectView<T> lazy(const std::vector<T>& vec) {
+DirectView<T, std::vector> lazy(const std::vector<T>& vec) {
     return DirectView(vec);
 }
 
