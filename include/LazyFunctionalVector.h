@@ -62,7 +62,7 @@ template<typename Container> class CombinationsView;
 template<typename Container> class PermutationsView;
 template<typename Container1, typename Comparator> class SortedView;
 template<typename Container1, typename Comparator> class MMView;
-
+template<typename T> class Range;
 
 namespace {
     template<typename C> struct has_fast_element_access_tag { static constexpr bool value = false; };
@@ -72,6 +72,7 @@ namespace {
     template<typename T> struct has_fast_element_access_tag<OwningView<T, std::deque>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<RefView<T, std::vector>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<RefView<T, std::deque>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<Range<T>> { static constexpr bool value = true; };
 
     template<typename T>
     struct one_element_stack_container {
@@ -368,7 +369,7 @@ public:
     }
 
     // similar to the above, but returns default value (provided as second arg) if element is absent
-    virtual auto element_at(size_t  n, const value_type& def) const -> value_type {
+    auto get(size_t n = 0, const value_type& def = {}) const -> value_type {
         auto value_or_nothing = element_at(n);
         return value_or_nothing.has_value() ? value_or_nothing.value() : def;
     }
@@ -908,6 +909,7 @@ public:
         if (has_fast_element_access_tag<Container2>::value) {
             m_foreach_imp_provider1.foreach_imp([f, &index, this](typename Container1::const_reference_type el1) {
                 auto el2 = m_foreach_imp_provider2.element_at(index);
+                // std::cout << "zip " << el1  << "-" << el2.has_value() << std::endl;
                 if (el2.has_value() == false) // reached end cof container 2
                     return false;
                 const bool go = f(std::pair<typename Container1::const_reference_type, typename Container2::const_reference_type>(el1, el2.value()));
@@ -1228,34 +1230,48 @@ public:
     using const_reference_type = const_value_type&;
     static constexpr bool is_permanent = false;
     static constexpr bool is_finite = true;
+    static_assert( std::is_arithmetic<value_type>::value, "Can't generate range of not arithmetic type");
 
-
-    Range(const T& start, const T& stop, const T& stride = 1)
+    Range(const T& begin, const T& end, const T& stride = 1)
         : FunctionalInterface<Range<T>, T >(*this),
-        m_start(start),
-        m_stop(stop),
+        m_begin(begin),
+        m_end(end),
         m_stride(stride) {
         if (m_stride == 0) throw std::runtime_error("the stride can be zero");
-        if (m_stride > 0 and m_start > m_stop) throw std::runtime_error("limits and stride will result in an infinite range");
-        if (m_stride < 0 and m_start < m_stop) throw std::runtime_error("limits and stride will result in an infinite range");
+        if (m_stride > 0 and m_begin > m_end) throw std::runtime_error("limits and stride will result in an infinite range");
+        if (m_stride < 0 and m_begin < m_end) throw std::runtime_error("limits and stride will result in an infinite range");
 
     }
 
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
-        if (how.order == reverse) throw std::runtime_error("can not process infinite series in reverse");
-        T current = m_start;
-        while ((m_stride > 0 and current < m_stop) or (current > m_stop)) {
-            const bool go = f(current);
-            if (not go)
-                break;
-            current = current + m_stride;
+        if (how.order == reverse) {
+            throw std::runtime_error("reverse range not supported, generate it with range_stream with the negative stride");
+        } else {
+            T current = m_begin;
+            while ((m_stride > 0 and current < m_end) or (current > m_end)) {
+                const bool go = f(current);
+                if (not go)
+                    break;
+                current = current + m_stride;
+                // std::cout << "X" << current << std::endl;
+            }
         }
     }
 
+    virtual auto element_at(size_t  n) const -> std::optional<value_type> override final {
+        if ( n < size() )
+            return m_begin + m_stride*n;
+        return {};
+    }
+    virtual size_t size() const  override final {
+        return std::abs((m_end - m_begin))/std::abs(m_stride);
+    }
+
+
 private:
-    T m_start;
-    T m_stop;
+    T m_begin;
+    T m_end;
     T m_stride;
 };
 
@@ -1276,7 +1292,8 @@ Series<size_t> iota_stream(size_t initial = 0) {
 }
 
 // random integers using rand from c stdlib
-// @warning - not high quality randomisation
+// @warning - not high quality randomization
+// @warning - it is not reproducible
 Series<int> crandom_stream() {
     return Series<int>([](int) { return rand(); }, rand());
 }
