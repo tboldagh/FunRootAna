@@ -15,17 +15,17 @@ struct A {
 void test_access() {
     std::vector<int> t1({1,19,4});
     auto vt1 = wrap(t1);
-    VALUE( vt1[0] ) EXPECTED ( 1 );
-    VALUE( vt1[1] ) EXPECTED ( 19 );
-    VALUE( vt1[2] ) EXPECTED ( 4 );
-    VALUE( vt1.first(1).element_at(0) ) EXPECTED ( 1 );
-    VALUE( vt1.first(2).element_at(1) ) EXPECTED ( 19 );
+    VALUE( vt1.element_at(0).value() ) EXPECTED ( 1 );
+    VALUE( vt1.element_at(1).value() ) EXPECTED ( 19 );
+    VALUE( vt1.element_at(2).value() ) EXPECTED ( 4 );
+    VALUE( vt1.first(1).element_at(0).value() ) EXPECTED ( 1 );
+    VALUE( vt1.first(2).element_at(1).value() ) EXPECTED ( 19 );
 
-    VALUE( vt1.last(1).element_at(0) ) EXPECTED ( 4 );
-    VALUE( vt1.last(2).element_at(0) ) EXPECTED ( 19 );
-    VALUE( vt1.last(2).element_at(1) ) EXPECTED ( 4 );
+    VALUE( vt1.last(1).element_at(0).value() ) EXPECTED ( 4 );
+    VALUE( vt1.last(2).element_at(0).value() ) EXPECTED ( 19 );
+    VALUE( vt1.last(2).element_at(1).value() ) EXPECTED ( 4 );
 
-    VALUE( vt1.range(1,3).element_at(0) ) EXPECTED ( 19 );
+    VALUE( vt1.range(1,3).element_at(0).value() ) EXPECTED ( 19 );
     VALUE( vt1.range(1,3).size()) EXPECTED ( 2 );
 }
 
@@ -43,8 +43,8 @@ void test_reduce() {
 void test_searching() { 
     std::vector<int> t1({1,19,4, 2, 5, -1, 5});
     auto vt1 = wrap(t1);
-    VALUE(vt1.max().element_at(0)) EXPECTED ( 19 );
-    VALUE(vt1.min().element_at(0)) EXPECTED ( -1 );
+    VALUE(vt1.max().element_at(0).value()) EXPECTED ( 19 );
+    VALUE(vt1.min().element_at(0).value()) EXPECTED ( -1 );
     const size_t count_of_5 = vt1.count(F(_ == 5));
     VALUE(count_of_5) EXPECTED ( 2 );
     const size_t count_of_non_5 = vt1.count(F(_ != 5));
@@ -59,12 +59,12 @@ void test_map() {
     auto mt1 = vt1.map( F(_+2) );
     VALUE( mt1.size()) EXPECTED( vt1.size() );
     for ( int i = 0; i < vt1.size(); i++ ) {
-        VALUE ( mt1.element_at(i) ) EXPECTED ( vt1.element_at(i) +2);
+        VALUE ( mt1.element_at(i).value() ) EXPECTED ( vt1.element_at(i).value() +2);
     }
 
     auto mt2 = vt1.map( F(_ < 5) );
-    VALUE ( mt2.element_at(0)) EXPECTED ( true );
-    VALUE ( mt2.element_at(1)) EXPECTED ( false );
+    VALUE ( mt2.element_at(0).value()) EXPECTED ( true );
+    VALUE ( mt2.element_at(1).value()) EXPECTED ( false );
 }
 
 void test_filter() {
@@ -72,8 +72,8 @@ void test_filter() {
     auto vt1 = wrap(t1);
     auto ft1 = vt1.filter( F( _ > 2));
     VALUE( ft1.size() ) EXPECTED ( 4 );
-    VALUE( ft1.element_at(0)) EXPECTED ( 19 );
-    VALUE( ft1.element_at(3)) EXPECTED ( 5 );
+    VALUE( ft1.element_at(0).value()) EXPECTED ( 19 );
+    VALUE( ft1.element_at(3).value()) EXPECTED ( 5 );
 
 }
 

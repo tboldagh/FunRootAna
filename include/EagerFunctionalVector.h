@@ -2,6 +2,12 @@
 // https://github.com/tboldagh/FunRootAna
 // Distributed under the MIT License
 // (See accompanying file LICENSE file)
+
+
+
+// TODO there is a lot to do here!
+// in particular, the operations can made cheaper (by much) by moving data instead of copying
+
 #ifndef EagerFunctionalVector_h
 #define EagerFunctionalVector_h
 #include <algorithm>
@@ -28,12 +34,13 @@ class EagerFunctionalVector
 {
 private:
   std::vector<T> container;
-  // do not use, may disappear/change at any time (can't easily make it private) 
   void __push_back(const T& x) {
     container.push_back(x);
   }
   template<typename U> friend class LazyFunctionalVector;
 public:
+  using value_type = T;
+
   EagerFunctionalVector() {}
 
   EagerFunctionalVector(const std::vector<T>& vec)
@@ -78,6 +85,15 @@ public:
     return total;
   }
 
+  template<typename Op, typename R>
+  R accumulate(Op operation, R initial = {}) const {
+    R total = initial;
+    for (auto e : container) {
+      total = operation(total, e);
+    }
+    return total;
+  }
+
 
   T sum() const {
     T total = {};
@@ -101,7 +117,11 @@ public:
   }
 
 
-
+  EagerFunctionalVector<T> chain(const EagerFunctionalVector<T>& rhs) const {
+    EagerFunctionalVector<T> clone(container);
+    clone.unwrap().insert(clone.end(), rhs.begin(), rhs.end());
+    return clone;
+  }
 
 
   template<typename Op>
@@ -125,8 +145,10 @@ public:
     return container.empty();
   }
 
-  template< typename KeyExtractor>
-  EagerFunctionalVector<T> sorted(KeyExtractor key) const {
+  static const T& identity(const T& c) { return c; }
+
+  template< typename KeyExtractor = decltype(identity)>
+  EagerFunctionalVector<T> sorted(KeyExtractor key = identity) const {
     EagerFunctionalVector<T> clone(container);
     std::sort(clone.container.begin(), clone.container.end(), [&](const T& el1, const T& el2) { return key(el1) < key(el2); });
     return clone;
@@ -141,6 +163,17 @@ public:
     }
     return ret;
   }
+
+  EagerFunctionalVector<std::pair<size_t, T>> enumerate(size_t offset = 0) const {
+    EagerFunctionalVector<std::pair<size_t, T>> ret;
+    size_t counter = offset;
+    for (auto& el : container) {
+      ret.unwrap().emplace_back(std::pair<size_t, T>(counter, el));
+      ++counter;
+    }
+    return ret;
+  }
+
 
   template<typename Op>
   EagerFunctionalVector<decltype(std::declval<Op>()(std::declval<T>()))> map(Op f) const {
@@ -167,8 +200,32 @@ public:
 
   template< typename Op>
   const EagerFunctionalVector<T>& foreach(Op function)  const {
-    for (auto el : container) function(el);
+    for (auto& el : container) function(el);
     return *this;
+  }
+
+  template< typename Op>
+  bool contains(Op predicate) const {
+    for (auto& el : container) if (predicate(el)) return true;
+    return false;
+  }
+
+    bool contains(const T& x) const {
+        return contains([x](const T& el) { return el == x; });
+    }
+
+
+  template< typename Op>
+  std::optional<T> first_of(Op predicate) const {
+    for (auto& el : container) if (predicate(el)) return std::optional<T>(el);
+    return {};
+  }
+
+  template< typename Op>
+  bool all(Op predicate) const {
+    if (container.empty()) return false;
+    for (auto& el : container) if (not predicate(el)) return false;
+    return true;
   }
 
 
@@ -180,14 +237,17 @@ public:
     return container;
   }
 
+
+  void push_back_to(std::vector<T>& v) const {
+    v.insert(v.end(), container.begin(), container.end());
+  }
+
   void push_back(const T& el) {
     container.emplace_back(el);
   }
   void clear() {
     container.clear();
   }
-
-
 
   template<typename T1, typename T2>
   void insert(const T1& destCont, const T2& items) {
@@ -220,6 +280,61 @@ public:
     return ret;
   }
 
+  EagerFunctionalVector<T> take(size_t n, size_t stride = 1) const {
+    EagerFunctionalVector<T> ret;
+    auto end = container.begin() + std::min(n, container.size());
+    for (auto iter = container.begin(); iter != end; iter += stride) {
+      ret.push_back(*iter);
+    }
+    return ret;
+
+    size_t counter = 0;
+    for (auto& el : container) {
+      if (counter % stride == 0)
+        ret.push_back(el);
+      if (counter >= n)
+        return ret;
+      counter++;
+    }
+    return ret;
+  }
+
+  EagerFunctionalVector<T> skip(size_t n, size_t stride = 1) const {
+    EagerFunctionalVector<T> ret;
+    auto iter = container.begin() + std::min(n, container.size());
+    for (; iter != container.end(); iter += stride) {
+      ret.push_back(*iter);
+    }
+    return ret;
+  }
+
+
+  template<typename Op>
+  EagerFunctionalVector<T> take_while(Op predicate) const {
+    EagerFunctionalVector<T> ret;
+    for (auto& el : container) {
+      if (not predicate(el))
+        return ret;
+      ret.__push_back(el);
+    }
+    return ret;
+  }
+
+  template<typename Op>
+  EagerFunctionalVector skip_while(Op predicate) const {
+    EagerFunctionalVector ret;
+    bool start_taking = false;
+    for (auto& el : container) {
+      if (not start_taking and predicate(el)) {
+        start_taking = true;
+      }
+      if (start_taking)
+        ret.__push_back(el);
+    }
+    return ret;
+  }
+
+
   template< typename KeyExtractor>
   EagerFunctionalVector<T> max(KeyExtractor key)  const {
     auto iterator = std::max_element(std::begin(container), std::end(container), [&](const T& a, const T& b) { return key(a) < key(b); });
@@ -246,8 +361,7 @@ public:
     return EagerFunctionalVector<T>(container.begin() + start, container.begin() + stop);
   }
 
-  typename std::conditional<std::is_pod<T>::value, T, const T&>::type element_at(size_t index) const { return container.at(index); }
-  typename std::conditional<std::is_pod<T>::value, T, const T&>::type  operator[](size_t index) const { return container.at(index); }
+  std::optional<T> element_at(size_t index) const { if (index < size()) return container.at(index); else return  {}; }
 
   const EagerFunctionalVector<T> first(size_t n = 1)  const {
     auto iterator = container.end() < container.begin() + n ? container.end() : container.begin() + n;
@@ -260,6 +374,9 @@ public:
   }
 
 
+  const EagerFunctionalVector<T>& stage()  const { return *this; }
+  const EagerFunctionalVector<T>& cache()  const { return *this; }
+
   const EagerFunctionalVector<T> join(const EagerFunctionalVector<T>& other)  const {
     EagerFunctionalVector<T> ret(container.begin(), container.end());
     ret.container.insert(ret.container.end(), other.begin(), other.end());
@@ -267,16 +384,34 @@ public:
   }
 
   template<typename U>
-  const EagerFunctionalVector<std::tuple<T, U> > zip(const EagerFunctionalVector<U>& other) {
-    EagerFunctionalVector<std::tuple<T, U> > ret;
+  const EagerFunctionalVector<std::pair<T, U> > zip(const EagerFunctionalVector<U>& other) {
+    EagerFunctionalVector<std::pair<T, U> > ret;
 
     auto thisIter = std::cbegin(container);
-    auto otherIter = std::cbegin(other.unWrap());
-    for (; thisIter != std::end(container) and otherIter != std::end(other.unWrap()); ++thisIter, ++otherIter) {
-      ret.unWrap().insert(ret.unWrap().end(), std::make_tuple(*thisIter, *otherIter));
+    auto otherIter = std::cbegin(other.unwrap());
+    for (; thisIter != std::end(container) and otherIter != std::end(other.unwrap()); ++thisIter, ++otherIter) {
+      ret.unwrap().insert(ret.unwrap().end(), std::make_pair(*thisIter, *otherIter));
     }
     return ret;
   }
+
+  template<typename Other, typename Comp>
+  bool is_same(const Other& other, Comp comparator) const {
+    auto thisIter = std::cbegin(container);
+    auto otherIter = std::cbegin(other.unwrap());
+    for (; thisIter != std::end(container) and otherIter != std::end(other.unwrap()); ++thisIter, ++otherIter) {
+      if (not comparator( std::make_pair(*thisIter, *otherIter))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  template<typename Other>
+  auto is_same(const Other& c) const {
+    return is_same(c, [](const auto& el) { return el.first != el.second; });
+  }
+
 
   auto begin() const {
     return std::cbegin(container);

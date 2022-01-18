@@ -368,12 +368,6 @@ public:
         return temp.empty() ? std::optional<value_type>() : temp.get();
     }
 
-    // similar to the above, but returns default value (provided as second arg) if element is absent
-    auto get(size_t n = 0, const value_type& def = {}) const -> value_type {
-        auto value_or_nothing = element_at(n);
-        return value_or_nothing.has_value() ? value_or_nothing.value() : def;
-    }
-
 
     // first element satisfying predicate
     template<typename Predicate>

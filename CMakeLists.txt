@@ -36,7 +36,13 @@ target_compile_features(test_hist PRIVATE cxx_std_17)
 
 add_executable( test_lfv tests/test_lfv.cpp )
 target_link_libraries(test_lfv ${ROOT_LIBRARIES} FunRootAna)
+target_compile_definitions(test_lfv PRIVATE TEST_LAZY=1)
 target_compile_features(test_lfv PRIVATE cxx_std_17)
+
+add_executable( test_efv2 tests/test_lfv.cpp )
+target_link_libraries(test_efv2 ${ROOT_LIBRARIES} FunRootAna)
+target_compile_features(test_efv2 PRIVATE cxx_std_17)
+
 
 add_executable( test_weight tests/test_weight.cpp )
 target_link_libraries(test_weight ${ROOT_LIBRARIES} FunRootAna)
@@ -53,6 +59,8 @@ enable_testing()
 add_test(NAME test_HIST COMMAND test_hist)
 add_test(NAME test_EagerFunctionalVector COMMAND test_wsc)
 add_test(NAME test_LazyFunctionalVector COMMAND test_lfv)
+add_test(NAME test_EagerFunctionalVector2 COMMAND test_efv2)
+
 add_test(NAME test_Weight COMMAND test_weight)
 
 add_test(NAME benchmark COMMAND benchmark)
