@@ -52,7 +52,7 @@ int main() {
 
 
     auto eager_small = wrap(small);
-    auto lazy_small  = lazy(small);
+    auto lazy_small  = lazy_view(small);
     std::cout << "[ms] filter_map_sum on small vector " <<    measure( filter_map_sum<decltype(eager_small)>, eager_small, 100) << std::endl;
     std::cout << "[ms] filter_map_sum on small vector " <<    measure( filter_map_sum<decltype(lazy_small)>, lazy_small, 100) << std::endl;
 
@@ -60,7 +60,7 @@ int main() {
     std::vector<double> big(1000);
     randfill(big);
     auto eager_big = wrap(big);
-    auto lazy_big  = lazy(big);
+    auto lazy_big  = lazy_view(big);
     std::cout << "[ms] filter_map_sum on big vector " <<    measure( filter_map_sum<decltype(eager_big)>, eager_big, 100) << std::endl;
     std::cout << "[ms] filter_map_sum on big vector " <<    measure( filter_map_sum<decltype(lazy_big)>, lazy_big, 100) << std::endl;
 
@@ -68,9 +68,9 @@ int main() {
     std::vector<double> large(100000);
     randfill(large);
     auto eager_large = wrap(large);
-    auto lazy_large  = lazy(large);
-    std::cout << "[ms] filter_map_sum on large vector " <<    measure( filter_map_sum<decltype(eager_large)>, eager_large, 10) << std::endl;
-    std::cout << "[ms] filter_map_sum on large vector " <<    measure( filter_map_sum<decltype(lazy_large)>, lazy_large, 10) << std::endl;
+    auto lazy_large  = lazy_view(large);
+    std::cout << "[ms] filter_map_sum on large vector " <<    measure( filter_map_sum<decltype(eager_large)>, eager_large, 100) << std::endl;
+    std::cout << "[ms] filter_map_sum on large vector " <<    measure( filter_map_sum<decltype(lazy_large)>, lazy_large, 100) << std::endl;
 
 
 

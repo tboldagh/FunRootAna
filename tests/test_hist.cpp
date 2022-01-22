@@ -111,7 +111,7 @@ public:
 
 
     void test_lazy_fill()  {
-        auto v1 = lazy(std::vector<float>({-1, -0.2, 0.5, 0.2, 1.5, 0.7}));
+        auto v1 = lazy_own(std::move(std::vector<float>({-1, -0.2, 0.5, 0.2, 1.5, 0.7})));
         test_vec_fill(v1);
     }
 

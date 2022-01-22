@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <set>
 #include <deque>
+#include <cmath>
 
 #include "futils.h"
 #include "EagerFunctionalVector.h"
@@ -24,7 +25,7 @@ The actual containers are wrapped std::vectors but expansion to other containers
 
 The foreach should take function object that is applied to element of the collection.
 The function should return boolean, when the false is returned the iteration is interrupted.
-The foreach takes additional instructions that can be used to optimize it's operation or affect the order of operations.
+The foreach takes additional instructions that can be used to optimize it's operation.
 
 
 */
@@ -34,9 +35,7 @@ namespace {
     enum skip_take_logic_t { skip_elements, take_elements };
     enum min_max_logic_t { min_elements, max_elements };
     enum preserve_t { temporary, store }; // instruct if the results of for-each will be refereed to afterwards
-    enum order_t { forward, reverse, any }; // direction of the foreach
     struct foreach_instructions {
-        order_t order = forward;
         preserve_t preserve = temporary;
     };
 };
@@ -110,7 +109,6 @@ class FunctionalInterface {
 public:
     using value_type = Stored;
     using const_reference_type = const value_type&;
-    static std::function<const_reference_type(const_reference_type) > identity;
 
     FunctionalInterface(const Container& cont) : m_actual_container(cont) {}
     ~FunctionalInterface() {}
@@ -208,8 +206,8 @@ public:
     }
 
     // sort according to the key extractor @arg f, this is lazy operation
-    template<typename F = decltype(identity)>
-    auto sorted(F f = identity) const {
+    template<typename F = decltype(identity<Stored>)>
+    auto sorted(F f = ::identity<Stored>) const {
         static_assert(Container::is_finite, "Can't sort in an infinite container");
         static_assert(Container::is_permanent, "Can't sort container that generates element on the flight, stage() it before");
         return SortedView<Container, F>(m_actual_container, f);
@@ -259,13 +257,13 @@ public:
     }
 
     // max and min
-    template<typename KeyExtractor = decltype(identity)>
-    auto max(KeyExtractor by = identity) const {
+    template<typename KeyExtractor = decltype(identity<Stored>)>
+    auto max(KeyExtractor by = ::identity<Stored>) const {
         static_assert(Container::is_finite, "Can't find max in an infinite container");
         return MMView<Container, KeyExtractor>(m_actual_container, by, max_elements);
     }
-    template<typename KeyExtractor = decltype(identity)>
-    auto min(KeyExtractor by = identity) const {
+    template<typename KeyExtractor = decltype(identity<Stored>)>
+    auto min(KeyExtractor by = ::identity<Stored>) const {
         static_assert(Container::is_finite, "Can't find min in an infinite container");
         return MMView<Container, KeyExtractor>(m_actual_container, by, min_elements);
     }
@@ -295,7 +293,7 @@ public:
 
         bool same = true;
         zip(c).foreach([&same, &comparator](const auto& el) {
-            if (comparator(el)) {
+            if (not comparator(el)) {
                 same = false;
                 return false;
             }
@@ -307,7 +305,7 @@ public:
     // compare for equality
     template<typename Other>
     auto is_same(const Other& c) const {
-        return is_same(c, [](const auto& el) { return el.first != el.second; });
+        return is_same(c, [](const auto& el) { return el.first == el.second; });
     }
 
     // produce container of elements grouped by n
@@ -316,11 +314,11 @@ public:
     // e.g. assume container: 0,1,2,3 and size=2, jump=2 then such groups will be formed (0,1)(2,3)
     // if the jump=1 the groups (0,1)(1,2)(2,3) will be formed
     // @warning if the container size is not a multiple of n, the trailing elements are not exposed, e.g. sth.take(8).group(3) will process only first 6 elements
-    auto group(size_t size = 2, size_t jump = std::numeric_limits<size_t>::max() ) const {
-        if (jump == std::numeric_limits<size_t>::max() )
+    auto group(size_t size = 2, size_t jump = std::numeric_limits<size_t>::max()) const {
+        if (jump == std::numeric_limits<size_t>::max())
             return NView<Container>(m_actual_container, size, size);
         else
-            return NView<Container>(m_actual_container, size, jump);            
+            return NView<Container>(m_actual_container, size, jump);
     }
 
     // forms container of all pairs from this and other container
@@ -334,8 +332,8 @@ public:
     auto permutations(size_t) {}
 
     // sum, allows to transform the object before summation (i.e. can act like map + sum)
-    template<typename F = decltype(identity)>
-    Stored sum(F f = identity) const {
+    template<typename F = decltype(identity<Stored>)>
+    Stored sum(F f = ::identity<Stored>) const {
         static_assert(Container::is_finite, "Can't sum an infinite container");
 
         Stored s = {};
@@ -353,6 +351,21 @@ public:
         return s;
     }
 
+    template<typename F = decltype(identity<Stored>)>
+    StatInfo stat(F f = ::identity<Stored>) const {
+        static_assert(std::is_arithmetic<Stored>::value, "The type stored in this container is not arithmetic, can't calculate standard statistical properties");
+        StatInfo info;
+        m_actual_container.foreach_imp([&info, f](const_reference_type el) {
+            auto v = f(el);
+            info.count++;
+            info.sum += v;
+            info.sum2 += std::pow(v, 2);
+            return true;
+            });
+        return info;
+    }
+
+
     // access by index (not good idea to overuse)
     virtual auto element_at(size_t  n) const -> std::optional<value_type> {
         one_element_stack_container<value_type> temp;
@@ -366,6 +379,10 @@ public:
             return true;
             });
         return temp.empty() ? std::optional<value_type>() : temp.get();
+    }
+
+    virtual auto get() const -> std::optional<value_type> {
+        return element_at(0);
     }
 
 
@@ -432,9 +449,6 @@ public:
 protected:
     const Container& m_actual_container;
 };
-
-template<typename Container, typename Stored>
-std::function<const Stored& (const Stored& x) > FunctionalInterface<Container, Stored>::identity = [](const Stored& x) { return x; };
 
 
 
@@ -602,7 +616,7 @@ public:
     NView(const Container& c, size_t n, size_t jump)
         : FunctionalInterface<NView<Container>, value_type>(*this),
         m_foreach_imp_provider(c),
-        m_group(n), 
+        m_group(n),
         m_jump(jump) { }
 
     template<typename F>
@@ -610,16 +624,16 @@ public:
         value_type group;
         m_foreach_imp_provider.foreach_imp([f, this, &group](const auto& el) {
             group.insert(el);
-//                       std::cout << "NView " << group.size() << " " << el << std::endl;
+            //                       std::cout << "NView " << group.size() << " " << el << std::endl;
             if (group.size() == m_group) {
                 const bool go = f(group);
                 if (not go)
                     return false;
-//                std::cout << m_group << " " << m_jump << " " << group.size() << std::endl;
-                if ( m_group == m_jump)
+                //                std::cout << m_group << " " << m_jump << " " << group.size() << std::endl;
+                if (m_group == m_jump)
                     group.clear();
                 else
-                    for ( size_t p = 0; p < m_jump; p++) group._underlying().pop_front();
+                    for (size_t p = 0; p < m_jump; p++) group._underlying().pop_front();
             }
             return true;
             }, how);
@@ -698,9 +712,9 @@ public:
     using const_value_type = const value_type;
     using const_reference_type = const_value_type&;
     using container = FunctionalInterface<Container, value_type>;
-    static constexpr bool is_finite = Container::is_finite;
+    static constexpr bool is_finite = true;
     static constexpr bool is_permanent = Container::is_permanent;
-
+    static_assert(Container::is_finite, "Only finite containers can be reversed");
 
     ReverseView(const Container& c)
         : FunctionalInterface<ReverseView<Container>, typename Container::value_type>(*this),
@@ -708,14 +722,22 @@ public:
 
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
-        m_foreach_imp_provider.foreach_imp([f](const auto& el) {
-            const bool go = f(el);
+        std::vector< std::reference_wrapper<const value_type>> lookup;
+        m_foreach_imp_provider.foreach_imp([&lookup](const_reference_type el) {
+            // std::cout << "ReverseView inserting " <<  el << "\n";             
+            lookup.push_back(std::cref(el)); return true; });
+
+        // for ( auto el: lookup) {
+        //     std::cout << "Reversed " <<  el << "\n";             
+        // }
+        for (auto it = lookup.rbegin(); it != lookup.rend(); ++it) {
+            // std::cout << "Handing " << *it << "\n";
+            const bool go = f(it->get());
             if (not go)
-                return false;
-            return true;
-            },
-            { (how.order == forward ? reverse : forward), how.preserve }); // here we rotate the order
+                break;
+        }
     }
+
 private:
     const Container& m_foreach_imp_provider;
 };
@@ -840,43 +862,24 @@ public:
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
         bool need_to_access_second_container = true;
-        if (how.order == reverse) {
-            m_foreach_imp_provider2.foreach_imp([f, &need_to_access_second_container](auto el) {
-                const bool go = f(el);
-                if (not go) {
-                    need_to_access_second_container = false;
-                    return false;
-                }
-                return true;
-                }, how);
-            if (not need_to_access_second_container) return;
-            m_foreach_imp_provider1.foreach_imp([f](const_reference_type el) {
-                const bool go = f(el);
-                if (not go) {
-                    return false;
-                }
-                return true;
-                }, how);
-        }
-        else {
-            m_foreach_imp_provider1.foreach_imp([f, &need_to_access_second_container](const_reference_type el) {
-                const bool go = f(el);
-                if (not go) {
-                    need_to_access_second_container = false;
-                    return false;
-                }
-                return true;
-                }, how);
-            if (not need_to_access_second_container) return;
-            m_foreach_imp_provider2.foreach_imp([f](auto el) {
-                const bool go = f(el);
-                if (not go) {
-                    return false;
-                }
-                return true;
-                }, how);
-        }
+        m_foreach_imp_provider1.foreach_imp([f, &need_to_access_second_container](const_reference_type el) {
+            const bool go = f(el);
+            if (not go) {
+                need_to_access_second_container = false;
+                return false;
+            }
+            return true;
+            }, how);
+        if (not need_to_access_second_container) return;
+        m_foreach_imp_provider2.foreach_imp([f](const_reference_type el) {
+            const bool go = f(el);
+            if (not go) {
+                return false;
+            }
+            return true;
+            }, how);
     }
+
 private:
     const Container1& m_foreach_imp_provider1;
     const Container2& m_foreach_imp_provider2;
@@ -884,14 +887,16 @@ private:
 };
 
 template<typename Container1, typename Container2>
-class ZipView : public FunctionalInterface<ZipView<Container1, Container2>, typename std::pair<const typename Container1::value_type&, const typename Container2::value_type&> > {
+class ZipView : public FunctionalInterface<ZipView<Container1, Container2>, typename std::pair<const typename Container1::value_type, const typename Container2::value_type> > {
 public:
-    using value_type = typename std::pair<const typename Container1::value_type&, const typename Container2::value_type&>;
+    using value_type = typename std::pair<const typename Container1::value_type, const typename Container2::value_type>;
     using const_value_type = const value_type;
     using const_reference_type = const_value_type&;
     static constexpr bool is_permanent = Container1::is_permanent && Container2::is_permanent;
+    static constexpr bool is_finite = Container1::is_finite or Container2::is_finite;
 
     static_assert(has_fast_element_access_tag<Container1>::value or has_fast_element_access_tag<Container2>::value, "At least one container needs to to provide fast element access, consider calling stage() ");
+
     ZipView(const Container1& c1, const Container2& c2)
         : FunctionalInterface<ZipView<Container1, Container2>, value_type>(*this),
         m_foreach_imp_provider1(c1),
@@ -902,11 +907,10 @@ public:
         size_t index = 0;
         if (has_fast_element_access_tag<Container2>::value) {
             m_foreach_imp_provider1.foreach_imp([f, &index, this](typename Container1::const_reference_type el1) {
-                auto el2 = m_foreach_imp_provider2.element_at(index);
-                // std::cout << "zip " << el1  << "-" << el2.has_value() << std::endl;
-                if (el2.has_value() == false) // reached end cof container 2
+                auto el2_option = m_foreach_imp_provider2.element_at(index);
+                if (el2_option.has_value() == false) // reached end cof container 2
                     return false;
-                const bool go = f(std::pair<typename Container1::const_reference_type, typename Container2::const_reference_type>(el1, el2.value()));
+                const bool go = f(std::pair<typename Container1::const_reference_type, typename Container2::const_reference_type>(el1, el2_option.value()));
                 if (not go)
                     return false;
                 index++;
@@ -915,10 +919,10 @@ public:
         }
         else {
             m_foreach_imp_provider2.foreach_imp([f, &index, this](typename Container2::const_reference_type el2) {
-                auto el1 = m_foreach_imp_provider1.element_at(index);
-                if (el1.has_value() == false) // reached end cof container 2
+                auto el1_option = m_foreach_imp_provider1.element_at(index);
+                if (el1_option.has_value() == false)
                     return false;
-                const bool go = f(std::pair<typename Container1::const_reference_type, typename Container2::const_reference_type>(el1.value(), el2));
+                const bool go = f(std::pair<typename Container1::const_reference_type, typename Container2::value_type>(el1_option.value(), el2));
                 if (not go)
                     return false;
                 index++;
@@ -939,7 +943,7 @@ public:
     using const_value_type = const value_type;
     using const_reference_type = const_value_type&;
     static constexpr bool is_permanent = Container1::is_permanent && Container2::is_permanent;
-    static_assert(Container1::is_finite && Container2::is_finite, "Cartesian product makes sense only for finite containers");
+    static_assert(Container1::is_finite&& Container2::is_finite, "Cartesian product makes sense only for finite containers");
     static constexpr bool is_finite = true;
 
     CartesianView(const Container1& c1, const Container2& c2)
@@ -987,19 +991,10 @@ public:
 
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
-        if (how.order == reverse) {
-            for (auto riter = std::rbegin(m_data), riterend = std::rend(m_data); riter != riterend; ++riter) {
-                const bool go = f(*riter);
-                if (not go)
-                    break;
-            }
-        }
-        else {
-            for (const auto& el : m_data) {
-                const bool go = f(el);
-                if (not go)
-                    break;
-            }
+        for (const auto& el : m_data) {
+            const bool go = f(el);
+            if (not go)
+                break;
         }
     };
 
@@ -1034,6 +1029,10 @@ public:
         : FunctionalInterface<container, value_type>(*this),
         m_data(data) {}
 
+    OwningView(const Container<T, std::allocator<T>>&& data)
+        : FunctionalInterface<container, value_type>(*this),
+        m_data(data) {}
+
     void insert(const_reference_type d) { m_data.push_back(d); }
     void clear() { m_data.clear(); }
 
@@ -1041,19 +1040,10 @@ public:
 
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
-        if (how.order == reverse) {
-            for (auto riter = std::rbegin(m_data), riterend = std::rend(m_data); riter != riterend; ++riter) {
-                const bool go = f(*riter);
-                if (not go)
-                    break;
-            }
-        }
-        else {
-            for (const auto& el : m_data) {
-                const bool go = f(el);
-                if (not go)
-                    break;
-            }
+        for (const auto& el : m_data) {
+            const bool go = f(el);
+            if (not go)
+                break;
         }
     };
 
@@ -1088,10 +1078,10 @@ public:
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
         if (not m_filled) {
-            m_foreach_imp_provider.foreach_imp([this](const auto& el){  
+            m_foreach_imp_provider.foreach_imp([this](const auto& el) {
                 m_cache.insert(el);
                 return true;
-            });
+                });
         }
         m_filled = true;
         m_cache.foreach_imp(f, how);
@@ -1116,15 +1106,15 @@ public:
 
     InspectView(const Container& c, S subroutine)
         : FunctionalInterface<InspectView<Container, S>, typename Container::value_type>(*this),
-        m_foreach_imp_provider(c), 
+        m_foreach_imp_provider(c),
         m_subroutine(subroutine) {}
 
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
-        m_foreach_imp_provider.foreach_imp([this, f](const auto& el ) -> bool {
+        m_foreach_imp_provider.foreach_imp([this, f](const auto& el) -> bool {
             m_subroutine(el);
-            return f(el); }, 
-        how);
+            return f(el); },
+            how);
     }
 private:
     const Container& m_foreach_imp_provider;
@@ -1152,19 +1142,10 @@ public:
 
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
-        if (how.order == reverse) {
-            for (auto riter = std::rbegin(m_data), riterend = std::rend(m_data); riter != riterend; ++riter) {
-                const bool go = f(*riter);
-                if (not go)
-                    break;
-            }
-        }
-        else {
-            for (const auto& el : m_data) {
-                const bool go = f(el.value());
-                if (not go)
-                    break;
-            }
+        for (const auto& el : m_data) {
+            const bool go = f(el.value());
+            if (not go)
+                break;
         }
     };
 
@@ -1199,7 +1180,6 @@ public:
 
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
-        if (how.order == reverse) throw std::runtime_error("can not process infinite series in reverse");
         T current = m_start;
         while (current < m_stop) {
             const bool go = f(current);
@@ -1224,7 +1204,7 @@ public:
     using const_reference_type = const_value_type&;
     static constexpr bool is_permanent = false;
     static constexpr bool is_finite = true;
-    static_assert( std::is_arithmetic<value_type>::value, "Can't generate range of not arithmetic type");
+    static_assert(std::is_arithmetic<value_type>::value, "Can't generate range of not arithmetic type");
 
     Range(const T& begin, const T& end, const T& stride = 1)
         : FunctionalInterface<Range<T>, T >(*this),
@@ -1239,27 +1219,23 @@ public:
 
     template<typename F>
     void foreach_imp(F f, foreach_instructions how = {}) const {
-        if (how.order == reverse) {
-            throw std::runtime_error("reverse range not supported, generate it with range_stream with the negative stride");
-        } else {
-            T current = m_begin;
-            while ((m_stride > 0 and current < m_end) or (current > m_end)) {
-                const bool go = f(current);
-                if (not go)
-                    break;
-                current = current + m_stride;
-                // std::cout << "X" << current << std::endl;
-            }
+        T current = m_begin;
+        while ((m_stride > 0 and current < m_end) or (current > m_end)) {
+            const bool go = f(current);
+            if (not go)
+                break;
+            current = current + m_stride;
+            // std::cout << "X" << current << std::endl;
         }
     }
 
     virtual auto element_at(size_t  n) const -> std::optional<value_type> override final {
-        if ( n < size() )
-            return m_begin + m_stride*n;
+        if (n < size())
+            return m_begin + m_stride * n;
         return {};
     }
     virtual size_t size() const  override final {
-        return std::abs((m_end - m_begin))/std::abs(m_stride);
+        return std::abs((m_end - m_begin)) / std::abs(m_stride);
     }
 
 
@@ -1299,8 +1275,13 @@ Range<T> range_stream(T begin, T end, T stride = 1) {
 }
 
 template<typename T>
-DirectView<T, std::vector> lazy(const std::vector<T>& vec) {
+DirectView<T, std::vector> lazy_view(const std::vector<T>& vec) {
     return DirectView(vec);
+}
+
+template<typename T>
+OwningView<T, std::vector> lazy_own(const std::vector<T>&& vec) {
+    return OwningView(vec);
 }
 
 

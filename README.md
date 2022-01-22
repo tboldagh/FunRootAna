@@ -27,20 +27,18 @@ for (Access event(t); event; ++event) {
     auto category = event.get<int>("category");
     const auto x = wrap(event.get<std::vector<float>>("x")); // get vector of data & wrap it into functional style container
 
-    HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5).fill( category ); // create & fill the histogram, (creation done on demand and only once, the >> operator is responsible for filling)
-    x >> HIST1("x", ";x[mm]", 100, 0, 100); // fill the histogram with the x coordinate
+    category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram, (creation done on demand and only once, the >> operator is responsible for filling)
+    x >> HIST1("x", ";x[mm]", 100, 0, 100); // fill the histogram with the x coordinates (all of them)
     x >> HIST1("x_wide", ";x[mm]", 100, 0, 1000); // fill another histogram with the x coordinate
     x.filter( F(category==0)) >> HIST1("x_cat_0", ";x[mm]", 100, 0, 100); // we can filter the data before filling
     x.filter( F(category==0 && std::fabs(_) < 5 )) >> HIST1("x_cat_0_near_range", ";x[mm]", 100, 0, 5); // the filtering can depend on the variable
     x.map( F(1./std::sqrt(_)) ) >> HIST1("sq_x", ";x[mm]^{-1/2}", 100, 0, 5); // and transform as needed
 
-
-    HIST2("number_of_x_outliers_above_10_vs_category", ";count;category", 10, 0, 10,  5, -0.5, 4.5).fill( x.count( F( std::fabs(_)>10 ) ), category ); 
     // a super complicated plot, 2histogram of number of outliers vs, category
+    std::make_pair( x.count( F( std::fabs(_)>10 ) ), category ) >> HIST2("number_of_x_outliers_above_10_vs_category", ";count;category", 10, 0, 10,  5, -0.5, 4.5)
+    
     // and so on .. one line per histogram
 
-    // for symmetry the operator >> also works for plain-old-data types e.g.
-    3.1415 >> HIST1("pi", "where is pi;values", 10, 0, 10);
 }
 ```
 
@@ -72,24 +70,29 @@ For how to do it best check the `Access.cpp` source and/or example_analysis (the
 
 How do profit from the fact the fact that we have objects. Is it still single line per histogram? Let's see:
 ```c++
-for (PointsTreeAccess event(t); event; ++event) {
-    auto points = wrap(event.getPoints());
-    // let's profit from the fact that we have an object    
-    points.map( F(_.rho_xy()) ) >> HIST1("rho_xy", ";rho", 100, 0, 100); // to extract the a quantity of interest for filling we need the "map" operation, that maps (sic!) from object to a number to be used when filling
-    // let's go fancy and add make 2D plots (mapping needs to produce 2-tuple - that is the pair), let's also throw in some filtering
-    points.filter( F(_.r() < 10 && _.z>5) )
-          .map( F( std::make_pair(_.x, _.y)) )
-          >> (HIST2("xy/points_close_to_center_high_z", ";x;y", 20, 0, 20, 20, 0, 20);
-    points.filter( F(_.r() < 10 && _.z<5) )
-          .map( F( std::make_pair(_.x, _.y)) )
-          >> (HIST2("xy/points_close_to_center_low_z", ";x;y", 20, 0, 20, 20, 0, 20);
-    // ... again one line per histogram
-}
+       for (PointsTreeAccess event(t); event; ++event) {
+            const int category = event.get<int>("category");
+            category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram with a plain , (creation done on demand and only once)
+
+            const auto x = lazy_own(std::move(event.get<std::vector<float>>("x"))); // get vector of data & wrap it into a functional style container
+            x >> HIST1("x", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
+            x.map( F(_ - 1) ) >> HIST1("x_shifted", "transformed x;|x-1|", 20, 0, 1); // transform & fill the histogram
+
+            std::make_pair(x.sum(), x.size()) >> HIST2("tot_vs_size", ";sum;size", 20, 0, 150, 20, 0, 150);
+
+            // processing objects
+            auto points = lazy_own(std::move(event.getPoints()));
+            points.map( F(_.rho_xy()) ) >> HIST1("rho_xy", ";rho", 100, 0, 5); // to extract the a quantity of interest for filling we do the "map" operation
+            points.map(F(_.z)) >> HIST1("z", ";zcoord", 100, 0, 10); // another example
+            points.filter(F(_.z > 1.0) ).map( F(_.rho_xy())) >> HIST1("rho", ";rho_{z>1}", 100, 0, 10); // another example
+            points.map( F( std::make_pair(_.r(), _.z))) >>  HIST2("xy/r_z", ";x;y", 30, 0, 3, 20, 0, 15); // and 2D hist
+        }
+        // see complete code in examples/example_analysis.cpp
 ```
 
 # The functional container
 A concise set of transformations that get us from the data to the data summary (histogram in this case) is possible thanks to the Functional Vector wrappers.
-It is really a`std::vector` with extra methods. 
+It is really a`std::vector` with extra methods.
 Among many functions it offers, this three are the most relevant:
 * `map` - that takes function defining the mapping operation i.e. can be as simple as taking attribute of an object or as complicated as ... 
 * `filter` - that produces another container with potentially reduced set of elements
@@ -126,16 +129,18 @@ If the containers are large in your particular problem it may be expensive to ma
 Another strategy can be used in this case. That is *lazy* evaluation. In this approach objects crated by every transformation are in fact very lightweight (i.e. no data is copied). 
 Instead, the *recipes* of how to transform the data when it will be needed are kept in these intermediate objects. 
 This functionality is provided by several classes residing in LazyFunctionalVector _(still under some development)_.
-You can switch between one or the other implementation quite conveniently by just changing the include file which you use and rename `wrap` into `lazy`.
-In general the lazy vector starts to beat the eager one in terms of performance with as little as 3 transformations and size of 10 _(an effort top optimise both implementation is ongoing so, it may change)_.
+You can switch between one or the other implementation quite conveniently by just changing the include file which you use and rename `wrap` into `lazy_own/lazy_view`.
+In general the lazy vector beats the eager one in terms of performance _(an effort to optimise both implementation is ongoing)_.
 
-In the lazy wrapper there is a `stage()` method that can improve the performance. It produces an intermediate copy that is operated on by further transformations. This way, some transformations can be skipped.
+If the container that is to be processed is guaranteed to reside in memory the lazy wrapper can be very lazy! That is it does not have to copy the data into own memory and should be constructed with `lazy_view`.  If the container may disappear from the memory before the wrapper is done the initial copy has to be done. In this case `lazy_own` should be used for construction.
+
+In the lazy vector has one special methods  that can positively impact the performance sometimes. The method `stage` (or `cache`) produces an intermediate copy that is operated on by further transformations. This way, the transformations before the call to `stage` are not repeated. See an example.
 ```c++
 auto prefiltered = container.filter(F(_.x < 2)).filter(F(_.y >5 )).filter(F(_.r() < 10)).stage(); // skipping stage() would result in filtering operations to be repeated when calculating x
 auto x = prefiltered.map(F(_.x)).sort(F(_.x)).element_at(0); // here, the filtering from the line above does not happen, however the "prefilterd" is still lazy evaluating container
 ```
 
-In fact you can mix the two approaches if needed calling `as_eager()` and `as_lazy()` _(still under consideration/development)_;
+In fact you can mix the two approaches if needed calling `as_eager()`, and other way round: `lazy_view(v.unwrap())`, but tha should never be necessary.
 
 
 # Histograms handling
@@ -186,9 +191,8 @@ There are less commonly needed `missing` and `assure_about_equal`.
 # Playing with the example
 Attached makefile compiles code in examples subdir. That one contains example_analysis.cpp that can be changed to see how things work.
 Input file with the points can be generated using generateTree.C
-Attached makefile should be sufficient to compile this lib, generate the test file and so on.
+Attached cmake file should be sufficient to compile this lib, generate the test file and so on.
 # TODO 
-* more tests
 * HIST cleanup - remove unnecessary hashing entirely
 
 

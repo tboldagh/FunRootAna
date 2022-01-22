@@ -9,7 +9,7 @@
 
 
 #ifdef TEST_LAZY
-#define functional_vector lazy
+#define functional_vector lazy_view
 #else
 #define functional_vector wrap
 #endif
@@ -217,9 +217,9 @@ void test_chain() {
     auto vt2 = functional_vector(t2);
     auto jt = vt1.chain(vt2);
     VALUE(jt.size()) EXPECTED(7);
-    VALUE(jt.element_at(0).value()) EXPECTED(1);
-    VALUE(jt.element_at(4).value()) EXPECTED(5);
-    VALUE(jt.element_at(5).value()) EXPECTED(-1);
+    std::vector<int> byhand({1,19,4, 2, 5, -1, 3});
+    auto vb = functional_vector(byhand);
+    VALUE( vb.is_same(jt)) EXPECTED(true);
 
     auto ajt = vt1.skip(1).chain(vt2.filter(F(_ < 0)));
     VALUE(ajt.size()) EXPECTED(4);
@@ -279,13 +279,19 @@ void test_reversal() {
     std::vector<int> t1({ 1,19,4, 2, 5, -1, 5 });
     auto vt1 = functional_vector(t1);
     auto r1 = vt1.reverse();
+    VALUE( r1.size() ) EXPECTED( 7);
     VALUE(r1.element_at(0).value()) EXPECTED(5);
+    VALUE(r1.element_at(1).value()) EXPECTED(-1);
+
+    auto back = r1.reverse();
+    VALUE( back.size() ) EXPECTED( vt1.size() );
+    VALUE( back.is_same(vt1) ) EXPECTED(true);
 
     auto last_3 = r1.reverse().take(3).reverse();
     VALUE(last_3.size()) EXPECTED(3);
-    VALUE(last_3.element_at(0).value()) EXPECTED(5);
-    VALUE(last_3.element_at(1).value()) EXPECTED(-1);
-    VALUE(last_3.element_at(2).value()) EXPECTED(5);
+    VALUE(last_3.element_at(0).value()) EXPECTED(4);
+    VALUE(last_3.element_at(1).value()) EXPECTED(19);
+    VALUE(last_3.element_at(2).value()) EXPECTED(1);
 
 
 
@@ -423,6 +429,21 @@ void test_group() {
     x.group(2, 1).foreach(S(std::cout << _.element_at(0).value() << ":" << _.element_at(1).value() << " "));
 }
 
+void test_stat() {
+    std::vector<int> t1({ 1, 19, 4, 2, 5, -1, 5 });
+    auto vt1 = functional_vector(t1); 
+
+    auto s = vt1.stat();
+    VALUE(s.sum) EXPECTED( vt1.sum() );
+    VALUE(s.count) EXPECTED( vt1.size() );
+    VALUE(s.mean()) EXPECTED( static_cast<double>( vt1.sum())/vt1.size() );
+    double var = vt1.map( C(_-s.mean())).map( F(_*_) ).sum()/vt1.size(); // calculate it by hand
+    VALUE(s.var()) EXPECTED( var);
+
+
+
+}
+
 
 int main() {
     const int failed =
@@ -444,7 +465,8 @@ int main() {
         + SUITE(test_series)
         + SUITE(test_cartesian)
         + SUITE(test_cache)
-        + SUITE(test_group);
+        + SUITE(test_group)
+        + SUITE(test_stat);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;

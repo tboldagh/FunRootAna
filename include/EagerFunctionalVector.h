@@ -20,14 +20,6 @@
 #include "futils.h"
 
 
-struct StatInfo {
-  double count = {};
-  double sum = {};
-  double mean() const { return sum / count; }
-  double sum2 = {};
-  double var() const { return sum2 / count - std::pow(mean(), 2); }
-  double sigma() const { return std::sqrt(var()); }
-};
 
 template<typename T>
 class EagerFunctionalVector
@@ -103,12 +95,12 @@ public:
     return total;
   }
 
-
-  template<typename Op>
-  StatInfo stat(Op f) const {
+  
+  template<typename F = decltype(identity<T>)>
+  StatInfo stat(F f = ::identity<T>) const{
+    static_assert(std::is_arithmetic<T>::value, "The type stored in this container is not arithmetic, can't calculate standard statistical properties");
     StatInfo info;
-    for (auto e : container) {
-      decltype(std::declval<Op>()(std::declval<T>())) v = f(e);
+    for (const auto &v : container) {
       info.count++;
       info.sum += v;
       info.sum2 += std::pow(v, 2);
@@ -156,10 +148,9 @@ public:
 
 
   EagerFunctionalVector<T> reverse() const {
-    EagerFunctionalVector<T> ret;
-    auto it_rbegin = container.rbegin();
-    while (it_rbegin != container.rend()) {
-      ret.container.push_back(*it_rbegin++);
+    EagerFunctionalVector<T> ret;    
+    for ( auto it = container.rbegin(); it != container.rend(); ++it) {
+      ret.unwrap().emplace_back( *it );
     }
     return ret;
   }
@@ -282,28 +273,22 @@ public:
 
   EagerFunctionalVector<T> take(size_t n, size_t stride = 1) const {
     EagerFunctionalVector<T> ret;
-    auto end = container.begin() + std::min(n, container.size());
-    for (auto iter = container.begin(); iter != end; iter += stride) {
-      ret.push_back(*iter);
-    }
-    return ret;
-
     size_t counter = 0;
-    for (auto& el : container) {
-      if (counter % stride == 0)
-        ret.push_back(el);
-      if (counter >= n)
-        return ret;
-      counter++;
+    for ( auto & el: container) {
+      if ( counter >= n ) break;
+      if ( counter % stride == 0 ) ret.unwrap().emplace_back(el);
+      ++counter;
     }
     return ret;
   }
 
   EagerFunctionalVector<T> skip(size_t n, size_t stride = 1) const {
     EagerFunctionalVector<T> ret;
-    auto iter = container.begin() + std::min(n, container.size());
-    for (; iter != container.end(); iter += stride) {
-      ret.push_back(*iter);
+    size_t counter = 0;
+    for ( auto &el : container ) {
+      if ( counter >= n and counter % stride == 0 )
+        ret.unwrap().emplace_back(el);
+      ++counter;
     }
     return ret;
   }
@@ -325,11 +310,11 @@ public:
     EagerFunctionalVector ret;
     bool start_taking = false;
     for (auto& el : container) {
-      if (not start_taking and predicate(el)) {
+      if (not start_taking and not predicate(el)) {
         start_taking = true;
       }
       if (start_taking)
-        ret.__push_back(el);
+        ret.unwrap().emplace_back(el);
     }
     return ret;
   }
@@ -409,7 +394,7 @@ public:
 
   template<typename Other>
   auto is_same(const Other& c) const {
-    return is_same(c, [](const auto& el) { return el.first != el.second; });
+    return is_same(c, [](const auto& el) { return el.first == el.second; });
   }
 
 

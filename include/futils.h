@@ -10,6 +10,7 @@
 // example use: filter( F(_ < 0)) - the _ is the lambda argument, the function is pure (i.e. sees no outer scope), if that is needed use C
 #define F(CODE) [](const auto &_) { return CODE; }
 
+
 // closure, like function but see outer scope by reference (can change external variables)
 #define C(CODE) [&](const auto &_) { return CODE; }
 
@@ -32,5 +33,19 @@ template<typename T, typename U, typename V>
 std::ostream& operator<<(std::ostream& o, const triple<T,U, V>& v ) {return o << v.first << ":" << v.second<< ":" << v.third << " "; }
 
 #define PRINT S(std::cout << _ << " ";)
+
+
+struct StatInfo {
+  double count = {};
+  double sum = {};
+  double mean() const { return sum / count; }
+  double sum2 = {};
+  double var() const { return sum2 / count - std::pow(mean(), 2); }
+  double sigma() const { return std::sqrt(var()); }
+};
+
+template<typename T>
+std::function<const T&(const T&) > identity = [](const T& v){ return v; };
+
 
 #endif

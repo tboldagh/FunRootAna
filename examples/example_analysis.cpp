@@ -5,7 +5,7 @@
 
 /*
     This is an example analysis code.
-    In real life this code shoudl be split into several files (one "responsibility" in each).
+    In real life this code should be split into several files (one "responsibility" in each).
  */
 
 #include <cmath>
@@ -21,7 +21,7 @@ struct Point{
 #include <utility>
 
 #include "Access.h"
-#include "EagerFunctionalVector.h"
+#include "LazyFunctionalVector.h"
 #include "filling.h"
 class PointsTreeAccess : public Access{
     public:
@@ -56,7 +56,8 @@ class PointsTreeAccess : public Access{
 
 
 #include "HIST.h"
-#include "EagerFunctionalVector.h"
+#include "LazyFunctionalVector.h"
+
 
 class MyAnalysis : public HandyHists {
 public:
@@ -68,21 +69,21 @@ public:
         assure(t != nullptr, "Tree" );
 
         for (PointsTreeAccess event(t); event; ++event) {
-            auto category = event.get<int>("category");
-            category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram, (creation done on demand and only once)
-            const auto x = wrap(event.get<std::vector<float>>("x")); // get vector of data & wrap it into a functional style container
-            x >> HIST1("x", "x[mm]", 100, 0, 100); // fill the histogram with the x coordinate
-            x >> HIST1("x_wide", "x[mm]", 100, 0, 1000); // fill another histogram with the x coordinate
+            const int category = event.get<int>("category");
+            category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram with a plain , (creation done on demand and only once)
 
-            std::make_pair(x.filter( F( std::fabs(_) ) ).filter( F(_ > 10) ).size(), category) >> 
-                HIST2("number_of_x_outliers_above_10_vs_category", ";count;category", 10, 0, 10,  5, -0.5, 4.5)
-; // a super complicated plot, 2D histogram of number of outlayers vs, category
+            const auto x = lazy_own(std::move(event.get<std::vector<float>>("x"))); // get vector of data & wrap it into a functional style container
+            x >> HIST1("x", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
+            x.map( F(_ - 1) ) >> HIST1("x_shifted", "transformed x;|x-1|", 20, 0, 1); // transform & fill the histogram
 
-            auto points = wrap(event.getPoints());
-            // let's profit from the fact that we have an object
-            points.map( F(_.rho_xy()) ) >> HIST1("rho_xy", ";rho", 100, 0, 100); // to extract the a quantity of interest for filling we do the "map" operation
-            points.filter( F(_.r() < 10 && _.z>5) ).map( F( std::make_pair(_.x, _.y)) ) >> HIST2("xy/points_close_to_center_high_z", ";x;y", 20, 0, 20, 20, 0, 20);
-            points.filter( F(_.r() < 10 && _.z<5) ).map( F( std::make_pair(_.x, _.y)) ) >> HIST2("xy/points_close_to_center_low_z", ";x;y", 20, 0, 20, 20, 0, 20);
+            std::make_pair(x.sum(), x.size()) >> HIST2("tot_vs_size", ";sum;size", 20, 0, 150, 20, 0, 150);
+
+            // processing objects
+            auto points = lazy_own(std::move(event.getPoints()));
+            points.map( F(_.rho_xy()) ) >> HIST1("rho_xy", ";rho", 100, 0, 5); // to extract the a quantity of interest for filling we do the "map" operation
+            points.map(F(_.z)) >> HIST1("z", ";zcoord", 100, 0, 10); // another example
+            points.filter(F(_.z > 1.0) ).map( F(_.rho_xy())) >> HIST1("rho", ";rho_{z>1}", 100, 0, 10); // another example
+            points.map( F( std::make_pair(_.r(), _.z))) >>  HIST2("xy/r_z", ";x;y", 30, 0, 3, 20, 0, 15); // and 2D hist
         }
         f->Close();
     }
