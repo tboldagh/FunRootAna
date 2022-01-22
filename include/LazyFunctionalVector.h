@@ -353,7 +353,7 @@ public:
 
     template<typename F = decltype(identity<Stored>)>
     StatInfo stat(F f = ::identity<Stored>) const {
-        static_assert(std::is_arithmetic<Stored>::value, "The type stored in this container is not arithmetic, can't calculate standard statistical properties");
+        static_assert(std::is_arithmetic< typename std::remove_reference<typename std::invoke_result<F, Stored>::type>::type >::value, "The type stored in this container is not arithmetic, can't calculate standard statistical properties");
         StatInfo info;
         m_actual_container.foreach_imp([&info, f](const_reference_type el) {
             auto v = f(el);
@@ -1281,6 +1281,11 @@ DirectView<T, std::vector> lazy_view(const std::vector<T>& vec) {
 
 template<typename T>
 OwningView<T, std::vector> lazy_own(const std::vector<T>&& vec) {
+    return OwningView(vec);
+}
+
+template<typename T>
+OwningView<T, std::vector> lazy_own(const std::vector<T>& vec) {
     return OwningView(vec);
 }
 

@@ -21,36 +21,36 @@
 
 
 
-template<typename T>
+template<typename Stored>
 class EagerFunctionalVector
 {
 private:
-  std::vector<T> container;
-  void __push_back(const T& x) {
+  std::vector<Stored> container;
+  void __push_back(const Stored& x) {
     container.push_back(x);
   }
   template<typename U> friend class LazyFunctionalVector;
 public:
-  using value_type = T;
+  using value_type = Stored;
 
   EagerFunctionalVector() {}
 
-  EagerFunctionalVector(const std::vector<T>& vec)
+  EagerFunctionalVector(const std::vector<Stored>& vec)
     : container(vec.begin(), vec.end()) {}
 
-  EagerFunctionalVector(const EagerFunctionalVector<T>& rhs)
+  EagerFunctionalVector(const EagerFunctionalVector<Stored>& rhs)
     : container(rhs.container) {}
 
-  EagerFunctionalVector(typename std::vector<T>::const_iterator begin, typename std::vector<T>::const_iterator end)
+  EagerFunctionalVector(typename std::vector<Stored>::const_iterator begin, typename std::vector<Stored>::const_iterator end)
     : container(begin, end) {}
 
-  void operator=(EagerFunctionalVector<T>&& rhs) {
+  void operator=(EagerFunctionalVector<Stored>&& rhs) {
     container = std::move(rhs.container);
   }
 
-  template<typename ResultT, typename Op>
-  ResultT reduce(const ResultT& initialValue, Op operation) const {
-    ResultT total = initialValue;
+  template<typename Result, typename Op>
+  Result reduce(const Result& initialValue, Op operation) const {
+    Result total = initialValue;
     for (auto e : container) {
       total = operation(total, e);
     }
@@ -68,8 +68,8 @@ public:
   template<typename Op>
   //  decltype(std::declval<Op>()(std::declval<T>())) sum( Op operation ) const {
   //    decltype(std::declval<Op>()(std::declval<T>())) total = {};
-  typename std::invoke_result<Op, const T&>::type sum(Op operation) const {
-    typename std::invoke_result<Op, const T&>::type total = {};
+  typename std::invoke_result<Op, const Stored&>::type sum(Op operation) const {
+    typename std::invoke_result<Op, const Stored&>::type total = {};
 
     for (auto e : container) {
       total += operation(e);
@@ -87,8 +87,8 @@ public:
   }
 
 
-  T sum() const {
-    T total = {};
+  Stored sum() const {
+    Stored total = {};
     for (auto e : container) {
       total += e;
     }
@@ -96,9 +96,9 @@ public:
   }
 
   
-  template<typename F = decltype(identity<T>)>
-  StatInfo stat(F f = ::identity<T>) const{
-    static_assert(std::is_arithmetic<T>::value, "The type stored in this container is not arithmetic, can't calculate standard statistical properties");
+  template<typename F = decltype(identity<Stored>)>
+  StatInfo stat(F f = ::identity<Stored>) const{
+    static_assert(std::is_arithmetic< typename std::remove_reference<typename std::invoke_result<F, Stored>::type>::type >::value, "The type stored in this container is not arithmetic, can't calculate standard statistical properties");
     StatInfo info;
     for (const auto &v : container) {
       info.count++;
@@ -109,16 +109,16 @@ public:
   }
 
 
-  EagerFunctionalVector<T> chain(const EagerFunctionalVector<T>& rhs) const {
-    EagerFunctionalVector<T> clone(container);
+  EagerFunctionalVector<Stored> chain(const EagerFunctionalVector<Stored>& rhs) const {
+    EagerFunctionalVector<Stored> clone(container);
     clone.unwrap().insert(clone.end(), rhs.begin(), rhs.end());
     return clone;
   }
 
 
   template<typename Op>
-  EagerFunctionalVector<T> filter(Op f) const {
-    EagerFunctionalVector<T> ret;
+  EagerFunctionalVector<Stored> filter(Op f) const {
+    EagerFunctionalVector<Stored> ret;
     for (const auto& el : container)
       if (f(el))
         ret.container.push_back(el);
@@ -137,29 +137,28 @@ public:
     return container.empty();
   }
 
-  static const T& identity(const T& c) { return c; }
 
-  template< typename KeyExtractor = decltype(identity)>
-  EagerFunctionalVector<T> sorted(KeyExtractor key = identity) const {
-    EagerFunctionalVector<T> clone(container);
-    std::sort(clone.container.begin(), clone.container.end(), [&](const T& el1, const T& el2) { return key(el1) < key(el2); });
+  template< typename KeyExtractor = decltype(identity<Stored>)>
+  EagerFunctionalVector<Stored> sorted(KeyExtractor key = ::identity<Stored>) const {
+    EagerFunctionalVector<Stored> clone(container);
+    std::sort(clone.container.begin(), clone.container.end(), [&](const Stored& el1, const Stored& el2) { return key(el1) < key(el2); });
     return clone;
   }
 
 
-  EagerFunctionalVector<T> reverse() const {
-    EagerFunctionalVector<T> ret;    
+  EagerFunctionalVector<Stored> reverse() const {
+    EagerFunctionalVector<Stored> ret;    
     for ( auto it = container.rbegin(); it != container.rend(); ++it) {
       ret.unwrap().emplace_back( *it );
     }
     return ret;
   }
 
-  EagerFunctionalVector<std::pair<size_t, T>> enumerate(size_t offset = 0) const {
-    EagerFunctionalVector<std::pair<size_t, T>> ret;
+  EagerFunctionalVector<std::pair<size_t, Stored>> enumerate(size_t offset = 0) const {
+    EagerFunctionalVector<std::pair<size_t, Stored>> ret;
     size_t counter = offset;
     for (auto& el : container) {
-      ret.unwrap().emplace_back(std::pair<size_t, T>(counter, el));
+      ret.unwrap().emplace_back(std::pair<size_t, Stored>(counter, el));
       ++counter;
     }
     return ret;
@@ -167,30 +166,30 @@ public:
 
 
   template<typename Op>
-  EagerFunctionalVector<decltype(std::declval<Op>()(std::declval<T>()))> map(Op f) const {
-    EagerFunctionalVector<decltype(std::declval<Op>()(std::declval<T>())) > ret;
+  EagerFunctionalVector<decltype(std::declval<Op>()(std::declval<Stored>()))> map(Op f) const {
+    EagerFunctionalVector<decltype(std::declval<Op>()(std::declval<Stored>())) > ret;
     for (const auto& el : container)
       ret.push_back(f(el));
     return ret;
   }
 
   template<typename Op>
-  std::map<decltype(std::declval<Op>()(std::declval<T>())), std::vector<T>> groupBy(Op f) const {
-    std::map<decltype(std::declval<Op>()(std::declval<T>())), std::vector<T>> ret;
+  std::map<decltype(std::declval<Op>()(std::declval<Stored>())), std::vector<Stored>> groupBy(Op f) const {
+    std::map<decltype(std::declval<Op>()(std::declval<Stored>())), std::vector<Stored>> ret;
     for (const auto& el : container)
       ret[f(el)].push_back(el);
     return ret;
   }
 
   template<typename Op>
-  EagerFunctionalVector<typename decltype(std::declval<Op>()(std::declval<T>()))::value_type> flatMap(Op f) const {
-    EagerFunctionalVector<typename decltype(std::declval<Op>()(std::declval<T>()))::value_type> ret;
-    this->map(f).foreach([&ret](const T& item) { ret.insert(ret, item); });
+  EagerFunctionalVector<typename decltype(std::declval<Op>()(std::declval<Stored>()))::value_type> flatMap(Op f) const {
+    EagerFunctionalVector<typename decltype(std::declval<Op>()(std::declval<Stored>()))::value_type> ret;
+    this->map(f).foreach([&ret](const Stored& item) { ret.insert(ret, item); });
     return ret;
   }
 
   template< typename Op>
-  const EagerFunctionalVector<T>& foreach(Op function)  const {
+  const EagerFunctionalVector<Stored>& foreach(Op function)  const {
     for (auto& el : container) function(el);
     return *this;
   }
@@ -201,14 +200,14 @@ public:
     return false;
   }
 
-    bool contains(const T& x) const {
-        return contains([x](const T& el) { return el == x; });
+    bool contains(const Stored& x) const {
+        return contains([x](const Stored& el) { return el == x; });
     }
 
 
   template< typename Op>
-  std::optional<T> first_of(Op predicate) const {
-    for (auto& el : container) if (predicate(el)) return std::optional<T>(el);
+  std::optional<Stored> first_of(Op predicate) const {
+    for (auto& el : container) if (predicate(el)) return std::optional<Stored>(el);
     return {};
   }
 
@@ -220,28 +219,28 @@ public:
   }
 
 
-  std::vector<T>& unwrap() {
+  std::vector<Stored>& unwrap() {
     return container;
   }
 
-  const std::vector<T>& unwrap() const {
+  const std::vector<Stored>& unwrap() const {
     return container;
   }
 
 
-  void push_back_to(std::vector<T>& v) const {
+  void push_back_to(std::vector<Stored>& v) const {
     v.insert(v.end(), container.begin(), container.end());
   }
 
-  void push_back(const T& el) {
+  void push_back(const Stored& el) {
     container.emplace_back(el);
   }
   void clear() {
     container.clear();
   }
 
-  template<typename T1, typename T2>
-  void insert(const T1& destCont, const T2& items) {
+  template<typename Stored1, typename Stored2>
+  void insert(const Stored1& destCont, const Stored2& items) {
     container.insert(destCont.container.end(), items.begin(), items.end());
   }
 
@@ -249,8 +248,8 @@ public:
     return container.size();
   }
 
-  EagerFunctionalVector<std::pair<T, T>> unique_pairs() const {
-    EagerFunctionalVector<std::pair<T, T>> ret;
+  EagerFunctionalVector<std::pair<Stored, Stored>> unique_pairs() const {
+    EagerFunctionalVector<std::pair<Stored, Stored>> ret;
     for (auto iter1 = std::begin(container); iter1 != std::end(container); ++iter1) {
       for (auto iter2 = iter1 + 1; iter2 != std::end(container); ++iter2) {
         ret.push_back(std::make_pair(*iter1, *iter2));
@@ -259,11 +258,11 @@ public:
     return ret;
   }
 
-  EagerFunctionalVector<T> rotate(int shift) const {
+  EagerFunctionalVector<Stored> rotate(int shift) const {
     if (shift == 0)
       return container;
 
-    EagerFunctionalVector<T> ret;
+    EagerFunctionalVector<Stored> ret;
     for (auto iter = std::begin(container) + shift; iter != std::end(container); ++iter)
       ret.push_back(*iter);
     for (auto iter = std::begin(container); iter != std::begin(container) + shift; ++iter)
@@ -271,8 +270,8 @@ public:
     return ret;
   }
 
-  EagerFunctionalVector<T> take(size_t n, size_t stride = 1) const {
-    EagerFunctionalVector<T> ret;
+  EagerFunctionalVector<Stored> take(size_t n, size_t stride = 1) const {
+    EagerFunctionalVector<Stored> ret;
     size_t counter = 0;
     for ( auto & el: container) {
       if ( counter >= n ) break;
@@ -282,8 +281,8 @@ public:
     return ret;
   }
 
-  EagerFunctionalVector<T> skip(size_t n, size_t stride = 1) const {
-    EagerFunctionalVector<T> ret;
+  EagerFunctionalVector<Stored> skip(size_t n, size_t stride = 1) const {
+    EagerFunctionalVector<Stored> ret;
     size_t counter = 0;
     for ( auto &el : container ) {
       if ( counter >= n and counter % stride == 0 )
@@ -295,8 +294,8 @@ public:
 
 
   template<typename Op>
-  EagerFunctionalVector<T> take_while(Op predicate) const {
-    EagerFunctionalVector<T> ret;
+  EagerFunctionalVector<Stored> take_while(Op predicate) const {
+    EagerFunctionalVector<Stored> ret;
     for (auto& el : container) {
       if (not predicate(el))
         return ret;
@@ -321,56 +320,56 @@ public:
 
 
   template< typename KeyExtractor>
-  EagerFunctionalVector<T> max(KeyExtractor key)  const {
-    auto iterator = std::max_element(std::begin(container), std::end(container), [&](const T& a, const T& b) { return key(a) < key(b); });
-    return std::begin(container) == std::end(container) ? *this : EagerFunctionalVector<T>(iterator, iterator + 1);
+  EagerFunctionalVector<Stored> max(KeyExtractor key)  const {
+    auto iterator = std::max_element(std::begin(container), std::end(container), [&](const Stored& a, const Stored& b) { return key(a) < key(b); });
+    return std::begin(container) == std::end(container) ? *this : EagerFunctionalVector<Stored>(iterator, iterator + 1);
   }
 
-  EagerFunctionalVector<T> max() const {
-    auto iterator = std::max_element(std::begin(container), std::end(container), [&](const T& a, const T& b) { return a < b; });
-    return std::begin(container) == std::end(container) ? *this : EagerFunctionalVector<T>(iterator, iterator + 1);
+  EagerFunctionalVector<Stored> max() const {
+    auto iterator = std::max_element(std::begin(container), std::end(container), [&](const Stored& a, const Stored& b) { return a < b; });
+    return std::begin(container) == std::end(container) ? *this : EagerFunctionalVector<Stored>(iterator, iterator + 1);
   }
 
   template< typename KeyExtractor>
-  const EagerFunctionalVector<T> min(KeyExtractor key)  const {
-    auto iterator = std::min_element(std::begin(container), std::end(container), [&](const T& a, const T& b) { return key(a) < key(b); });
-    return std::begin(container) == std::end(container) ? *this : EagerFunctionalVector<T>(iterator, iterator + 1);
+  const EagerFunctionalVector<Stored> min(KeyExtractor key)  const {
+    auto iterator = std::min_element(std::begin(container), std::end(container), [&](const Stored& a, const Stored& b) { return key(a) < key(b); });
+    return std::begin(container) == std::end(container) ? *this : EagerFunctionalVector<Stored>(iterator, iterator + 1);
   }
 
-  const EagerFunctionalVector<T> min()  const {
-    auto iterator = std::min_element(std::begin(container), std::end(container), [&](const T& a, const T& b) { return a < b; });
-    return std::begin(container) == std::end(container) ? *this : EagerFunctionalVector<T>(iterator, iterator + 1);
+  const EagerFunctionalVector<Stored> min()  const {
+    auto iterator = std::min_element(std::begin(container), std::end(container), [&](const Stored& a, const Stored& b) { return a < b; });
+    return std::begin(container) == std::end(container) ? *this : EagerFunctionalVector<Stored>(iterator, iterator + 1);
   }
 
-  const EagerFunctionalVector<T> range(size_t start, size_t stop) const {
-    return EagerFunctionalVector<T>(container.begin() + start, container.begin() + stop);
+  const EagerFunctionalVector<Stored> range(size_t start, size_t stop) const {
+    return EagerFunctionalVector<Stored>(container.begin() + start, container.begin() + stop);
   }
 
-  std::optional<T> element_at(size_t index) const { if (index < size()) return container.at(index); else return  {}; }
+  std::optional<Stored> element_at(size_t index) const { if (index < size()) return container.at(index); else return  {}; }
 
-  const EagerFunctionalVector<T> first(size_t n = 1)  const {
+  const EagerFunctionalVector<Stored> first(size_t n = 1)  const {
     auto iterator = container.end() < container.begin() + n ? container.end() : container.begin() + n;
-    return EagerFunctionalVector<T>(container.begin(), iterator);
+    return EagerFunctionalVector<Stored>(container.begin(), iterator);
   }
 
-  const EagerFunctionalVector<T> last(size_t n = 1)  const {
+  const EagerFunctionalVector<Stored> last(size_t n = 1)  const {
     auto iterator = container.end() < container.begin() + n ? container.begin() : container.begin() + (container.size() - n);
-    return EagerFunctionalVector<T>(iterator, container.end());
+    return EagerFunctionalVector<Stored>(iterator, container.end());
   }
 
 
-  const EagerFunctionalVector<T>& stage()  const { return *this; }
-  const EagerFunctionalVector<T>& cache()  const { return *this; }
+  const EagerFunctionalVector<Stored>& stage()  const { return *this; }
+  const EagerFunctionalVector<Stored>& cache()  const { return *this; }
 
-  const EagerFunctionalVector<T> join(const EagerFunctionalVector<T>& other)  const {
-    EagerFunctionalVector<T> ret(container.begin(), container.end());
+  const EagerFunctionalVector<Stored> join(const EagerFunctionalVector<Stored>& other)  const {
+    EagerFunctionalVector<Stored> ret(container.begin(), container.end());
     ret.container.insert(ret.container.end(), other.begin(), other.end());
     return ret;
   }
 
-  template<typename U>
-  const EagerFunctionalVector<std::pair<T, U> > zip(const EagerFunctionalVector<U>& other) {
-    EagerFunctionalVector<std::pair<T, U> > ret;
+  template<typename Stored2>
+  const EagerFunctionalVector<std::pair<Stored, Stored2> > zip(const EagerFunctionalVector<Stored2>& other) {
+    EagerFunctionalVector<std::pair<Stored, Stored2> > ret;
 
     auto thisIter = std::cbegin(container);
     auto otherIter = std::cbegin(other.unwrap());
@@ -413,17 +412,17 @@ public:
 
 };
 
-template<typename T>
-EagerFunctionalVector<T> wrap(const std::vector<T>& v)
+template<typename Stored>
+EagerFunctionalVector<Stored> wrap(const std::vector<Stored>& v)
 {
-  return EagerFunctionalVector<T>(v);
+  return EagerFunctionalVector<Stored>(v);
 }
 
 
-template<typename T>
-auto wrap(const std::initializer_list<T>& il)
+template<typename Stored>
+auto wrap(const std::initializer_list<Stored>& il)
 {
-  return wrap(std::vector<T>(std::begin(il), std::end(il)));
+  return wrap(std::vector<Stored>(std::begin(il), std::end(il)));
 }
 
 #endif
