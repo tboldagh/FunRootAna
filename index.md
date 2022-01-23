@@ -1,21 +1,21 @@
 # FunRootAna
 
 This is a basic framework allowing to do [ROOT](https://root.cern.ch/) analysis in a more functional way.
-In comparison to RDFrame it offers more functional feel for the data analysis (in particular histograms filling) and is overall a bit more holistic. 
-As consequence, <span style="color:red">a single line</span> containing selection, data extraction & histogram definition is sufficient to obtain one unit of result (one histogram).
+In comparison to [RDFrame](https://root.cern.ch/doc/master/group__tutorial__dataframe.html) it offers more functional feel for the data analysis.  In particular collections processing is inspired by Apache Spark and the histograms creation and filling is much simplified. 
+As consequence, <span style="color:red">a single line</span> containing selection, data extraction & histogram definition is sufficient to obtain one unit of result (that is, one histogram).
 
 The promise is: 
 
-**Amount of lines of analysis code per histogram is converging to 1.**
+**With FunRootAna the mount of lines of analysis code per histogram is converging to 1.**
 
 Let's see how.
 
 
 # Teaser
 The example illustrating the concept is based on analysis of the plain ROOT Tree. A more complex content can be also analysed (and is typically equally easy).
-Imagine you have the Tree with the info about some objects decomposed into 3 std::vectors.
-Say these are `x,y,z` coordinates of the point. They are all vector of `float`. 
-There is also an integer quantity indicating the the event is in a category `category` - there is 5 of them, indexed from 0-4.
+Imagine you have the Tree with the info about some objects decomposed into 3 `std::vectors<float>`.
+Say these are `x,y,z` coordinates of some measurements. In the TTree the measurements are grouped in so called *events* (think cycles of measurements).  
+There is also an integer quantity indicating the event is in a category `category` - there is 5 of them, indexed from 0-4.
 
 So the stage is set.
 
@@ -46,10 +46,11 @@ As a result of running that code over the TTree, histograms are made and saved i
 
 
 
-# Analysis objects  
+# Processing collection of objects  
 
-Now think that we would like to treat the `x,y,z` as a whole, in the end they represent one object, a point in 3D space. We need to do this with plain Ntuples but if the TTree contains object already then the functionality comes for free.
-So let's make the points look like objects. For that we would need to create a structure to hold the three coordinates together (we can also use the class but we have no reason for it here).
+Now think that we would like to treat the `x,y,z` as a whole, in the end they represent one object, a measurement in 3D space. 
+(In ROOT system the objects can be stored in the TTree directly. If that is the case you can skip the part of discussing how to restore the object from individual elements. )
+So let's make the measurements look like objects. For that we would need to create a structure to hold the three coordinates together (we can also use the class but we have no reason for it here).
 ```c++
 struct Point{
     float x;
@@ -65,22 +66,13 @@ Most convenient way to extract a vector of those from the tree is to subclass th
       std::vector<Point> getPoints();
   };
 ```
-For how to do it best check the `Access.cpp` source and/or example_analysis (there are better and worse implementations).
+For how to do it best check the `Access.cpp` source and/or example_analysis (there are better and worse implementations - the difference begin memory handling).
 
 
-How do profit from the fact the fact that we have objects. Is it still single line per histogram? Let's see:
+How do we profit from the fact the fact that we have objects. Is it still single line per histogram? Let's see:
 ```c++
        for (PointsTreeAccess event(t); event; ++event) {
-            const int category = event.get<int>("category");
-            category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram with a plain , (creation done on demand and only once)
-
-            const auto x = lazy_own(std::move(event.get<std::vector<float>>("x"))); // get vector of data & wrap it into a functional style container
-            x >> HIST1("x", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
-            x.map( F(_ - 1) ) >> HIST1("x_shifted", "transformed x;|x-1|", 20, 0, 1); // transform & fill the histogram
-
-            std::make_pair(x.sum(), x.size()) >> HIST2("tot_vs_size", ";sum;size", 20, 0, 150, 20, 0, 150);
-
-            // processing objects
+            // processing objects example
             auto points = lazy_own(std::move(event.getPoints()));
             points.map( F(_.rho_xy()) ) >> HIST1("rho_xy", ";rho", 100, 0, 5); // to extract the a quantity of interest for filling we do the "map" operation
             points.map(F(_.z)) >> HIST1("z", ";zcoord", 100, 0, 10); // another example
@@ -92,11 +84,11 @@ How do profit from the fact the fact that we have objects. Is it still single li
 
 # The functional container
 A concise set of transformations that get us from the data to the data summary (histogram in this case) is possible thanks to the Functional Vector wrappers.
-It is really a`std::vector` with extra methods.
-Among many functions it offers, this three are the most relevant:
+It is really a `std::vector` with extra methods.
+Among many functions it offers, three that are the most relevant:
 * `map` - that takes function defining the mapping operation i.e. can be as simple as taking attribute of an object or as complicated as ... 
 * `filter` - that produces another container with potentially reduced set of elements
-* reduce - there is several methods in ths category, most commonly used in ROOT analysis are various `fill`
+* reduce - there is several methods in ths category, most commonly used in ROOT analysis are various "fill"
  operations that fill the histograms
 
 To cut a bit of c++ clutter there is a macro `F` defined to streamline definition of in place functions (generic c++ lambdas taking one argument and returning a result).
@@ -124,7 +116,7 @@ Other, maybe less commonly used functions, but still good to know about are:
 * ... and couple more.
 
 ## Lazy vs eager evaluation
-The transformations performed  can be evaluated immediately or left till actual histogram filling is needed.  The EagerFunctionalVector features the first approach.
+The transformations performed  can be evaluated immediately or left till actual histogram filling (or any other summary) is needed.  The EagerFunctionalVector features the first approach.
 If the containers are large in your particular problem it may be expensive to make many such copies. 
 Another strategy can be used in this case. That is *lazy* evaluation. In this approach objects crated by every transformation are in fact very lightweight (i.e. no data is copied). 
 Instead, the *recipes* of how to transform the data when it will be needed are kept in these intermediate objects. 
@@ -132,28 +124,40 @@ This functionality is provided by several classes residing in LazyFunctionalVect
 You can switch between one or the other implementation quite conveniently by just changing the include file which you use and rename `wrap` into `lazy_own/lazy_view`.
 In general the lazy vector beats the eager one in terms of performance _(an effort to optimise both implementation is ongoing)_.
 
-If the container that is to be processed is guaranteed to reside in memory the lazy wrapper can be very lazy! That is it does not have to copy the data into own memory and should be constructed with `lazy_view`.  If the container may disappear from the memory before the wrapper is done the initial copy has to be done. In this case `lazy_own` should be used for construction.
+If the container that is to be processed is guaranteed to reside in memory the lazy wrapper can be very lazy! That is it does not have to copy the data into own memory and should be constructed with `lazy_view`.  If the container may disappear from the memory before the operation on data are all done the initial copy has to be done. In this case `lazy_own` should be used for construction.
 
-In the lazy vector has one special methods  that can positively impact the performance sometimes. The method `stage` (or `cache`) produces an intermediate copy that is operated on by further transformations. This way, the transformations before the call to `stage` are not repeated. See an example.
+
+The depth of the transformations in the lazy container are unlimited. It may be thus reasonable to construct the transformation in steps:
 ```c++
-auto prefiltered = container.filter(F(_.x < 2)).filter(F(_.y >5 )).filter(F(_.r() < 10)).stage(); // skipping stage() would result in filtering operations to be repeated when calculating x
-auto x = prefiltered.map(F(_.x)).sort(F(_.x)).element_at(0); // here, the filtering from the line above does not happen, however the "prefilterd" is still lazy evaluating container
+auto step1 = lazy_view(data).map(...).filter(...).take(...); // no computation involved
+auto step2a = step1.map(...).filter(...).skipWhile(...); // no computation involved
+auto step2b = step1.filter(...).map(...).max(); // no computation involved
+
+step2a.map(...) >> HIST1("a", ...); // computations of step1 and step2a involved
+step2b.map(...) >> HIST1("b", ...)  // computations of step1 repeated!!! followed by step2b  
+```
+It may be optimal to actually cache the `step1` result in memory so the operations needed to obtain do not need to be repeated.
+The method `stage` (or `cache`) produces such an intermediate copy that is operated on by further transformations. This way, the transformations before the call to `stage` are not repeated. See an example.
+```c++
+auto step1 = lazy_view(data).map(...).filter(...).take(...).stage(); // computations done and intermediate container created
+auto step1 = lazy_view(data).map(...).filter(...).take(...).cache(); // computations done when first time needed, then reused
+
 ```
 
-In fact you can mix the two approaches if needed calling `as_eager()`, and other way round: `lazy_view(v.unwrap())`, but tha should never be necessary.
+In fact you can mix the two approaches if needed calling `as_eager()`, and other way round: `lazy_view(v.unwrap())`, but that should never be necessary.
 
 
 # Histograms handling
 To keep to the promise of "one line per histogram" the histogram can't be declared / booked / registered / filled / saved separately. Right!?
 All of this has to happen in one statement. `HandyHists` class helps with that. While it has some functions there are rely only two functionalities that we need to know about.
 * `save` method that saves the histograms in a ROOT file. *The file must not exist.* **No, there is no option to overwrite this behavior.**
-* `HIST*` macros that: declare/book/register histograms and return a `WeightedHist` object. This object is really like pointer to `TH*` plus some extra functionality related to weighting.
-  The arguments taken by these macros are just passed over to constructors (in simple cases). 
-  The macros ending with `*V` the `std::vector<double>` is used to define bin limits.
-These histograms interplay nicely with `fill` operations of the functional container described above.
+* `HIST*` macros that: declare/book/register histograms and return a `ROOT TH` object reference.
+  The arguments taken by these macros are just passed over to constructors. 
+  In macros ending with `V` the `std::vector<double>` is used to define bin limits.
+These histograms interplay nicely with `>>` operations of the functional container described above.
 Defined are: `HIST1` `HIST1V` for 1D histograms, `PROF`, `PROFV` for profiles, `EFF` `EFFV` for efficiencies, `HIST2` for 2D histograms.
 
-The histogram made in a given file & line has to have always the same name. If name chaining is needed the `HCONTEXT` call can be used. 
+The histogram made in a given file & line has to have always the same name. If name chaining is needed the `HCONTEXT` call can be used before. 
 ```c++
 {
     HCONTEXT("HighRes_");
@@ -167,7 +171,7 @@ The `HCONTEXT` argument can depend on some variables (and so can change) if need
   HCONTEXT("PointsAnalysis_");
   {
     HCONTEXT("BasicPositions_");
-    HIST1("x", ...);
+    points.map( F(_.x)) >> HIST1("x", ...);
   }
 }
 ```
@@ -185,7 +189,7 @@ Ach, everyone needs it at some point. So there it is, a simle helper `Conf` clas
 The code above does not depend on this.
 ## Diagnostics 
 Everyone needs to print something sometimes. 
-Trivial `report` can be used for it. More useful is the `assure` function that will check if the first argument evaluates to `true` and if not will complain & end the execution via exception. 
+A trivial `report` can be used for it. More useful is the `assure` function that will check if the first argument evaluates to `true` and if not will complain & end the execution via exception. 
 There are less commonly needed `missing` and `assure_about_equal`.
 
 # Playing with the example
