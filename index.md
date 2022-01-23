@@ -196,5 +196,3 @@ There are less commonly needed `missing` and `assure_about_equal`.
 Attached makefile compiles code in examples subdir. That one contains example_analysis.cpp that can be changed to see how things work.
 Input file with the points can be generated using generateTree.C
 Attached cmake file should be sufficient to compile this lib, generate the test file and so on.
-# TODO 
-* HIST cleanup - remove unnecessary hashing entirely
