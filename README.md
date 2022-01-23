@@ -1,197 +1,311 @@
 # FunRootAna
-
-This is a basic framework allowing to do [ROOT](https://root.cern.ch/) analysis in a more functional way.
-In comparison to RDFrame it offers more functional feel for the data analysis (in particular histograms filling) and is overall a bit more holistic. 
-As consequence, <span style="color:red">a single line</span> containing selection, data extraction & histogram definition is sufficient to obtain one unit of result (one histogram).
-
-The promise is: 
-
-**Amount of lines of analysis code per histogram is converging to 1.**
-
-Let's see how.
+This project is about providing functional analysis style to CERN ROOT users.
+See the introduction in [Git Pages](https://tboldagh.github.io/FunRootAna/)
 
 
-# Teaser
-The example illustrating the concept is based on analysis of the plain ROOT Tree. A more complex content can be also analysed (and is typically equally easy).
-Imagine you have the Tree with the info about some objects decomposed into 3 std::vectors.
-Say these are `x,y,z` coordinates of the point. They are all vector of `float`. 
-There is also an integer quantity indicating the the event is in a category `category` - there is 5 of them, indexed from 0-4.
+# Code structure
+The code has has this basic elements:
+- streamlined ROOT tree access layer
+- histograms handling 
+- two functional container implementations, eager and lazy one - the later should be typically used
+- smaller utilities, weight handling, configuration, diagnostics. 
+The examples and unit tests are also included. The
 
-So the stage is set.
-
-
-You can start the analysis with some basic plots:
-
+# API documentation
+## Functional helpers
+### Macro F
+Helper to generate pure generic lambda expression. Example
 ```c++
-for (Access event(t); event; ++event) {
-    auto category = event.get<int>("category");
-    const auto x = wrap(event.get<std::vector<float>>("x")); // get vector of data & wrap it into functional style container
-
-    category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram, (creation done on demand and only once, the >> operator is responsible for filling)
-    x >> HIST1("x", ";x[mm]", 100, 0, 100); // fill the histogram with the x coordinates (all of them)
-    x >> HIST1("x_wide", ";x[mm]", 100, 0, 1000); // fill another histogram with the x coordinate
-    x.filter( F(category==0)) >> HIST1("x_cat_0", ";x[mm]", 100, 0, 100); // we can filter the data before filling
-    x.filter( F(category==0 && std::fabs(_) < 5 )) >> HIST1("x_cat_0_near_range", ";x[mm]", 100, 0, 5); // the filtering can depend on the variable
-    x.map( F(1./std::sqrt(_)) ) >> HIST1("sq_x", ";x[mm]^{-1/2}", 100, 0, 5); // and transform as needed
-
-    // a super complicated plot, 2histogram of number of outliers vs, category
-    std::make_pair( x.count( F( std::fabs(_)>10 ) ), category ) >> HIST2("number_of_x_outliers_above_10_vs_category", ";count;category", 10, 0, 10,  5, -0.5, 4.5)
-    
-    // and so on .. one line per histogram
-
-}
+auto f = F( _*_); 
+\\ is identical to
+auto f = [](auto _) { return _*_; };
+```
+### Macro C
+Like `F` except it is a closure (can access variables that ere out of scope by reference).
+```c++
+double x = 88;
+auto f = C( _* x); 
+\\ is identical to
+auto f = [&](auto _) { return _*x; };
 ```
 
-As a result of running that code over the TTree, histograms are made and saved in the output file. See complete code in example_analysis.cpp in examples dir.
-
-
-
-# Analysis objects  
-
-Now think that we would like to treat the `x,y,z` as a whole, in the end they represent one object, a point in 3D space. We need to do this with plain Ntuples but if the TTree contains object already then the functionality comes for free.
-So let's make the points look like objects. For that we would need to create a structure to hold the three coordinates together (we can also use the class but we have no reason for it here).
+### Macros S
+Like `C` but w/o returning any value (sometimes needed when no value can be returned).
 ```c++
-struct Point{
-    float x;
-    float y;
-    float z;
-    double rho_xy() const { return std::hypot(x, y); }
-    double r() const { return std::hypot( rho_xy(), z); }
-};
-```
-Most convenient way to extract a vector of those from the tree is to subclass the `Access` class and add a method that reconstructs it.
-```c++
-  class MyDataAccess : public Access {
-      std::vector<Point> getPoints();
-  };
-```
-For how to do it best check the `Access.cpp` source and/or example_analysis (there are better and worse implementations).
-
-
-How do profit from the fact the fact that we have objects. Is it still single line per histogram? Let's see:
-```c++
-       for (PointsTreeAccess event(t); event; ++event) {
-            const int category = event.get<int>("category");
-            category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram with a plain , (creation done on demand and only once)
-
-            const auto x = lazy_own(std::move(event.get<std::vector<float>>("x"))); // get vector of data & wrap it into a functional style container
-            x >> HIST1("x", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
-            x.map( F(_ - 1) ) >> HIST1("x_shifted", "transformed x;|x-1|", 20, 0, 1); // transform & fill the histogram
-
-            std::make_pair(x.sum(), x.size()) >> HIST2("tot_vs_size", ";sum;size", 20, 0, 150, 20, 0, 150);
-
-            // processing objects
-            auto points = lazy_own(std::move(event.getPoints()));
-            points.map( F(_.rho_xy()) ) >> HIST1("rho_xy", ";rho", 100, 0, 5); // to extract the a quantity of interest for filling we do the "map" operation
-            points.map(F(_.z)) >> HIST1("z", ";zcoord", 100, 0, 10); // another example
-            points.filter(F(_.z > 1.0) ).map( F(_.rho_xy())) >> HIST1("rho", ";rho_{z>1}", 100, 0, 10); // another example
-            points.map( F( std::make_pair(_.r(), _.z))) >>  HIST2("xy/r_z", ";x;y", 30, 0, 3, 20, 0, 15); // and 2D hist
-        }
-        // see complete code in examples/example_analysis.cpp
+double x = 0;
+auto f = S( x+=_); 
+\\ is identical to
+auto f = [&](auto _) { x += _; };
 ```
 
-# The functional container
-A concise set of transformations that get us from the data to the data summary (histogram in this case) is possible thanks to the Functional Vector wrappers.
-It is really a`std::vector` with extra methods.
-Among many functions it offers, this three are the most relevant:
-* `map` - that takes function defining the mapping operation i.e. can be as simple as taking attribute of an object or as complicated as ... 
-* `filter` - that produces another container with potentially reduced set of elements
-* reduce - there is several methods in ths category, most commonly used in ROOT analysis are various `fill`
- operations that fill the histograms
-
-To cut a bit of c++ clutter there is a macro `F` defined to streamline definition of in place functions (generic c++ lambdas taking one argument and returning a result).
+### Macro PRINT
+Prints to the `std::cout` the content (if it is printable). Example:
 ```c++
-// say we have container of complex numbers and we want filter those that have norm < 1
-container.filter( [](const std::complex& c){ return std::norm(c) < 1; } ); // long form
-container.filter( [](const auto& c){ return std::norm(c) < 1; } ); // shorter form
-container.filter( std::norm(_1) < 1 ); // future c++, does not work yet with any compiler
-container.filter( F( std::norm(_) < 1) ); // using the F macro, quite close to the future
+data.inspect(PRINT).filter(...).inspect(PRINT).map(...)...
 ```
 
-Other, maybe less commonly used functions, but still good to know about are:
-* `size` - that return size of the container
-* `count` - which shortcuts `filter` followed by `size`
-* `sorted` - that takes "key extractor" function that would return a sortable characteristics of the data in container and that is used to sort by in ascending order
-  
+
+### struct triple
+An extension to the `std::pair`. Contains additional field, `third`.
+
+## Functional container (LazyFunctioanlVector/EagerFunctionalVector)
+The containers are named "vectors", but in fact they can wrap other stl containers too.
+
+
+### wrap(cont)
+Produces eager container.
+
+### lazy_view(cont)/lazy_own(cont)/lazy_own(cont&&)
+Produces lazy containers.
+lazy_view does not cause a copy. The lazy_own involve copies. The lazy_own with move optimizes copy by moving instead.
 ```c++
-  //  e.g. to sort points by `x`
-  const auto sorted_poits = points.sorted(F(_.x));
-```
-* `sum` and `accumulate` - with obvious results (the later takes customizable function F, and there is a similar variant for the sum), there are also `reduceLeft` `reduceRight` for those who are accustomed to the functional lingo
-* `stat` to obtain mean, count, and RMS in one pass
-* `max` & `min`
-* `first`, `last`, `element_at` or `[]` for single element access
-* ... and couple more.
+std::vector<MyData> d = ...; // data available in scope
+auto dview = lazy_view(d); // this best option in this case
 
-## Lazy vs eager evaluation
-The transformations performed  can be evaluated immediately or left till actual histogram filling is needed.  The EagerFunctionalVector features the first approach.
-If the containers are large in your particular problem it may be expensive to make many such copies. 
-Another strategy can be used in this case. That is *lazy* evaluation. In this approach objects crated by every transformation are in fact very lightweight (i.e. no data is copied). 
-Instead, the *recipes* of how to transform the data when it will be needed are kept in these intermediate objects. 
-This functionality is provided by several classes residing in LazyFunctionalVector _(still under some development)_.
-You can switch between one or the other implementation quite conveniently by just changing the include file which you use and rename `wrap` into `lazy_own/lazy_view`.
-In general the lazy vector beats the eager one in terms of performance _(an effort to optimise both implementation is ongoing)_.
+auto fview = lazy_own( std::move(code returning a vector) ); // best option in this case
 
-If the container that is to be processed is guaranteed to reside in memory the lazy wrapper can be very lazy! That is it does not have to copy the data into own memory and should be constructed with `lazy_view`.  If the container may disappear from the memory before the wrapper is done the initial copy has to be done. In this case `lazy_own` should be used for construction.
-
-In the lazy vector has one special methods  that can positively impact the performance sometimes. The method `stage` (or `cache`) produces an intermediate copy that is operated on by further transformations. This way, the transformations before the call to `stage` are not repeated. See an example.
-```c++
-auto prefiltered = container.filter(F(_.x < 2)).filter(F(_.y >5 )).filter(F(_.r() < 10)).stage(); // skipping stage() would result in filtering operations to be repeated when calculating x
-auto x = prefiltered.map(F(_.x)).sort(F(_.x)).element_at(0); // here, the filtering from the line above does not happen, however the "prefilterd" is still lazy evaluating container
 ```
 
-In fact you can mix the two approaches if needed calling `as_eager()`, and other way round: `lazy_view(v.unwrap())`, but tha should never be necessary.
 
-
-# Histograms handling
-To keep to the promise of "one line per histogram" the histogram can't be declared / booked / registered / filled / saved separately. Right!?
-All of this has to happen in one statement. `HandyHists` class helps with that. While it has some functions there are rely only two functionalities that we need to know about.
-* `save` method that saves the histograms in a ROOT file. *The file must not exist.* **No, there is no option to overwrite this behavior.**
-* `HIST*` macros that: declare/book/register histograms and return a `WeightedHist` object. This object is really like pointer to `TH*` plus some extra functionality related to weighting.
-  The arguments taken by these macros are just passed over to constructors (in simple cases). 
-  The macros ending with `*V` the `std::vector<double>` is used to define bin limits.
-These histograms interplay nicely with `fill` operations of the functional container described above.
-Defined are: `HIST1` `HIST1V` for 1D histograms, `PROF`, `PROFV` for profiles, `EFF` `EFFV` for efficiencies, `HIST2` for 2D histograms.
-
-The histogram made in a given file & line has to have always the same name. If name chaining is needed the `HCONTEXT` call can be used. 
+### map( transformer )
+Creates elements after transforming them.
 ```c++
+data.map( F(_*_) ) // produces squared elements
+``` 
+
+### filter( predicate )
+Crates reduced set of elements
+```c++
+data.filter(F(_<0)).count();
+```
+
+### foreach( subroutine )
+Takes a subroutine (function that returns nothing) and evaluates it on every element. Typically used for side-effects, example: printing.
+```c++
+data.foreach(S( std::cout << _ << " "));
+```
+
+### inspect( subroutine )
+Like the foreach - but evaluates the subroutine in a lazy way.
+
+### empty
+Returns `true` if the container is empty.
+
+### size
+Returns number of elements in the container. In case of lazy container it may require traversing the container (because of intermediate filtering).
+
+### count( predicate )
+Returns number of elements satisfying the predicate. 
+```c++
+const size_t n_elements_above0 = data.count(F( _>0 ));
+\\ slightly a more efficient version of
+data.filter(F(_>0)).size();
+```
+
+### contains( predicate ) / contains(value)
+Returns true if there is at least one element satisfying the predicate. 
+```c++
+const bool any_elements_above0 = data.contains(F( _>0 ));
+\\ slightly a more efficient version of
+not data.filter(F(_>0)).empty();
+```
+
+### all( predicate )
+Returns true of all elements satisfy predicate.
+
+### sorted( keyextractor )/ sorted()
+Produces container of elements that ar sorted ascending by a property extracted by provided function
+```c++
+// assume data is collection of doubles
+data.sorted() // the doubles in ascending order
+data.sorted( F( -_)) // sort in descending order
+```
+*Notice* In case of lazy container the sorting involves making a temporary lightweight copy of references. 
+It may be good idea to use `cache/stage` after sorting.
+
+### take(n, stride=1)
+Takes n first elements from the container skipping them by `stride`.
+```c++
+//Say the data contains letters A, B, C, D, E, F, ...
+
+data.take(6,2) // results in A C E
+```
+### skip(n, stride=1)
+Similar to the `take`, but skips `n` first elements.
+
+
+### skip_while/take_while (predicate)
+Similar to `take/while` takes or skips first elements satisfying the predicate.
+
+### stage/cache
+In case of lazy container make an intermediate container.
+More in the [Project page] (https://tboldagh.github.io/FunRootAna/)
+*Notice* In case of eager container this is void operation. 
+
+
+### reverse
+Produces container of elements in reverse order to the original one.
+
+### min/max( keyextractor == identity)
+Returns a single (or empty) container with the element that is extreme according to the value returned by the `keyextractor` function.
+```c++
+// assumed data is: -7, -1, 2, 2, 6, -3
+data.max() // is single element container with 6
+data.min( F(std::abs(_))).min() // is single element with -1
+```
+
+### chain( container )
+Produces a container that is the concatenation of the two operands.
+```c++
+data1.chain(data2) // just concatenation of the the two
+data1.chain(data1) // repeated container (no actual copies are involved) 
+data1.chain(data2).chain(data3).chain(data4) // concatenation of 4 containers
+```
+
+### zip( cont )
+Produces pairs of elements from operands.
+
+*Notice* The containers can be of different length. The pairs are generated until exhaustion of elements in the shorter one.
+
+### is_same( other, comparator )/is_same(other)
+Compares container element by element using `comparator` and returns true if all comparisons were positive. Internally uses zip, and the same limitation applies.
+```c++
+// assume data1 is A B C D E F
+// and data 2 is alec, ben, charles
+data1.is_same(data2, F(std::tolower(_.first) == _.second[0])) // return true because first letters are the same as the chars in the first sequence
+```
+Version w/o the comparator compares elements by their respective == operation.
+
+### group(n, jump)
+Groups elements in the container in sub-container of size n. 
+```c++
+// assume data is A B C D E F
+data.group(3) // is A B C and then D  E  F  
+data.group(3, 1) // is A B then B C, then C D ...
+```
+
+### cartesian(cont)
+Forms container of each pair that can be formed from the two operands.
+```c++
+// assume data1 is A B C
+// data2 1 2
+data1.cartesian(data2) // is A1, A2, B1, B2, C1, C2
+```
+
+### sum(transform) / sum()
+Sums element in the container. If the `transform` is provided is is identical to mapping and the summing.
+
+### accumulates (transform, initial_value)
+Standard reduction operation.
+```c++
+// assume the data is 1 2 3 4 5
+data.reduce( []( auto total, auto el){ return total*el; }, 1) // is 1*2*3*4*5
+```
+*Notice* This is very versatile operation and in fact can be used to implement almost all (non-lazy) operations of the container.
+
+
+### stat(transform)
+Calculates statistical properties (count/mean/variance). The `transform` is like applying a `map` before collecting the stats.
+
+### element_at(n) 
+Returns an element at an index. This operation can involve traversing the container and should in general be avoided. Returned ins std::optional that needs to be checked for content. 
+I.e. It is perfectly correct to ask for element beyond the size of the container. The result will be an empty optional.
+
+### get
+Identical to element_at(0). Handy with min/max.
+
+### first_of( predicate )
+Returns first element satisfying the predicate. May be none, thus returning optional.
+
+### push_back_to/insert_to
+Insert data to standard containers.
+
+## Infinite containers (only lazy)
+### geometric_stream( c, r )
+Generates an infinite sequence of double precision values:
+`c, c*r, c*r^2, c*r^3, ...,`
+
+### arithmetic_stream( c, i)
+Generates an infinite sequence of values:
+`c, c+i, c+i+i, c+i+i+i ...` 
+*Notice* The type of `c` and `i` can be any allowing for addition, e.g. strings, integers, double, complex etc.
+
+### iota_stream( c )
+Like arithmetic stream but with increment == 1.
+
+### crandom_stream
+Random integers drawn using standard C random function. 
+
+### range_stream( begin, end, stride=1)
+Finite size stream of numbers
+`begin, begin +stride, begin + stride^2` ... until the value is not greater than the `end`.
+
+
+
+
+# Histogramming API
+The `HistHelper` class is to be inherited analysis code in order to profit from the functionality. 
+
+The public API of the histogramming has:
+## save(filename)
+Function saving histograms in the file.
+
+## HIST1/HIST2/EFF/PROFF
+Create (one-time)/register respective histograms.
+
+# Configuration
+The `Conf` class offers two sources of configuration. The config file formatted as follows:
+```
+settingA=valueA
+#settingB=valueB
+...
+```
+or environment variables that are set before running the analysis program:
+```
+export settingA=valueA
+```
+
+In the code the configuration can be accessed by instantiating `Conf` object with the file name (or w/o for reading the environment). 
+
+There are two methods of the Conf class:
+### has(setting)
+That returns true if there is a setting of a given name.
+
+
+### get<T>(name, default)
+Returns the setting value, or the default is the setting is absent. 
+
+# Weighting
+
+A global weight that can be manipulated in RAII style with helper functions:
+`UPDATE_MULT_WEIGHT` and `UPDATE_ABS_WEIGHT`.
+
+Example:
+```c++
+Weight::set(0.5);
+WEIGHT;  // get the absolute weight
+
 {
-    HCONTEXT("HighRes_");
-    HIST1("x", ...); // here the histogram name realy becomes HighRes_x 
-    HIST1(std::string("x"+std::to_string(i)), ...); // this will be runtime error
+  UPDATE_ABS_WEIGHT(0.9);// update the weight locally 
 }
+// weight restored
 ```
-The `HCONTEXT` argument can depend on some variables (and so can change) if needed. This behavior allows certain optimization. In any way, it is usually good idea to add context in scopes so that the histograms in the output are somewhat organized. Contexts are nesting, that is:
+
+# Selector
+It is frequent that we need to select a value depending on several conditions. If we want to have that value to be const the code to do it somewhat awkward to write pile of ternary expressions. The `Selector` offers a more legible alternative.
 ```c++
-{
-  HCONTEXT("PointsAnalysis_");
-  {
-    HCONTEXT("BasicPositions_");
-    HIST1("x", ...);
-  }
-}
+const double value = option(x < 0, 0.7)
+                    .option(  0 < x and x < 1, 0.9)
+                    .option(1.2).select();
+
+const std::string descr = option(x<0, "less than zero").option(x>0, "more than zero").select();
+// if x is 0 the select will raise an exception of unresolvable set of conditions
 ```
-would produce the histogram `PointsAnalysis_BasicPositions_x` histogram in the output.
-When the name contains `/` i.e. `A/x` histograms `x` end up in subdirectory `A`  in the output file.
 
 
-# Additional functionalities
-## Configuration of the analysis 
-Ach, everyone needs it at some point. So there it is, a simle helper `Conf` class that allows to:
-* read the config file of the form: `property=value` (# as first character are considered comments)
-* read environmental variables if config file is an empty string (i.e. before running you do `export prperty=value`)
-* allows to check if the property is available with `has`
-* and get the property with `get` like this: `conf.get<float>("minx", 0.1)` which means: take the `minx` from the config, convert it to `float` before handing to me, but if missing use the value `0.1`.
-The code above does not depend on this.
-## Diagnostics 
-Everyone needs to print something sometimes. 
-Trivial `report` can be used for it. More useful is the `assure` function that will check if the first argument evaluates to `true` and if not will complain & end the execution via exception. 
-There are less commonly needed `missing` and `assure_about_equal`.
 
-# Playing with the example
-Attached makefile compiles code in examples subdir. That one contains example_analysis.cpp that can be changed to see how things work.
-Input file with the points can be generated using generateTree.C
-Attached cmake file should be sufficient to compile this lib, generate the test file and so on.
+
+
 # TODO 
 * HIST cleanup - remove unnecessary hashing entirely
 

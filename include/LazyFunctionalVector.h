@@ -113,6 +113,19 @@ public:
     FunctionalInterface(const Container& cont) : m_actual_container(cont) {}
     ~FunctionalInterface() {}
 
+    // transform using function provided, this is lazy operation
+    template<typename F>
+    auto map(F f) const {
+        return MappedView<Container, F>(m_actual_container, f);
+    }
+
+    // filter provided predicate, this is lazy operation
+    template<typename F>
+    auto filter(F f) const {
+        return FilteredView<Container, F>(m_actual_container, f);
+    }
+
+
     // invoke function on each element of the container, 
     // can be followed by other operations, this is not lazy operation, for lazy operation like this see inspect
     template<typename F>
@@ -190,19 +203,6 @@ public:
             }
             });
         return found and has_elements;
-    }
-
-
-    // transform using function provided, this is lazy operation
-    template<typename F>
-    auto map(F f) const {
-        return MappedView<Container, F>(m_actual_container, f);
-    }
-
-    // filter provided predicate, this is lazy operation
-    template<typename F>
-    auto filter(F f) const {
-        return FilteredView<Container, F>(m_actual_container, f);
     }
 
     // sort according to the key extractor @arg f, this is lazy operation
