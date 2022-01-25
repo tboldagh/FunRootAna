@@ -111,8 +111,8 @@ not data.filter(F(_>0)).empty();
 ```
 
 ### all( predicate )
-Returns true of all elements satisfy predicate.
-
+Returns true if all elements satisfy predicate.
+_Notice:_ `false` is always returned for an empty container.
 ### sorted( keyextractor )/ sorted()
 Produces container of elements that ar sorted ascending by a property extracted by provided function
 ```c++
@@ -299,11 +299,8 @@ const double value = option(x < 0, 0.7)
                     .option(1.2).select();
 
 const std::string descr = option(x<0, "less than zero").option(x>0, "more than zero").select();
-// if x is 0 the select will raise an exception of unresolvable set of conditions
+// in this case (missing last - option call w/o the boolean) if x is 0 the select will raise an exception
 ```
-
-
-
 
 
 # TODO 
