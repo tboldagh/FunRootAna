@@ -58,7 +58,7 @@ void test_map() {
     auto vt1 = wrap(t1);
     auto mt1 = vt1.map( F(_+2) );
     VALUE( mt1.size()) EXPECTED( vt1.size() );
-    for ( int i = 0; i < vt1.size(); i++ ) {
+    for ( size_t i = 0; i < vt1.size(); i++ ) {
         VALUE ( mt1.element_at(i).value() ) EXPECTED ( vt1.element_at(i).value() +2);
     }
 

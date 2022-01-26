@@ -31,8 +31,8 @@ void test_type_presentation() {
     decltype(mt2)::value_type z2;
     VALUE(typeid(z2) == typeid(double)) EXPECTED(true);
 
-    static_assert(has_fast_element_access_tag<int>::value == false);
-    static_assert(has_fast_element_access_tag<DirectView<double>>::value == true);
+    static_assert(lfv_details::has_fast_element_access_tag<int>::value == false);
+    static_assert(lfv_details::has_fast_element_access_tag<DirectView<double>>::value == true);
 }
 
 void test_element_access() {
@@ -204,8 +204,10 @@ void test_take() {
 void test_sum_and_accumulate() {
     std::vector<int> t1({ 1,19,4, 2, 5, -1, 5 });
     auto vt1 = functional_vector(t1);
-    VALUE(vt1.sum()) EXPECTED(35);
-    VALUE(vt1.take(3).sum()) EXPECTED(24);
+    auto s = vt1.sum();
+    VALUE( s ) EXPECTED(35);
+    auto s3 = vt1.take(3).sum(F(_));
+    VALUE(s3) EXPECTED(24);
     const int multiply_el = vt1.take(4).skip(2).accumulate([](int t, int el) {return t * el;}, 1);
     VALUE(multiply_el) EXPECTED(8);
 }
@@ -264,7 +266,7 @@ void test_enumerate() {
     VALUE(en1.element_at(1).value().first) EXPECTED(1);
     VALUE(en1.element_at(1).value().second) EXPECTED(19);
 
-    auto index_greater_than_value = en1.first_of(F(_.first > _.second));
+    auto index_greater_than_value = en1.first_of(F(static_cast<int>(_.first) > _.second));
     VALUE(index_greater_than_value.value().first) EXPECTED(3);
     VALUE(index_greater_than_value.value().second) EXPECTED(2);
 

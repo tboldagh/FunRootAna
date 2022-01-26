@@ -4,7 +4,7 @@
 // (See accompanying file LICENSE file)
 #ifndef futils_h
 #define futils_h
-
+#include <functional>
 
 // macro generating generic, single agument, returning lambda
 // example use: filter( F(_ < 0)) - the _ is the lambda argument, the function is pure (i.e. sees no outer scope), if that is needed use C
@@ -43,9 +43,6 @@ struct StatInfo {
   double var() const { return sum2 / count - std::pow(mean(), 2); }
   double sigma() const { return std::sqrt(var()); }
 };
-
-template<typename T>
-std::function<const T&(const T&) > identity = [](const T& v){ return v; };
 
 
 #endif

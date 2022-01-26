@@ -32,6 +32,8 @@ private:
   template<typename U> friend class LazyFunctionalVector;
 public:
   using value_type = Stored;
+  static constexpr auto id = [](const Stored& x){ return x; };
+
 
   EagerFunctionalVector() {}
 
@@ -96,8 +98,8 @@ public:
   }
 
   
-  template<typename F = decltype(identity<Stored>)>
-  StatInfo stat(F f = ::identity<Stored>) const{
+  template<typename F = decltype(id)>
+  StatInfo stat(F f = id) const{
     static_assert(std::is_arithmetic< typename std::remove_reference<typename std::invoke_result<F, Stored>::type>::type >::value, "The type stored in this container is not arithmetic, can't calculate standard statistical properties");
     StatInfo info;
     for (const auto &v : container) {
@@ -138,8 +140,8 @@ public:
   }
 
 
-  template< typename KeyExtractor = decltype(identity<Stored>)>
-  EagerFunctionalVector<Stored> sorted(KeyExtractor key = ::identity<Stored>) const {
+  template< typename KeyExtractor = decltype(id)>
+  EagerFunctionalVector<Stored> sorted(KeyExtractor key = id) const {
     EagerFunctionalVector<Stored> clone(container);
     std::sort(clone.container.begin(), clone.container.end(), [&](const Stored& el1, const Stored& el2) { return key(el1) < key(el2); });
     return clone;

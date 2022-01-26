@@ -30,48 +30,13 @@ The foreach takes additional instructions that can be used to optimize it's oper
 
 */
 
-
-namespace {
+namespace lfv_details {
     enum skip_take_logic_t { skip_elements, take_elements };
     enum min_max_logic_t { min_elements, max_elements };
     enum preserve_t { temporary, store }; // instruct if the results of for-each will be refereed to afterwards
     struct foreach_instructions {
         preserve_t preserve = temporary;
     };
-};
-
-
-template< typename Container, typename Filter> class FilteredView;
-template< typename Container, typename Map> class MappedView;
-template<typename T, template<typename, typename> typename Container = std::vector> class DirectView;
-template<typename T, template<typename, typename> typename Container = std::vector> class OwningView;
-template<typename T, template<typename, typename> typename Container = std::vector> class RefView;
-
-template<typename Container, skip_take_logic_t> class TakeSkipNView;
-template<typename Container> class NView;
-template<typename Container> class EnumeratedView;
-template<typename Container> class ReverseView;
-template<typename Container> class CachedView;
-template<typename Container, typename Subroutine> class InspectView;
-template<typename Container, typename Filter, skip_take_logic_t> class TakeSkipWhileView;
-template<typename Container1, typename Container2> class ChainView;
-template<typename Container1, typename Container2> class ZipView;
-template<typename Container1, typename Container2> class CartesianView;
-template<typename Container> class CombinationsView;
-template<typename Container> class PermutationsView;
-template<typename Container1, typename Comparator> class SortedView;
-template<typename Container1, typename Comparator> class MMView;
-template<typename T> class Range;
-
-namespace {
-    template<typename C> struct has_fast_element_access_tag { static constexpr bool value = false; };
-    template<typename T> struct has_fast_element_access_tag<DirectView<T, std::vector>> { static constexpr bool value = true; };
-    template<typename T> struct has_fast_element_access_tag<OwningView<T, std::vector>> { static constexpr bool value = true; };
-    template<typename T> struct has_fast_element_access_tag<DirectView<T, std::deque>> { static constexpr bool value = true; };
-    template<typename T> struct has_fast_element_access_tag<OwningView<T, std::deque>> { static constexpr bool value = true; };
-    template<typename T> struct has_fast_element_access_tag<RefView<T, std::vector>> { static constexpr bool value = true; };
-    template<typename T> struct has_fast_element_access_tag<RefView<T, std::deque>> { static constexpr bool value = true; };
-    template<typename T> struct has_fast_element_access_tag<Range<T>> { static constexpr bool value = true; };
 
     template<typename T>
     struct one_element_stack_container {
@@ -97,10 +62,44 @@ namespace {
 
 
 
+
+template< typename Container, typename Filter> class FilteredView;
+template< typename Container, typename Map> class MappedView;
+template<typename T, template<typename, typename> typename Container = std::vector> class DirectView;
+template<typename T, template<typename, typename> typename Container = std::vector> class OwningView;
+template<typename T, template<typename, typename> typename Container = std::vector> class RefView;
+
+template<typename Container, lfv_details::skip_take_logic_t> class TakeSkipNView;
+template<typename Container> class NView;
+template<typename Container> class EnumeratedView;
+template<typename Container> class ReverseView;
+template<typename Container> class CachedView;
+template<typename Container, typename Subroutine> class InspectView;
+template<typename Container, typename Filter, lfv_details::skip_take_logic_t> class TakeSkipWhileView;
+template<typename Container1, typename Container2> class ChainView;
+template<typename Container1, typename Container2> class ZipView;
+template<typename Container1, typename Container2> class CartesianView;
+template<typename Container> class CombinationsView;
+template<typename Container> class PermutationsView;
+template<typename Container1, typename Comparator> class SortedView;
+template<typename Container1, typename Comparator> class MMView;
+template<typename T> class Range;
+
+namespace lfv_details{
+    template<typename C> struct has_fast_element_access_tag { static constexpr bool value = false; };
+    template<typename T> struct has_fast_element_access_tag<DirectView<T, std::vector>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<OwningView<T, std::vector>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<DirectView<T, std::deque>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<OwningView<T, std::deque>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<RefView<T, std::vector>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<RefView<T, std::deque>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<Range<T>> { static constexpr bool value = true; };
+}
+
 namespace lfv {
     constexpr size_t all_elements = std::numeric_limits<size_t>::max();
     constexpr size_t invalid_index = std::numeric_limits<size_t>::max();
-};
+}
 
 
 
@@ -109,6 +108,7 @@ class FunctionalInterface {
 public:
     using value_type = Stored;
     using const_reference_type = const value_type&;
+    static constexpr auto id = [](const Stored& x){ return x; };
 
     FunctionalInterface(const Container& cont) : m_actual_container(cont) {}
     ~FunctionalInterface() {}
@@ -206,8 +206,8 @@ public:
     }
 
     // sort according to the key extractor @arg f, this is lazy operation
-    template<typename F = decltype(identity<Stored>)>
-    auto sorted(F f = ::identity<Stored>) const {
+    template<typename F = decltype(id)>
+    auto sorted(F f = id) const {
         static_assert(Container::is_finite, "Can't sort in an infinite container");
         static_assert(Container::is_permanent, "Can't sort container that generates element on the flight, stage() it before");
         return SortedView<Container, F>(m_actual_container, f);
@@ -215,11 +215,11 @@ public:
 
     // selectors, lazy
     auto take(size_t n, size_t stride = 1) const {
-        return TakeSkipNView<Container, take_elements>(m_actual_container, n, stride);
+        return TakeSkipNView<Container, lfv_details::take_elements>(m_actual_container, n, stride);
     }
 
     auto skip(size_t n, size_t stride = 1) const {
-        return TakeSkipNView<Container, skip_elements>(m_actual_container, n, stride);
+        return TakeSkipNView<Container, lfv_details::skip_elements>(m_actual_container, n, stride);
     }
 
     // produces container with indexed data
@@ -229,12 +229,12 @@ public:
 
     template<typename F>
     auto take_while(F f) const {
-        return TakeSkipWhileView<Container, F, take_elements>(m_actual_container, f);
+        return TakeSkipWhileView<Container, F, lfv_details::take_elements>(m_actual_container, f);
     }
 
     template<typename F>
     auto skip_while(F f) const {
-        return TakeSkipWhileView<Container, F, skip_elements>(m_actual_container, f);
+        return TakeSkipWhileView<Container, F, lfv_details::skip_elements>(m_actual_container, f);
     }
 
     // creates intermediate container to speed following up operations, typically useful after sorting
@@ -257,15 +257,15 @@ public:
     }
 
     // max and min
-    template<typename KeyExtractor = decltype(identity<Stored>)>
-    auto max(KeyExtractor by = ::identity<Stored>) const {
+    template<typename KeyExtractor = decltype(id)>
+    auto max(KeyExtractor by = id) const {
         static_assert(Container::is_finite, "Can't find max in an infinite container");
-        return MMView<Container, KeyExtractor>(m_actual_container, by, max_elements);
+        return MMView<Container, KeyExtractor>(m_actual_container, by, lfv_details::max_elements);
     }
-    template<typename KeyExtractor = decltype(identity<Stored>)>
-    auto min(KeyExtractor by = ::identity<Stored>) const {
+    template<typename KeyExtractor = decltype(id)>
+    auto min(KeyExtractor by = id) const {
         static_assert(Container::is_finite, "Can't find min in an infinite container");
-        return MMView<Container, KeyExtractor>(m_actual_container, by, min_elements);
+        return MMView<Container, KeyExtractor>(m_actual_container, by, lfv_details::min_elements);
     }
 
 
@@ -332,12 +332,14 @@ public:
     auto permutations(size_t) {}
 
     // sum, allows to transform the object before summation (i.e. can act like map + sum)
-    template<typename F = decltype(identity<Stored>)>
-    Stored sum(F f = ::identity<Stored>) const {
+    template<typename F = decltype(id)>
+    Stored sum(F f =  id) const {
         static_assert(Container::is_finite, "Can't sum an infinite container");
 
         Stored s = {};
-        m_actual_container.foreach_imp([&s, f](const_reference_type el) { s = s + f(el); return true; });
+        m_actual_container.foreach_imp([&s, f](const_reference_type el) { 
+            s = s + f(el); 
+            return true; });
         return s;
     }
 
@@ -351,8 +353,8 @@ public:
         return s;
     }
 
-    template<typename F = decltype(identity<Stored>)>
-    StatInfo stat(F f = ::identity<Stored>) const {
+    template<typename F = decltype(id)>
+    StatInfo stat(F f = id) const {
         static_assert(std::is_arithmetic< typename std::remove_reference<typename std::invoke_result<F, Stored>::type>::type >::value, "The type stored in this container is not arithmetic, can't calculate standard statistical properties");
         StatInfo info;
         m_actual_container.foreach_imp([&info, f](const_reference_type el) {
@@ -368,7 +370,7 @@ public:
 
     // access by index (not good idea to overuse)
     virtual auto element_at(size_t  n) const -> std::optional<value_type> {
-        one_element_stack_container<value_type> temp;
+        lfv_details::one_element_stack_container<value_type> temp;
         size_t i = 0;
         m_actual_container.foreach_imp([&temp, n, &i](const_reference_type el) {
             if (i == n) {
@@ -389,7 +391,7 @@ public:
     // first element satisfying predicate
     template<typename Predicate>
     auto first_of(Predicate f) const -> std::optional<value_type> {
-        one_element_stack_container<value_type> temp;
+        lfv_details::one_element_stack_container<value_type> temp;
         m_actual_container.foreach_imp([&temp, f](const_reference_type el) {
             if (f(el)) {
                 temp.insert(el);
@@ -467,7 +469,7 @@ public:
         m_filterOp(f) {};
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         m_foreach_imp_provider.foreach_imp([f, this](const_reference_type el) {
             if (this->m_filterOp(el)) {
                 const bool go = f(el);
@@ -476,7 +478,7 @@ public:
             }
             return true;
             }, how);
-    };
+    }
     FilteredView() = delete;
 private:
     const Container& m_foreach_imp_provider;
@@ -498,7 +500,7 @@ public:
         m_keyExtractor(f) {};
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         std::vector< std::reference_wrapper<const value_type>> lookup;
         m_foreach_imp_provider.foreach_imp([&lookup](const_reference_type el) { lookup.push_back(std::cref(el)); return true; }, how);
         auto sorter = [this](auto a, auto b) { return m_keyExtractor(a.get()) < m_keyExtractor(b.get()); };
@@ -508,7 +510,7 @@ public:
             if (not go)
                 break;
         }
-    };
+    }
     SortedView() = delete;
 private:
     const Container& m_foreach_imp_provider;
@@ -526,17 +528,17 @@ public:
     using compared_type = typename std::remove_const<typename std::remove_reference<typename std::invoke_result<KeyExtractor, const_reference_type>::type>::type>::type;
     static constexpr bool is_finite = Container::is_finite;
 
-    MMView(const Container& c, KeyExtractor f, min_max_logic_t logic)
+    MMView(const Container& c, KeyExtractor f, lfv_details::min_max_logic_t logic)
         : FunctionalInterface<MMView<Container, KeyExtractor>, value_type >(*this),
         m_actual_container(c),
         m_keyExtractor(f),
         m_logic(logic) {};
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         if (m_actual_container.empty()) return;
-        one_element_stack_container< compared_type > extremeValue;
-        one_element_stack_container< std::reference_wrapper<const value_type> > extremeElement;
+        lfv_details::one_element_stack_container< compared_type > extremeValue;
+        lfv_details::one_element_stack_container< std::reference_wrapper<const value_type> > extremeElement;
 
         m_actual_container.foreach_imp([&extremeValue, &extremeElement, this](const_reference_type el) {
             compared_type val = m_keyExtractor(el);
@@ -544,9 +546,9 @@ public:
                 extremeValue.insert(val);
                 extremeElement.insert(std::cref(el));
             }
-            if ((m_logic == max_elements and val >= extremeValue.get())
+            if ((m_logic == lfv_details::max_elements and val >= extremeValue.get())
                 or
-                (m_logic == min_elements and val < extremeValue.get())) {
+                (m_logic == lfv_details::min_elements and val < extremeValue.get())) {
                 extremeValue.replace(val);
                 extremeElement.replace(std::cref(el));
             }
@@ -554,12 +556,12 @@ public:
             }, how);
         if (not extremeElement.empty())
             f(extremeElement.get().get());
-    };
+    }
     MMView() = delete;
 private:
     const Container& m_actual_container;
     KeyExtractor m_keyExtractor;
-    min_max_logic_t m_logic;
+    lfv_details::min_max_logic_t m_logic;
 };
 
 
@@ -583,7 +585,7 @@ public:
         m_mappingOp(m) {};
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         m_foreach_imp_provider.foreach_imp([f, this](const auto& el) -> bool {
             const bool go = f(m_mappingOp(el));
             if (not go)
@@ -620,7 +622,7 @@ public:
         m_jump(jump) { }
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         value_type group;
         m_foreach_imp_provider.foreach_imp([f, this, &group](const auto& el) {
             group.insert(el);
@@ -644,23 +646,23 @@ private:
     size_t m_jump;
 };
 
-template<typename Container, skip_take_logic_t logic>
+template<typename Container, lfv_details::skip_take_logic_t logic>
 class TakeSkipNView : public FunctionalInterface<TakeSkipNView<Container, logic>, typename Container::value_type> {
 public:
     using value_type = typename Container::value_type;
     using const_value_type = const value_type;
     using const_reference_type = const_value_type&;
     using container = FunctionalInterface<Container, value_type>;
-    static constexpr bool is_finite = logic == take_elements or Container::is_finite;
+    static constexpr bool is_finite = logic == lfv_details::take_elements or Container::is_finite;
 
-    TakeSkipNView(const Container& c, size_t n, size_t stride = 1, skip_take_logic_t l = take_elements)
+    TakeSkipNView(const Container& c, size_t n, size_t stride = 1, lfv_details::skip_take_logic_t l = lfv_details::take_elements)
         : FunctionalInterface<TakeSkipNView<Container, logic>, typename Container::value_type>(*this),
         m_foreach_imp_provider(c),
         m_elementsToTake(n),
         m_stride(stride) {}
 
     template<typename F>
-    void take_foreach_imp(F f, foreach_instructions how = {}) const {
+    void take_foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         size_t n = 0;
         m_foreach_imp_provider.foreach_imp([f, &n, this](const_reference_type el) {
             if (n >= m_elementsToTake)
@@ -676,7 +678,7 @@ public:
     }
 
     template<typename F>
-    void skip_foreach_imp(F f, foreach_instructions how = {}) const {
+    void skip_foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         size_t n = 0;
         m_foreach_imp_provider.foreach_imp([f, &n, this](const_reference_type el) {
             if (n >= m_elementsToTake) {
@@ -693,8 +695,8 @@ public:
 
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
-        if (logic == take_elements) take_foreach_imp(f, how);
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
+        if (logic == lfv_details::take_elements) take_foreach_imp(f, how);
         else skip_foreach_imp(f, how);
     }
 
@@ -721,7 +723,7 @@ public:
         m_foreach_imp_provider(c) {}
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         std::vector< std::reference_wrapper<const value_type>> lookup;
         m_foreach_imp_provider.foreach_imp([&lookup](const_reference_type el) {
             // std::cout << "ReverseView inserting " <<  el << "\n";             
@@ -770,7 +772,7 @@ public:
 
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         size_t index = m_offset;
         m_foreach_imp_provider.foreach_imp([f, &index](const auto& el) {
             const bool go = f(value_type(index, el));
@@ -786,13 +788,13 @@ private:
 };
 
 
-template< typename Container, typename Filter, skip_take_logic_t logic>
+template< typename Container, typename Filter, lfv_details::skip_take_logic_t logic>
 class TakeSkipWhileView : public FunctionalInterface<TakeSkipWhileView<Container, Filter, logic>, typename Container::value_type> {
 public:
     using value_type = typename Container::value_type;
     using reference_type = value_type&;
     using const_reference_type = const value_type&;
-    static constexpr bool is_finite = logic == take_elements or Container::is_finite;
+    static constexpr bool is_finite = logic == lfv_details::take_elements or Container::is_finite;
 
 
     TakeSkipWhileView(const Container& c, Filter f)
@@ -801,7 +803,7 @@ public:
         m_filterOp(f) {};
 
     template<typename F>
-    void take_foreach_imp(F f, foreach_instructions how = {}) const {
+    void take_foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         m_foreach_imp_provider.foreach_imp([f, this](const_reference_type el) {
             if (not m_filterOp(el))
                 return false;
@@ -813,7 +815,7 @@ public:
     }
 
     template<typename F>
-    void skip_foreach_imp(F f, foreach_instructions how = {}) const {
+    void skip_foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         bool keep_taking = false;
         m_foreach_imp_provider.foreach_imp([f, &keep_taking, this](const_reference_type el) {
             if (not keep_taking) {
@@ -831,8 +833,8 @@ public:
     }
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
-        if (logic == take_elements) take_foreach_imp(f, how);
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
+        if (logic == lfv_details::take_elements) take_foreach_imp(f, how);
         else skip_foreach_imp(f, how);
     }
 
@@ -860,7 +862,7 @@ public:
         m_foreach_imp_provider2(c2) {}
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         bool need_to_access_second_container = true;
         m_foreach_imp_provider1.foreach_imp([f, &need_to_access_second_container](const_reference_type el) {
             const bool go = f(el);
@@ -895,7 +897,7 @@ public:
     static constexpr bool is_permanent = Container1::is_permanent && Container2::is_permanent;
     static constexpr bool is_finite = Container1::is_finite or Container2::is_finite;
 
-    static_assert(has_fast_element_access_tag<Container1>::value or has_fast_element_access_tag<Container2>::value, "At least one container needs to to provide fast element access, consider calling stage() ");
+    static_assert(lfv_details::has_fast_element_access_tag<Container1>::value or lfv_details::has_fast_element_access_tag<Container2>::value, "At least one container needs to to provide fast element access, consider calling stage() ");
 
     ZipView(const Container1& c1, const Container2& c2)
         : FunctionalInterface<ZipView<Container1, Container2>, value_type>(*this),
@@ -903,9 +905,9 @@ public:
         m_foreach_imp_provider2(c2) {}
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         size_t index = 0;
-        if (has_fast_element_access_tag<Container2>::value) {
+        if (lfv_details::has_fast_element_access_tag<Container2>::value) {
             m_foreach_imp_provider1.foreach_imp([f, &index, this](typename Container1::const_reference_type el1) {
                 auto el2_option = m_foreach_imp_provider2.element_at(index);
                 if (el2_option.has_value() == false) // reached end cof container 2
@@ -952,7 +954,7 @@ public:
         m_foreach_imp_provider2(c2) {}
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         bool can_go = true;
         m_foreach_imp_provider1.foreach_imp([f, this, how, &can_go](typename Container1::const_reference_type el1) {
             m_foreach_imp_provider2.foreach_imp([f, el1, &can_go](typename Container2::const_reference_type el2) {
@@ -990,13 +992,13 @@ public:
         : FunctionalInterface<container, value_type>(*this), m_data(m) {}
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         for (const auto& el : m_data) {
             const bool go = f(el);
             if (not go)
                 break;
         }
-    };
+    }
 
     virtual auto element_at(size_t  n) const -> std::optional<value_type> override final {
         if (n < m_data.size())
@@ -1039,13 +1041,13 @@ public:
     Container<T, std::allocator<T>>& _underlying() { return m_data; }
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         for (const auto& el : m_data) {
             const bool go = f(el);
             if (not go)
                 break;
         }
-    };
+    }
 
     virtual auto element_at(size_t  n) const -> std::optional<value_type> override final {
         if (n < m_data.size())
@@ -1076,7 +1078,7 @@ public:
         m_foreach_imp_provider(c) {}
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         if (not m_filled) {
             m_foreach_imp_provider.foreach_imp([this](const auto& el) {
                 m_cache.insert(el);
@@ -1110,7 +1112,7 @@ public:
         m_subroutine(subroutine) {}
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         m_foreach_imp_provider.foreach_imp([this, f](const auto& el) -> bool {
             m_subroutine(el);
             return f(el); },
@@ -1141,13 +1143,13 @@ public:
     void clear() { m_data.clear(); }
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         for (const auto& el : m_data) {
             const bool go = f(el.value());
             if (not go)
                 break;
         }
-    };
+    }
 
     virtual auto element_at(size_t  n) const -> std::optional<value_type> override final {
         if (n < m_data.size())
@@ -1179,7 +1181,7 @@ public:
         m_stop(stop) {}
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         T current = m_start;
         while (current < m_stop) {
             const bool go = f(current);
@@ -1218,7 +1220,7 @@ public:
     }
 
     template<typename F>
-    void foreach_imp(F f, foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         T current = m_begin;
         while ((m_stride > 0 and current < m_end) or (current > m_end)) {
             const bool go = f(current);
