@@ -115,6 +115,7 @@ struct Access {
   operator bool()  const { return m_current < m_max; }
   void operator++() { ++m_current; }
 
+  size_t curent() const { return m_current; }
   size_t m_current;
   TTree* m_tree{nullptr};
   size_t m_max;

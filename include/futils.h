@@ -12,7 +12,7 @@
 
 
 // closure, like function but see outer scope by reference (can change external variables)
-#define C(CODE) [&](const auto &_) { return CODE; }
+#define CLOSURE(CODE) [&](const auto &_) { return CODE; }
 
 // subroutine (nothing is returned)
 #define S(CODE) [&](const auto &_) { CODE; }

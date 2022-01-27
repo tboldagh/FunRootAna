@@ -439,7 +439,7 @@ void test_stat() {
     VALUE(s.sum) EXPECTED( vt1.sum() );
     VALUE(s.count) EXPECTED( vt1.size() );
     VALUE(s.mean()) EXPECTED( static_cast<double>( vt1.sum())/vt1.size() );
-    double var = vt1.map( C(_-s.mean())).map( F(_*_) ).sum()/vt1.size(); // calculate it by hand
+    double var = vt1.map( CLOSURE(_-s.mean())).map( F(_*_) ).sum()/vt1.size(); // calculate it by hand
     VALUE(s.var()) EXPECTED( var);
 
 

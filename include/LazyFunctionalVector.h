@@ -333,10 +333,9 @@ public:
 
     // sum, allows to transform the object before summation (i.e. can act like map + sum)
     template<typename F = decltype(id)>
-    Stored sum(F f =  id) const {
+    auto sum(F f =  id) const {
         static_assert(Container::is_finite, "Can't sum an infinite container");
-
-        Stored s = {};
+        typename std::remove_reference<typename std::invoke_result<F, typename Container::const_reference_type>::type>::type s = {};
         m_actual_container.foreach_imp([&s, f](const_reference_type el) { 
             s = s + f(el); 
             return true; });
@@ -1035,6 +1034,13 @@ public:
         : FunctionalInterface<container, value_type>(*this),
         m_data(data) {}
 
+    template<typename O>
+    const OwningView& operator=( const O& rhs) {
+        m_data.clear();
+        rhs.push_back_to(m_data);
+        return *this;
+    }
+
     void insert(const_reference_type d) { m_data.push_back(d); }
     void clear() { m_data.clear(); }
 
@@ -1248,8 +1254,9 @@ private:
 };
 
 // infinite series of doubled where each next is the previous multiplied by ratio
-Series<double> geometric_stream(double coeff, double ratio) {
-    return Series<double>([ratio](double c) { return c * ratio; }, coeff);
+template<typename T, typename U>
+Series<T> geometric_stream(T coeff, U ratio) {
+    return Series<T>([ratio](T c) { return c * ratio; }, coeff);
 }
 
 // infinite series if starting from initial value incremented by increment
@@ -1259,15 +1266,17 @@ Series<T> arithmetic_stream(T initial, T increment) {
 }
 
 // infinite series if integers incremented by 1
-Series<size_t> iota_stream(size_t initial = 0) {
-    return Series<size_t>([](size_t c) { return c + 1; }, initial);;
+template<typename T=size_t>
+Series<T> iota_stream(T initial = 0) {
+    return Series<T>([](T c) { return c + 1; }, initial);;
 }
 
 // random integers using rand from c stdlib
 // @warning - not high quality randomization
 // @warning - it is not reproducible
-Series<int> crandom_stream() {
-    return Series<int>([](int) { return rand(); }, rand());
+template<typename T=int>
+Series<T> crandom_stream() {
+    return Series<T>([](T) { return static_cast<T>(rand()); }, rand());
 }
 
 // finite range from x = begin until x < end

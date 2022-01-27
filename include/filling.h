@@ -28,6 +28,10 @@
 void operator >> ( double v, TH1 & h) {
     h.Fill(v);
 }
+void operator >> ( int v, TH1 & h) {
+    h.Fill(v);
+}
+
 
 template<typename T, typename U>
 void operator >> ( const std::pair<T,U>& v, TH2 & h) {
