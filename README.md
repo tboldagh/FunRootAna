@@ -20,7 +20,7 @@ auto f = F( _*_);
 \\ is identical to
 auto f = [](auto _) { return _*_; };
 ```
-### Macro C
+### Macro CLOSURE
 Like `F` except it is a closure (can access variables that ere out of scope by reference).
 ```c++
 double x = 88;

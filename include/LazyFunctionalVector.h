@@ -333,16 +333,14 @@ public:
 
     // sum, allows to transform the object before summation (i.e. can act like map + sum)
     template<typename F = decltype(id)>
-    Stored sum(F f =  id) const {
+    auto sum(F f =  id) const {
         static_assert(Container::is_finite, "Can't sum an infinite container");
-
-        Stored s = {};
+        typename std::remove_reference<typename std::invoke_result<F, typename Container::const_reference_type>::type>::type s = {};
         m_actual_container.foreach_imp([&s, f](const_reference_type el) { 
             s = s + f(el); 
             return true; });
         return s;
     }
-
     // accumulate, function us used as: total = f(total, element), also take starting element
     template<typename F, typename R>
     auto accumulate(F f, R initial = {}) const {
