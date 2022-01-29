@@ -156,6 +156,18 @@ public:
     return ret;
   }
 
+    auto toptr() const {
+        static_assert( !std::is_pointer<Stored>::value, "The content is already a pointer");
+        return map( []( const Stored& value){ return &value; });
+    }
+
+
+    auto toref() const { 
+        static_assert( std::is_pointer<Stored>::value, "The content is not a pointer");
+        return map( []( const auto & el) { return *el; });
+    }
+
+
   EagerFunctionalVector<std::pair<size_t, Stored>> enumerate(size_t offset = 0) const {
     EagerFunctionalVector<std::pair<size_t, Stored>> ret;
     size_t counter = offset;

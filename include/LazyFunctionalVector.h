@@ -85,7 +85,7 @@ template<typename Container1, typename Comparator> class SortedView;
 template<typename Container1, typename Comparator> class MMView;
 template<typename T> class Range;
 
-namespace lfv_details{
+namespace lfv_details {
     template<typename C> struct has_fast_element_access_tag { static constexpr bool value = false; };
     template<typename T> struct has_fast_element_access_tag<DirectView<T, std::vector>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<OwningView<T, std::vector>> { static constexpr bool value = true; };
@@ -108,7 +108,7 @@ class FunctionalInterface {
 public:
     using value_type = Stored;
     using const_reference_type = const value_type&;
-    static constexpr auto id = [](const Stored& x){ return x; };
+    static constexpr auto id = [](const Stored& x) { return x; };
 
     FunctionalInterface(const Container& cont) : m_actual_container(cont) {}
     ~FunctionalInterface() {}
@@ -256,6 +256,17 @@ public:
         return ReverseView<Container>(m_actual_container);
     }
 
+    auto toptr() const {
+        static_assert(!std::is_pointer<Stored>::value, "The content is already a pointer");
+        return map([](const Stored& value) { return &value; });
+    }
+
+
+    auto toref() const {
+        static_assert(std::is_pointer<Stored>::value, "The content is not a pointer");
+        return map([](const auto& el) { return *el; });
+    }
+
     // max and min
     template<typename KeyExtractor = decltype(id)>
     auto max(KeyExtractor by = id) const {
@@ -333,11 +344,11 @@ public:
 
     // sum, allows to transform the object before summation (i.e. can act like map + sum)
     template<typename F = decltype(id)>
-    auto sum(F f =  id) const {
+    auto sum(F f = id) const {
         static_assert(Container::is_finite, "Can't sum an infinite container");
         typename std::remove_reference<typename std::invoke_result<F, typename Container::const_reference_type>::type>::type s = {};
-        m_actual_container.foreach_imp([&s, f](const_reference_type el) { 
-            s = s + f(el); 
+        m_actual_container.foreach_imp([&s, f](const_reference_type el) {
+            s = s + f(el);
             return true; });
         return s;
     }
@@ -1033,8 +1044,15 @@ public:
         : FunctionalInterface<container, value_type>(*this),
         m_data(data) {}
 
+    template<typename C>
+    explicit OwningView(const C& data)
+        : FunctionalInterface<container, value_type>(*this) {
+        for (auto el : data)
+            m_data.push_back(el);
+    }
+
     template<typename O>
-    const OwningView& operator=( const O& rhs) {
+    const OwningView& operator=(const O& rhs) {
         m_data.clear();
         rhs.push_back_to(m_data);
         return *this;
@@ -1065,7 +1083,6 @@ public:
 private:
     Container<T, std::allocator<T>> m_data;
 };
-
 
 template<typename Container>
 class CachedView : public FunctionalInterface<CachedView<Container>, typename Container::value_type> {
@@ -1265,7 +1282,7 @@ Series<T> arithmetic_stream(T initial, T increment) {
 }
 
 // infinite series if integers incremented by 1
-template<typename T=size_t>
+template<typename T = size_t>
 Series<T> iota_stream(T initial = 0) {
     return Series<T>([](T c) { return c + 1; }, initial);;
 }
@@ -1273,7 +1290,7 @@ Series<T> iota_stream(T initial = 0) {
 // random integers using rand from c stdlib
 // @warning - not high quality randomization
 // @warning - it is not reproducible
-template<typename T=int>
+template<typename T = int>
 Series<T> crandom_stream() {
     return Series<T>([](T) { return static_cast<T>(rand()); }, rand());
 }
@@ -1290,14 +1307,19 @@ DirectView<T, std::vector> lazy_view(const std::vector<T>& vec) {
 }
 
 template<typename T>
-OwningView<T, std::vector> lazy_own(const std::vector<T>&& vec) {
-    return OwningView(vec);
+auto lazy_view(const T& cont) {
+    return DirectView<typename T::value_type>(cont);
+}
+
+
+template<typename T>
+OwningView<T> lazy_own(const std::vector<T>&& vec) {
+    return OwningView<T>(vec);
 }
 
 template<typename T>
-OwningView<T, std::vector> lazy_own(const std::vector<T>& vec) {
-    return OwningView(vec);
+auto lazy_own(const T& cont) {
+    return OwningView<typename T::value_type>(cont);
 }
-
 
 #endif

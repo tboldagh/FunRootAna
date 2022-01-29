@@ -20,6 +20,8 @@ auto f = F( _*_);
 \\ is identical to
 auto f = [](auto _) { return _*_; };
 ```
+*Notice, the name `F` is short enough to actually cause naming clash, in such case: rename it or remove it in favour of macros specific for types you deal with. *
+
 ### Macro CLOSURE
 Like `F` except it is a closure (can access variables that ere out of scope by reference).
 ```c++
@@ -145,6 +147,10 @@ More in the [Project page] (https://tboldagh.github.io/FunRootAna/)
 
 ### reverse
 Produces container of elements in reverse order to the original one.
+
+### toptr/toref
+Converts contained objects to pointer or ref. 
+If the objects are actually of desired type the compilation error is emitted.
 
 ### min/max( keyextractor == identity)
 Returns a single (or empty) container with the element that is extreme according to the value returned by the `keyextractor` function.

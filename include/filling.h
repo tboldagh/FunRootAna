@@ -28,7 +28,23 @@
 void operator >> ( double v, TH1 & h) {
     h.Fill(v);
 }
+
+void operator >> ( float v, TH1 & h) {
+    h.Fill(v);
+}
+
 void operator >> ( int v, TH1 & h) {
+    h.Fill(v);
+}
+
+void operator >> ( unsigned v, TH1 & h) {
+    h.Fill(v);
+}
+
+void operator >> ( long unsigned int v, TH1 & h) {
+    h.Fill(v);
+}
+void operator >> ( long int v, TH1 & h) {
     h.Fill(v);
 }
 

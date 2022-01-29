@@ -441,11 +441,43 @@ void test_stat() {
     VALUE(s.mean()) EXPECTED( static_cast<double>( vt1.sum())/vt1.size() );
     double var = vt1.map( CLOSURE(_-s.mean())).map( F(_*_) ).sum()/vt1.size(); // calculate it by hand
     VALUE(s.var()) EXPECTED( var);
+}
 
+void test_to_ref_ptr() {
+    std::vector<int> t1({ 1, 19, 4, 2, 5, -1, 5 });
+    auto vt1 = functional_vector(t1);
+    const int sum1 = vt1.sum();
+    const int sum2 = vt1.toptr().sum( F(*_));
+    VALUE( sum1 ) EXPECTED( sum2 );
 
+    const int sum3 = vt1.toptr().toref().sum( F(_));
+    VALUE( sum1 ) EXPECTED( sum3 );
 
 }
 
+// a tricky container
+template<typename T>
+struct MyVec{
+    using value_type = T*;
+    std::vector<T*> data;
+    ~MyVec(){ for ( auto el: data) delete el; }
+    auto begin() const { return data.begin(); }
+    auto end() const { return data.end(); }
+
+};
+
+void test_lazy_own () {
+    MyVec<int> i;
+    i.data.push_back( new int(4));
+    i.data.push_back( new int(2));
+    i.data.push_back( new int(-5));
+    auto io = lazy_own(i);
+    VALUE(io.toref().sum()) EXPECTED(1);
+
+//    auto iv = lazy_view(i);
+
+
+}
 
 int main() {
     const int failed =
@@ -468,7 +500,9 @@ int main() {
         + SUITE(test_cartesian)
         + SUITE(test_cache)
         + SUITE(test_group)
-        + SUITE(test_stat);
+        + SUITE(test_stat)
+        + SUITE(test_to_ref_ptr)
+        + SUITE(test_lazy_own);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;
