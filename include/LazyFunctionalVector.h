@@ -27,7 +27,6 @@ The foreach should take function object that is applied to element of the collec
 The function should return boolean, when the false is returned the iteration is interrupted.
 The foreach takes additional instructions that can be used to optimize it's operation.
 
-
 */
 
 namespace lfv_details {
@@ -45,13 +44,13 @@ namespace lfv_details {
 
         template<typename U>
         void insert(const U& el) {
-            static_assert(std::is_same<U, T>::value, "one_element_container cant handle plymorphic data");
+            static_assert(std::is_same<T, U>::value, "one_element_container can't handle plymorphic data");
             if (ptr != nullptr) throw std::runtime_error("one_element_container already has content");
             ptr = new (reinterpret_cast<T*>(data)) T(el);
         }
         template<typename U>
         void replace(const U& el) {
-            static_assert(std::is_same<U, T>::value, "one_element_container cant handle plymorphic data");
+            static_assert(std::is_same<T, U>::value, "one_element_container can't handle plymorphic data");
             ptr = new (reinterpret_cast<T*>(data)) T(el);
         }
         bool empty() const { return ptr == nullptr; }
@@ -61,11 +60,9 @@ namespace lfv_details {
 }
 
 
-
-
 template< typename Container, typename Filter> class FilteredView;
 template< typename Container, typename Map> class MappedView;
-template<typename T, template<typename, typename> typename Container = std::vector> class DirectView;
+template<typename Container> class DirectView;
 template<typename T, template<typename, typename> typename Container = std::vector> class OwningView;
 template<typename T, template<typename, typename> typename Container = std::vector> class RefView;
 
@@ -87,10 +84,9 @@ template<typename T> class Range;
 
 namespace lfv_details {
     template<typename C> struct has_fast_element_access_tag { static constexpr bool value = false; };
-    template<typename T> struct has_fast_element_access_tag<DirectView<T, std::vector>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<DirectView<T>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<OwningView<std::vector<T>>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<OwningView<T, std::vector>> { static constexpr bool value = true; };
-    template<typename T> struct has_fast_element_access_tag<DirectView<T, std::deque>> { static constexpr bool value = true; };
-    template<typename T> struct has_fast_element_access_tag<OwningView<T, std::deque>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<RefView<T, std::vector>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<RefView<T, std::deque>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<Range<T>> { static constexpr bool value = true; };
@@ -107,6 +103,7 @@ template<typename Container, typename Stored>
 class FunctionalInterface {
 public:
     using value_type = Stored;
+    using const_value_type = typename std::conditional<std::is_pointer<Stored>::value, const typename std::remove_pointer<value_type>::type *, const value_type>::type;
     using const_reference_type = const value_type&;
     static constexpr auto id = [](const Stored& x) { return x; };
 
@@ -378,7 +375,7 @@ public:
 
 
     // access by index (not good idea to overuse)
-    virtual auto element_at(size_t  n) const -> std::optional<value_type> {
+    virtual auto element_at(size_t  n) const -> std::optional<const_value_type> {
         lfv_details::one_element_stack_container<value_type> temp;
         size_t i = 0;
         m_actual_container.foreach_imp([&temp, n, &i](const_reference_type el) {
@@ -389,10 +386,10 @@ public:
             i++;
             return true;
             });
-        return temp.empty() ? std::optional<value_type>() : temp.get();
+        return temp.empty() ? std::optional<const_value_type>() : temp.get();
     }
 
-    virtual auto get() const -> std::optional<value_type> {
+    virtual auto get() const -> std::optional<const_value_type> {
         return element_at(0);
     }
 
@@ -427,9 +424,9 @@ public:
         return found;
     }
 
-    // applies point free transforms on actual data
+    // TODO applies point free transforms on actual data
     template<typename T>
-    auto apply(const std::vector<T>& data) {
+    auto apply_on(const T& data) {
         //        retrun DirectView(data).go();
     }
 
@@ -987,17 +984,18 @@ private:
 
 
 
-template<typename Stored, template<typename, typename> typename Container>
-class DirectView final : public FunctionalInterface<DirectView<Stored, Container>, Stored> {
+template<typename Container>
+class DirectView final : public FunctionalInterface<DirectView<Container>, typename Container::value_type> {
 public:
-    using value_type = Stored;
-    using const_value_type = const value_type;
+    using interface = FunctionalInterface<DirectView<Container>, typename Container::value_type>;
+    using value_type = typename interface::value_type;    
+    using const_value_type = typename interface::const_value_type;
     using const_reference_type = const_value_type&;
-    using container = DirectView<Stored>;
+    using container = DirectView<Container>;
     static constexpr bool is_permanent = true;
     static constexpr bool is_finite = true;
 
-    DirectView(const Container<value_type, std::allocator<value_type>>& m)
+    DirectView(const Container& m)
         : FunctionalInterface<container, value_type>(*this), m_data(m) {}
 
     template<typename F>
@@ -1009,25 +1007,26 @@ public:
         }
     }
 
-    virtual auto element_at(size_t  n) const -> std::optional<value_type> override final {
+    using optional_value = std::optional<const_value_type>;
+    optional_value element_at(size_t  n) const override final {
         if (n < m_data.size())
             return m_data.at(n);
         return {};
     }
-    virtual size_t size() const  override final {
+    size_t size() const  override final {
         return m_data.size();
     }
 
 private:
-    const Container<value_type, std::allocator<value_type>>& m_data;
+    const Container& m_data;
 };
-
 
 template<typename T, template<typename, typename> typename Container>
 class OwningView final : public FunctionalInterface<OwningView<T, Container>, T> {
 public:
-    using value_type = T;
-    using const_value_type = const value_type;
+    using interface = FunctionalInterface<OwningView<T, Container>, T>;
+    using value_type = typename interface::value_type;    
+    using const_value_type = typename interface::const_value_type;
     using const_reference_type = const_value_type&;
     using container = OwningView<T, Container>;
     static constexpr bool is_permanent = true;
@@ -1072,7 +1071,7 @@ public:
         }
     }
 
-    virtual auto element_at(size_t  n) const -> std::optional<value_type> override final {
+    virtual auto element_at(size_t  n) const -> std::optional<const_value_type> override final {
         if (n < m_data.size())
             return m_data.at(n);
         return {};
@@ -1253,7 +1252,7 @@ public:
         }
     }
 
-    virtual auto element_at(size_t  n) const -> std::optional<value_type> override final {
+    virtual auto element_at(size_t  n) const -> std::optional<const_value_type> override final {
         if (n < size())
             return m_begin + m_stride * n;
         return {};
@@ -1301,14 +1300,15 @@ Range<T> range_stream(T begin, T end, T stride = 1) {
     return Range<T>(begin, end, stride);
 }
 
-template<typename T>
-DirectView<T, std::vector> lazy_view(const std::vector<T>& vec) {
-    return DirectView(vec);
-}
 
 template<typename T>
 auto lazy_view(const T& cont) {
-    return DirectView<typename T::value_type>(cont);
+    return DirectView(cont);
+}
+
+template<typename T>
+auto lazy_ptr_view(const T& cont) {
+    return DirectView(cont);
 }
 
 

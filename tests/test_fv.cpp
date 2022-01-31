@@ -32,7 +32,7 @@ void test_type_presentation() {
     VALUE(typeid(z2) == typeid(double)) EXPECTED(true);
 
     static_assert(lfv_details::has_fast_element_access_tag<int>::value == false);
-    static_assert(lfv_details::has_fast_element_access_tag<DirectView<double>>::value == true);
+    static_assert(lfv_details::has_fast_element_access_tag<DirectView<std::vector<double>>>::value == true);
 }
 
 void test_element_access() {
@@ -463,6 +463,8 @@ struct MyVec{
     ~MyVec(){ for ( auto el: data) delete el; }
     auto begin() const { return data.begin(); }
     auto end() const { return data.end(); }
+    size_t size() const { return data.size(); }
+    const T* at(size_t i) const { return data[i]; }
 
 };
 
@@ -471,11 +473,19 @@ void test_lazy_own () {
     i.data.push_back( new int(4));
     i.data.push_back( new int(2));
     i.data.push_back( new int(-5));
-    auto io = lazy_own(i);
+    auto io = lazy_own(i); // copy over pointers
     VALUE(io.toref().sum()) EXPECTED(1);
+    auto iv = lazy_view(i);
+    auto first_two_sum =  iv.toref().take(2).filter(F(_>0)).sum();
+    VALUE(first_two_sum) EXPECTED( 6 );
+}
 
-//    auto iv = lazy_view(i);
-
+void test_deffered() {
+    // TODO
+    // struct A {int a; float b;};    
+    // auto l = lazy_deferred<std::vector<A>>();
+    // auto op = l.filter(F( _.a == 3 )).map(F(_.a*_.b)).take_while( F(_>0));
+    // std::vector<A> a = {{0, 2.5}, {3, 0.3}, {2, 0.2}, {3, -0.1}};
 
 }
 
@@ -502,7 +512,8 @@ int main() {
         + SUITE(test_group)
         + SUITE(test_stat)
         + SUITE(test_to_ref_ptr)
-        + SUITE(test_lazy_own);
+        + SUITE(test_lazy_own)
+        + SUITE(test_deffered);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;
