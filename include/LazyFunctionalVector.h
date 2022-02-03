@@ -1318,6 +1318,12 @@ OwningView<T> lazy_own(const std::vector<T>&& vec) {
 }
 
 template<typename T>
+OwningView<T> lazy_own(const std::initializer_list<T>& il) {
+    return OwningView<T>(std::vector(il));
+}
+
+
+template<typename T>
 auto lazy_own(const T& cont) {
     return OwningView<typename T::value_type>(cont);
 }

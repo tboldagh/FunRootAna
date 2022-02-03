@@ -29,6 +29,7 @@ void _save(TFile* f, T* o) {
 }
 
 void HandyHists::save(const std::string& fname) {
+  TDirectory* current = gDirectory;
   TFile* f = TFile::Open(fname.c_str(), "NEW");
   assure(f != nullptr, "Opening output file " + fname);
   for (auto [hash, hptr] : m_h1) {
@@ -46,10 +47,9 @@ void HandyHists::save(const std::string& fname) {
   for (auto [hash, hptr] : m_prof) {
     _save(f, hptr);
   }
-
-
   f->Write();
   f->Close();
+  gDirectory = current;
 }
 
 

@@ -486,7 +486,10 @@ void test_deffered() {
     // auto l = lazy_deferred<std::vector<A>>();
     // auto op = l.filter(F( _.a == 3 )).map(F(_.a*_.b)).take_while( F(_>0));
     // std::vector<A> a = {{0, 2.5}, {3, 0.3}, {2, 0.2}, {3, -0.1}};
-
+}
+void test_initializer_list() {
+    auto lv = lazy_own({1,4,5,6}).sum();
+    VALUE(lv) EXPECTED (16);
 }
 
 int main() {
@@ -513,7 +516,8 @@ int main() {
         + SUITE(test_stat)
         + SUITE(test_to_ref_ptr)
         + SUITE(test_lazy_own)
-        + SUITE(test_deffered);
+        + SUITE(test_deffered)
+        + SUITE(test_initializer_list);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;
