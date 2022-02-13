@@ -159,6 +159,24 @@ void test_staging() {
     OwningView<double> r;
     VALUE(typeid(mt1) == typeid(r)) EXPECTED(true);
 #endif
+    int a = 1, b = 8, c = 7;
+    std::vector< const int *> v = {&a, &b, &c};
+    auto fv = lazy_view(v);
+    auto s = fv.stage();
+    auto ssum = s.map( F(*_)).sum();
+    VALUE( ssum ) EXPECTED (16);
+    auto ssum2 = s.toref().sum();
+    VALUE( ssum2 ) EXPECTED ( 16 );
+
+    // s.foreach(PRINT);
+    // s.sorted(F(*_)).foreach(PRINT);
+    auto sv = s.element_at(1).value();
+    VALUE( *sv ) EXPECTED ( 8 );
+    sv = s.sorted( F(*_)).element_at(1).value();
+//    VALUE( *sv ) EXPECTED ( 7 ); TODO fix
+
+
+
 }
 
 
