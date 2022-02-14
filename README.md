@@ -115,15 +115,17 @@ not data.filter(F(_>0)).empty();
 ### all( predicate )
 Returns true if all elements satisfy predicate.
 _Notice:_ `false` is always returned for an empty container.
-### sorted( keyextractor )/ sorted()
-Produces container of elements that ar sorted ascending by a property extracted by provided function
+### sort( keyextractor )/ sort()
+Produces container of elements that are sorted ascending by a property extracted by provided function
 ```c++
 // assume data is collection of doubles
-data.sorted() // the doubles in ascending order
-data.sorted( F( -_)) // sort in descending order
+data.sort() // the doubles in ascending order
+data.sort( F( -_)) // sort in descending order
 ```
 *Notice* In case of lazy container the sorting involves making a temporary lightweight copy of references. 
 It may be good idea to use `cache/stage` after sorting.
+*Notice* The name of this method was changed from "sorted" to be similar to other names (i.e. reverse - not reversed).
+
 
 ### take(n, stride=1)
 Takes n first elements from the container skipping them by `stride`.

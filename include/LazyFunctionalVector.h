@@ -212,7 +212,7 @@ public:
 
     // sort according to the key extractor @arg f, this is lazy operation
     template<typename F = decltype(id)>
-    auto sorted(F f = id) const {
+    auto sort(F f = id) const {
         static_assert(Container::is_finite, "Can't sort in an infinite container");
         static_assert(Container::is_permanent, "Can't sort container that generates element on the flight, stage() it before");
         return SortedView<Container, F>(m_actual_container, f);
@@ -510,10 +510,25 @@ public:
         m_foreach_imp_provider(c),
         m_keyExtractor(f) {};
 
-    template<typename F>
-    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
+    template<typename F, typename Q=value_type>
+    typename std::enable_if< std::is_pointer<Q>::value,void>::type foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
+        std::vector< value_type > lookup;
+        m_foreach_imp_provider.foreach_imp([&lookup](typename interface::argument_type el) { lookup.push_back(el); return true; }, how);
+
+        auto sorter = [this](auto a, auto b) { return m_keyExtractor(a) < m_keyExtractor(b); };
+        std::sort(std::begin(lookup), std::end(lookup), sorter);
+        for (auto ptr : lookup) {
+            const bool go = f(ptr);
+            if (not go)
+                break;
+        }
+    }
+
+    template<typename F, typename Q=value_type>
+    typename std::enable_if< !std::is_pointer<Q>::value,void>::type foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         std::vector< std::reference_wrapper<const value_type>> lookup;
         m_foreach_imp_provider.foreach_imp([&lookup](typename interface::argument_type el) { lookup.push_back(std::cref(el)); return true; }, how);
+
         auto sorter = [this](auto a, auto b) { return m_keyExtractor(a.get()) < m_keyExtractor(b.get()); };
         std::sort(std::begin(lookup), std::end(lookup), sorter);
         for (auto ref : lookup) {
@@ -726,10 +741,22 @@ public:
         : interface(*this),
         m_foreach_imp_provider(c) {}
 
-    template<typename F>
-    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
+    template<typename F, typename Q=value_type>
+    typename std::enable_if< std::is_pointer<Q>::value, void>::type foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
+        std::vector< value_type > lookup;
+        m_foreach_imp_provider.foreach_imp([&lookup](const value_type& el) {
+            lookup.push_back( el ); return true; });
+        for (auto it = lookup.rbegin(); it != lookup.rend(); ++it) {
+            const bool go = f(*it);
+            if (not go)
+                break;
+        }
+    }
+
+    template<typename F, typename Q=value_type>
+    typename std::enable_if< !std::is_pointer<Q>::value, void>::type foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         std::vector< std::reference_wrapper<const value_type>> lookup;
-        m_foreach_imp_provider.foreach_imp([&lookup](typename interface::argument_type el) {
+        m_foreach_imp_provider.foreach_imp([&lookup](const value_type& el) {
             lookup.push_back(std::cref(el)); return true; });
         for (auto it = lookup.rbegin(); it != lookup.rend(); ++it) {
             const bool go = f(it->get());

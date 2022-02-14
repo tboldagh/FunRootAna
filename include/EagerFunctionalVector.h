@@ -141,7 +141,7 @@ public:
 
 
   template< typename KeyExtractor = decltype(id)>
-  EagerFunctionalVector<Stored> sorted(KeyExtractor key = id) const {
+  EagerFunctionalVector<Stored> sort(KeyExtractor key = id) const {
     EagerFunctionalVector<Stored> clone(container);
     std::sort(clone.container.begin(), clone.container.end(), [&](const Stored& el1, const Stored& el2) { return key(el1) < key(el2); });
     return clone;

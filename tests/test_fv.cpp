@@ -168,12 +168,12 @@ void test_staging() {
     auto ssum2 = s.toref().sum();
     VALUE( ssum2 ) EXPECTED ( 16 );
 
-    // s.foreach(PRINT);
-    // s.sorted(F(*_)).foreach(PRINT);
     auto sv = s.element_at(1).value();
     VALUE( *sv ) EXPECTED ( 8 );
-    sv = s.sorted( F(*_)).element_at(1).value();
-//    VALUE( *sv ) EXPECTED ( 7 ); TODO fix
+    sv = s.sort( F(*_)).element_at(1).value();
+    VALUE( *sv ) EXPECTED ( 7 ); 
+    sv = s.sort( F(*_)).reverse().element_at(0).value();
+    VALUE( *sv ) EXPECTED ( 8 ); 
 
 
 
@@ -256,13 +256,13 @@ void test_chain() {
 void test_sort() {
     std::vector<int> t1({ 1,19,4, 2, 5, -1, 5 });
     auto vt1 = functional_vector(t1);
-    auto st1 = vt1.sorted(); // default use values themselves
+    auto st1 = vt1.sort(); // default use values themselves
     VALUE(st1.size()) EXPECTED(t1.size());
     VALUE(st1.element_at(0).value()) EXPECTED(-1);
     VALUE(st1.element_at(1).value()) EXPECTED(1);
     VALUE(st1.element_at(6).value()) EXPECTED(19);
 
-    auto rst1 = vt1.sorted(F(-std::abs(_))); // reverse sort
+    auto rst1 = vt1.sort(F(-std::abs(_))); // reverse sort
     VALUE(rst1.size()) EXPECTED(t1.size());
     VALUE(rst1.element_at(0).value()) EXPECTED(19);
 
@@ -289,7 +289,7 @@ void test_enumerate() {
     VALUE(index_greater_than_value.value().second) EXPECTED(2);
 
     // this is failing and needs upgrade of foreach
-    auto sen1 = en1.stage().sorted(F(_.second)).stage();
+    auto sen1 = en1.stage().sort(F(_.second)).stage();
     // TODO figure out why staging was needed after sort
     VALUE(sen1.element_at(0).value().second) EXPECTED(-1);
     VALUE(sen1.element_at(0).value().first) EXPECTED(5);
@@ -315,7 +315,7 @@ void test_reversal() {
 
 
 
-    auto s1 = r1.sorted();
+    auto s1 = r1.sort();
     VALUE(s1.element_at(0).value()) EXPECTED(-1);
 
     // double reversescala
@@ -323,7 +323,7 @@ void test_reversal() {
     VALUE(r2.element_at(1).value()) EXPECTED(19);
 
     // TODO try sorting
-    auto s2 = r2.sorted();
+    auto s2 = r2.sort();
     VALUE(s2.element_at(0).value()) EXPECTED(-1);
 }
 
