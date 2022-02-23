@@ -1,4 +1,20 @@
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
+
+# EXAMPLE intgeration with ATLAS experiemnt as a library
+atlas_subdir( FunRootAna )
+find_package( ROOT COMPONENTS MathCore RIO Core Tree Hist Physics )
+
+atlas_add_library( FunRootAna src/*.cpp
+                   PUBLIC_HEADERS FunRootAna
+                   SHARED
+                   LINK_LIBRARIES ${ROOT_LIBRARIES}
+                   PRIVATE_INCLUDE_DIRS FunRootAna ${ROOT_INCLUDE_DIRS}
+)
+
+
+
+SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall --pedantic")
+
 project(FunRootAna)
 
 # You need to tell CMake where to find the ROOT installation. This can be done in a number of ways:
@@ -7,8 +23,6 @@ project(FunRootAna)
 list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
 
 find_package(ROOT REQUIRED COMPONENTS Core Hist Tree)
-
-SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -g --pedantic")
 
 include(${ROOT_USE_FILE})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)

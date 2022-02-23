@@ -5,12 +5,11 @@
 #include "TFile.h"
 #include "HIST.h"
 
-#include <string_view>
 
 namespace {
 template<typename T>
 void _save(TFile* f, T* o) {
-  const std::string_view& name(o->GetName());
+  const std::string name(o->GetName());
   if ( name.find('/') == std::string::npos ) {// no subdirectory designation, to be saved in the file main subdir
     o->SetDirectory(f);
     return;

@@ -1010,7 +1010,7 @@ public:
         : interface(*this), m_data(m) {}
 
     template<typename F>
-    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions = {}) const {
         for (const auto& el : m_data) {
             const bool go = f(el);
             if (not go)
@@ -1074,7 +1074,7 @@ public:
     Container<T, std::allocator<T>>& _underlying() { return m_data; }
 
     template<typename F>
-    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions  = {}) const {
         for (const auto& el : m_data) {
             const bool go = f(el);
             if (not go)
@@ -1169,7 +1169,7 @@ public:
     void clear() { m_data.clear(); }
 
     template<typename F>
-    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions = {}) const {
         for (const auto& el : m_data) {
             const bool go = f(el.value());
             if (not go)
@@ -1206,7 +1206,7 @@ public:
         m_stop(stop) {}
 
     template<typename F>
-    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions = {}) const {
         T current = m_start;
         while (current < m_stop) {
             const bool go = f(current);
@@ -1245,7 +1245,7 @@ public:
     }
 
     template<typename F>
-    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions = {}) const {
         T current = m_begin;
         while ((m_stride > 0 and current < m_end) or (current > m_end)) {
             const bool go = f(current);

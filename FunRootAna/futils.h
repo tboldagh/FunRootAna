@@ -8,6 +8,7 @@
 
 // macro generating generic, single agument, returning lambda
 // example use: filter( F(_ < 0)) - the _ is the lambda argument, the function is pure (i.e. sees no outer scope), if that is needed use C
+// when integrated in larger projects it may clash with other symbols 
 #define F(CODE) [](const auto &_) { return CODE; }
 
 
