@@ -23,7 +23,7 @@ struct Point{
 #include "Access.h"
 #include "LazyFunctionalVector.h"
 #include "filling.h"
-class PointsTreeAccess : public Access{
+class PointsTreeAccess : public Access {
     public:
         using Access::Access;
        std::vector<Point> getPoints() {
@@ -37,19 +37,23 @@ class PointsTreeAccess : public Access{
             for ( size_t i = 0; i < x.size(); ++i) {
                 result.emplace_back(Point({x[i], y[i], z[i]}));
             }
-
            */
-           fillbr<std::vector<float>> xBr ( m_tree, "x" , m_current);
-           fillbr<std::vector<float>> yBr ( m_tree, "y" , m_current);
-           fillbr<std::vector<float>> zBr ( m_tree, "z" , m_current);
-           result.reserve( xBr.data->size() ); // to avoid reallocations
-            for ( size_t i = 0; i < xBr.size(); ++i) {
-                result.emplace_back(Point({xBr.at(i), yBr.at(i), zBr.at(i)}));
+
+           /* more efficient apprach */
+           fillbr<std::vector<float>> xBranch( tree(), "x" , current());
+           fillbr<std::vector<float>> yBranch( tree(), "y" , current());
+           fillbr<std::vector<float>> zBranch( tree(), "z" , current());
+           result.reserve( xBranch.data->size() ); // to avoid reallocations
+            for ( size_t i = 0; i < xBranch.size(); ++i) {
+                result.emplace_back( Point( {xBranch.at(i), yBranch.at(i), zBranch.at(i)} ) );
             }
 
             return result;
        }
 };
+
+
+
 
 #include "TTree.h"
 #include "TFile.h"
@@ -68,11 +72,21 @@ public:
         TTree* t = (TTree*)f->Get("points");
         assure(t != nullptr, "Tree" );
 
-        for (PointsTreeAccess event(t); event; ++event) {
-            const int category = event.get<int>("category");
+        // a simple loop
+        //for (PointsTreeAccess event(t); event; ++event) 
+
+        // or via functional collection interface
+        FunctionalAccess<PointsTreeAccess> events(t); // the tree wrapped in an functional container
+
+        events
+        .take(2000) // take only first 1000 events
+        .filter( [&](auto event){ return event.current() %2 == 1; }) // every second event (beause why not)
+        .foreach([&](auto event) {
+            // analyse content of the data entry
+            const int category = event.template get<int>("category");
             category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram with a plain , (creation done on demand and only once)
 
-            const auto x = lazy_own(std::move(event.get<std::vector<float>>("x"))); // get vector of data & wrap it into a functional style container
+            const auto x = lazy_own(std::move(event.template get<std::vector<float>>("x"))); // get vector of data & wrap it into a functional style container
             x >> HIST1("x", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
             x.map( F(_ - 1) ) >> HIST1("x_shifted", "transformed x;|x-1|", 20, 0, 1); // transform & fill the histogram
 
@@ -84,7 +98,7 @@ public:
             points.map(F(_.z)) >> HIST1("z", ";zcoord", 100, 0, 10); // another example
             points.filter(F(_.z > 1.0) ).map( F(_.rho_xy())) >> HIST1("rho", ";rho_{z>1}", 100, 0, 10); // another example
             points.map( F( std::make_pair(_.r(), _.z))) >>  HIST2("xy/r_z", ";x;y", 30, 0, 3, 20, 0, 15); // and 2D hist
-        }
+        });
         f->Close();
     }
 };

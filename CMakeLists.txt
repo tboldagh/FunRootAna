@@ -1,15 +1,16 @@
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 
-# EXAMPLE intgeration with ATLAS experiemnt as a library
-atlas_subdir( FunRootAna )
-find_package( ROOT COMPONENTS MathCore RIO Core Tree Hist Physics )
+# EXAMPLE intgeration with ATLAS experiment analsysis s/w as a library
+# to do checkout the FunRootAna into the source area (athena) and add the dependency FunRootAna in atlas_add_library
+# atlas_subdir( FunRootAna )
+# find_package( ROOT COMPONENTS MathCore RIO Core Tree Hist Physics )
 
-atlas_add_library( FunRootAna src/*.cpp
-                   PUBLIC_HEADERS FunRootAna
-                   SHARED
-                   LINK_LIBRARIES ${ROOT_LIBRARIES}
-                   PRIVATE_INCLUDE_DIRS FunRootAna ${ROOT_INCLUDE_DIRS}
-)
+# atlas_add_library( FunRootAna src/*.cpp
+#                    PUBLIC_HEADERS FunRootAna
+#                    SHARED
+#                    LINK_LIBRARIES ${ROOT_LIBRARIES}
+#                    PRIVATE_INCLUDE_DIRS FunRootAna ${ROOT_INCLUDE_DIRS}
+# )
 
 
 
@@ -25,11 +26,11 @@ list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
 find_package(ROOT REQUIRED COMPONENTS Core Hist Tree)
 
 include(${ROOT_USE_FILE})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/FunRootAna)
 include_directories(${ROOT_INCLUDE_DIRS})
 message(STATUS "ROOT_INCLUDE_DIRS: ${ROOT_INCLUDE_DIRS}")
 
-file(GLOB LIBSRC "fwksrc/*.cpp")
+file(GLOB LIBSRC "src/*.cpp")
 add_library(FunRootAna SHARED ${LIBSRC} )
 target_link_libraries(FunRootAna ${ROOT_LIBRARIES})
 target_compile_features(FunRootAna PRIVATE cxx_std_17)

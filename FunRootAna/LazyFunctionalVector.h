@@ -297,7 +297,7 @@ public:
     // the implementation is suboptimal, that is, it involves inexed access to one of the containers, it is therefore better if one of them is staged
     template<typename Other>
     auto zip(const Other& c) const {
-        static_assert(Container::is_finite or Other::is_finite, "Can't compare infinite containers");
+        static_assert(Container::is_finite or Other::is_finite, "Can't combine infinite containers");
         return ZipView<Container, Other>(m_actual_container, c);
     }
 
