@@ -146,6 +146,22 @@ auto step1 = lazy_view(data).map(...).filter(...).take(...).cache(); // computat
 
 In fact you can mix the two approaches if needed calling `as_eager()`, and other way round: `lazy_view(v.unwrap())`, but that should never be necessary.
 
+# ROOT TTree as a lazy collection
+
+The entries stored in the `TTree` can be considered as a functional collection as well. All typical transformations can then be applied to it. An example is shown below. It is advised however (for performance reason) to process the TTree only once. That is, to end the operations with the `foreach` that obtains a function processing the data stored in the tree.
+```c++
+        FunctionalAccess<PointsTreeAccess> events(t); // the tree wrapped in an functional container
+
+        events
+        .take(2000) // take only first 1000 events
+        .filter( [&](auto event){ return event.current() %2 == 1; }) // every second event (because why not)
+        .foreach([&](auto event) {
+            // analyse content of the data entry
+            const int category = event.template get<int>("category"); // "template" keyword needed here 
+            category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram with a plain , (creation done on demand and only once)
+            // and so on
+        });
+```
 
 # Histograms handling
 To keep to the promise of "one line per histogram" the histogram can't be declared / booked / registered / filled / saved separately. Right!?
