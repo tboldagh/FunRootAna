@@ -57,7 +57,9 @@ namespace lfv_details {
 
         T& get() { return *ptr; }
     };
+    struct as_needed{};
 }
+#define AS_NEEDED //template<typename T=lfv_details::as_needed>
 
 
 template< typename Container, typename Filter> class FilteredView;
@@ -73,7 +75,7 @@ template<typename Container> class ReverseView;
 template<typename Container> class CachedView;
 template<typename Container, typename Subroutine> class InspectView;
 template<typename Container, typename Filter, lfv_details::skip_take_logic_t> class TakeSkipWhileView;
-template<typename Container1, typename Container2> class ChainView;
+template<typename Container1, typename Container2, typename ExposedType> class ChainView;
 template<typename Container1, typename Container2> class ZipView;
 template<typename Container1, typename Container2> class CartesianView;
 template<typename Container> class CombinationsView;
@@ -103,17 +105,17 @@ template<typename Container, typename Stored>
 class FunctionalInterface {
 public:
     using value_type = Stored;
-    using const_value_type = typename std::conditional<std::is_pointer<Stored>::value, 
-                                                        const typename std::remove_pointer<value_type>::type *, 
-                                                        const value_type>::type;
+    using const_value_type = typename std::conditional<std::is_pointer<Stored>::value,
+        const typename std::remove_pointer<value_type>::type*,
+        const value_type>::type;
     using const_reference_type = const value_type&;
     // optimal type to pass around
-    using argument_type = typename std::conditional<std::is_pointer<Stored>::value, 
-                                                        const value_type, 
-                                                        const_reference_type>::type;
+    using argument_type = typename std::conditional<std::is_pointer<Stored>::value,
+        const value_type,
+        const_reference_type>::type;
 
     // identity (noop)
-    static constexpr auto id = [](const Stored& x) { return x; };
+    static constexpr auto id = [](const Stored& x) -> const Stored& { return x; };
 
     FunctionalInterface(const Container& cont) : m_actual_container(cont) {}
     ~FunctionalInterface() {}
@@ -146,13 +148,14 @@ public:
 
 
     // count of elements, this is an eager operation
-    virtual size_t size() const {
+    AS_NEEDED
+    size_t size() const {
         size_t c = 0;
         m_actual_container.foreach_imp([&c](const_reference_type) { c++; return true;});
         return c;
     }
-
-    virtual bool empty() const {
+    AS_NEEDED
+    bool empty() const {
         size_t c = 0;
         m_actual_container.foreach_imp([&c](const_reference_type) { c++; return false;});
         return c == 0;
@@ -219,15 +222,18 @@ public:
     }
 
     // selectors, lazy
+    AS_NEEDED
     auto take(size_t n, size_t stride = 1) const {
         return TakeSkipNView<Container, lfv_details::take_elements>(m_actual_container, n, stride);
     }
-
+    AS_NEEDED
     auto skip(size_t n, size_t stride = 1) const {
         return TakeSkipNView<Container, lfv_details::skip_elements>(m_actual_container, n, stride);
     }
 
     // produces container with indexed data
+
+    AS_NEEDED
     auto enumerate(size_t offset = 0) const {
         return EnumeratedView<Container>(m_actual_container, offset);
     }
@@ -243,6 +249,7 @@ public:
     }
 
     // creates intermediate container to speed following up operations, typically useful after sorting
+    AS_NEEDED
     auto stage() const -> OwningView<Stored> {
         static_assert(Container::is_finite, "Can't stage an infinite container");
         OwningView<Stored> c;
@@ -251,22 +258,25 @@ public:
     }
 
     // lazy stage, that is, the data will be staged when needed
+    AS_NEEDED
     auto cache() const -> CachedView<Container> {
         static_assert(Container::is_finite, "Can't cache an infinite container");
         return CachedView<Container>(m_actual_container);
     }
 
+    AS_NEEDED
     auto reverse() const {
         static_assert(Container::is_finite, "Can't reverse an infinite container");
         return ReverseView<Container>(m_actual_container);
     }
 
+    AS_NEEDED
     auto toptr() const {
         static_assert(!std::is_pointer<Stored>::value, "The content is already a pointer");
         return map([](const Stored& value) { return &value; });
     }
 
-
+    AS_NEEDED
     auto toref() const {
         static_assert(std::is_pointer<Stored>::value, "The content is not a pointer");
         return map([](argument_type el) { return *el; });
@@ -286,11 +296,11 @@ public:
 
 
     // concatenate two containers, in a lazy way
-    template<typename Other>
+    template<typename ExposedType=value_type, typename Other>
     auto chain(const Other& c) const {
         static_assert(Container::is_finite, "Can't chain with an infinite container");
 
-        return ChainView<Container, Other>(m_actual_container, c);
+        return ChainView<Container, Other, ExposedType>(m_actual_container, c);
     }
 
     // combine pairwise
@@ -330,6 +340,7 @@ public:
     // e.g. assume container: 0,1,2,3 and size=2, jump=2 then such groups will be formed (0,1)(2,3)
     // if the jump=1 the groups (0,1)(1,2)(2,3) will be formed
     // @warning if the container size is not a multiple of n, the trailing elements are not exposed, e.g. sth.take(8).group(3) will process only first 6 elements
+    AS_NEEDED
     auto group(size_t size = 2, size_t jump = std::numeric_limits<size_t>::max()) const {
         if (jump == std::numeric_limits<size_t>::max())
             return NView<Container>(m_actual_container, size, size);
@@ -351,7 +362,7 @@ public:
     template<typename F = decltype(id)>
     auto sum(F f = id) const {
         static_assert(Container::is_finite, "Can't sum an infinite container");
-        typename std::remove_reference<typename std::invoke_result<F, typename Container::argument_type>::type>::type s = {};
+        typename std::remove_const<typename std::remove_reference<typename std::invoke_result<F, typename Container::argument_type>::type>::type>::type s = {};
         m_actual_container.foreach_imp([&s, f](argument_type el) {
             s = s + f(el);
             return true; });
@@ -383,7 +394,8 @@ public:
 
 
     // access by index (not good idea to overuse)
-    virtual auto element_at(size_t  n) const -> std::optional<const_value_type> {
+    AS_NEEDED
+    auto element_at(size_t  n) const -> std::optional<const_value_type> {
         lfv_details::one_element_stack_container<value_type> temp;
         size_t i = 0;
         m_actual_container.foreach_imp([&temp, n, &i](argument_type el) {
@@ -397,7 +409,8 @@ public:
         return temp.empty() ? std::optional<const_value_type>() : temp.get();
     }
 
-    virtual auto get() const -> std::optional<const_value_type> {
+    AS_NEEDED
+    auto get() const -> std::optional<const_value_type> {
         return element_at(0);
     }
 
@@ -473,6 +486,7 @@ template< typename Container, typename Filter>
 class FilteredView : public FunctionalInterface<FilteredView<Container, Filter>, typename Container::value_type> {
 public:
     using interface = FunctionalInterface<FilteredView<Container, Filter>, typename Container::value_type>;
+    using value_type = typename interface::value_type;
     static constexpr bool is_finite = Container::is_finite;
 
     FilteredView(const Container& c, Filter f)
@@ -503,15 +517,15 @@ class SortedView : public FunctionalInterface<SortedView<Container, KeyExtractor
 public:
     using interface = FunctionalInterface<SortedView<Container, KeyExtractor>, typename Container::value_type>;
     using value_type = typename interface::value_type;
-    static constexpr bool is_finite = Container::is_finite;
+    static constexpr bool is_finite = true;
 
     SortedView(const Container& c, KeyExtractor f)
         : interface(*this),
         m_foreach_imp_provider(c),
         m_keyExtractor(f) {};
 
-    template<typename F, typename Q=value_type>
-    typename std::enable_if< std::is_pointer<Q>::value,void>::type foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
+    template<typename F, typename Q = value_type>
+    typename std::enable_if< std::is_pointer<Q>::value, void>::type foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         std::vector< value_type > lookup;
         m_foreach_imp_provider.foreach_imp([&lookup](typename interface::argument_type el) { lookup.push_back(el); return true; }, how);
 
@@ -524,8 +538,8 @@ public:
         }
     }
 
-    template<typename F, typename Q=value_type>
-    typename std::enable_if< !std::is_pointer<Q>::value,void>::type foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
+    template<typename F, typename Q = value_type>
+    typename std::enable_if< !std::is_pointer<Q>::value, void>::type foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         std::vector< std::reference_wrapper<const value_type>> lookup;
         m_foreach_imp_provider.foreach_imp([&lookup](typename interface::argument_type el) { lookup.push_back(std::cref(el)); return true; }, how);
 
@@ -548,7 +562,7 @@ private:
 template< typename Container, typename KeyExtractor>
 class MMView : public FunctionalInterface<MMView<Container, KeyExtractor>, typename Container::value_type> {
 public:
-    using interface =  FunctionalInterface<MMView<Container, KeyExtractor>, typename Container::value_type>;
+    using interface = FunctionalInterface<MMView<Container, KeyExtractor>, typename Container::value_type>;
     using value_type = typename interface::value_type;
     using reference_type = value_type&;
     using const_reference_type = const value_type&;
@@ -627,8 +641,8 @@ namespace {
     template<typename Container>
     struct select_type_for_n_view {
         using type = typename std::conditional< Container::is_permanent,
-                                                RefView<typename Container::value_type, std::deque>,
-                                                OwningView<typename Container::value_type, std::deque> >::type;
+            RefView<typename Container::value_type, std::deque>,
+            OwningView<typename Container::value_type, std::deque> >::type;
     };
 }
 template<typename Container>
@@ -741,11 +755,11 @@ public:
         : interface(*this),
         m_foreach_imp_provider(c) {}
 
-    template<typename F, typename Q=value_type>
+    template<typename F, typename Q = value_type>
     typename std::enable_if< std::is_pointer<Q>::value, void>::type foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         std::vector< value_type > lookup;
         m_foreach_imp_provider.foreach_imp([&lookup](const value_type& el) {
-            lookup.push_back( el ); return true; });
+            lookup.push_back(el); return true; });
         for (auto it = lookup.rbegin(); it != lookup.rend(); ++it) {
             const bool go = f(*it);
             if (not go)
@@ -753,7 +767,7 @@ public:
         }
     }
 
-    template<typename F, typename Q=value_type>
+    template<typename F, typename Q = value_type>
     typename std::enable_if< !std::is_pointer<Q>::value, void>::type foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
         std::vector< std::reference_wrapper<const value_type>> lookup;
         m_foreach_imp_provider.foreach_imp([&lookup](const value_type& el) {
@@ -781,7 +795,7 @@ struct select_type_for_enumerated_view {
 template<typename Container>
 class EnumeratedView : public FunctionalInterface<EnumeratedView<Container>, typename select_type_for_enumerated_view<Container>::type > {
 public:
-    using interface = FunctionalInterface<EnumeratedView<Container>, typename select_type_for_enumerated_view<Container>::type >; 
+    using interface = FunctionalInterface<EnumeratedView<Container>, typename select_type_for_enumerated_view<Container>::type >;
     using value_type = typename interface::value_type;
     static constexpr bool is_finite = Container::is_finite;
     static constexpr bool is_permanent = false;
@@ -868,12 +882,20 @@ private:
 };
 
 
-template<typename Container1, typename Container2>
-class ChainView : public FunctionalInterface<ChainView<Container1, Container2>, typename Container1::value_type> {
+template<typename Container1, typename Container2, typename ExposedType>
+class ChainView : public FunctionalInterface<ChainView<Container1, Container2, ExposedType>, ExposedType> {
 public:
-    using interface = FunctionalInterface<ChainView<Container1, Container2>, typename Container1::value_type>;
+    using interface = FunctionalInterface<ChainView<Container1, Container2, ExposedType>, ExposedType>;
     using value_type = typename interface::value_type;
-    static_assert(std::is_same<typename Container1::value_type, typename Container2::value_type>::value, "chained containers have to provide same stored type");
+
+    static_assert(std::is_base_of<value_type, typename Container1::value_type>::value
+        || std::is_same<value_type, typename Container1::value_type>::value
+        , "Objects in 1st container do not derive from requested type or is not the same");
+    static_assert(std::is_base_of<value_type, typename Container2::value_type>::value
+        || std::is_same<value_type, typename Container2::value_type>::value
+        , "Objects in 1st container do not derive from requested type or is not the same");
+
+    //    static_assert(std::is_same<typename Container1::value_type, typename Container2::value_type>::value, "chained containers have to provide same stored type");
     static constexpr bool is_finite = Container1::is_finite && Container2::is_finite;
 
 
@@ -964,7 +986,7 @@ public:
     using interface = FunctionalInterface<CartesianView<Container1, Container2>, typename std::pair<const typename Container1::value_type&, const typename Container2::value_type&> >;
     using value_type = typename interface::value_type;
     static constexpr bool is_permanent = false;
-    static_assert(Container1::is_finite && Container2::is_finite, "Cartesian product makes sense only for finite containers");
+    static_assert(Container1::is_finite&& Container2::is_finite, "Cartesian product makes sense only for finite containers");
     static constexpr bool is_finite = true;
 
     CartesianView(const Container1& c1, const Container2& c2)
@@ -1001,7 +1023,7 @@ template<typename Container>
 class DirectView final : public FunctionalInterface<DirectView<Container>, typename Container::value_type> {
 public:
     using interface = FunctionalInterface<DirectView<Container>, typename Container::value_type>;
-    using value_type = typename interface::value_type;    
+    using value_type = typename interface::value_type;
     using const_value_type = typename interface::const_value_type;
     static constexpr bool is_permanent = true;
     static constexpr bool is_finite = true;
@@ -1019,12 +1041,12 @@ public:
     }
 
     using optional_value = std::optional<const_value_type>;
-    optional_value element_at(size_t  n) const override final {
+    optional_value element_at(size_t  n) const {
         if (n < m_data.size())
             return m_data.at(n);
         return {};
     }
-    size_t size() const  override final {
+    size_t size() const {
         return m_data.size();
     }
 
@@ -1036,7 +1058,7 @@ template<typename T, template<typename, typename> typename Container>
 class OwningView final : public FunctionalInterface<OwningView<T, Container>, T> {
 public:
     using interface = FunctionalInterface<OwningView<T, Container>, T>;
-    using value_type = typename interface::value_type;    
+    using value_type = typename interface::value_type;
     using const_value_type = typename interface::const_value_type;
     using container = OwningView<T, Container>;
     static constexpr bool is_permanent = true;
@@ -1074,7 +1096,7 @@ public:
     Container<T, std::allocator<T>>& _underlying() { return m_data; }
 
     template<typename F>
-    void foreach_imp(F f, lfv_details::foreach_instructions  = {}) const {
+    void foreach_imp(F f, lfv_details::foreach_instructions = {}) const {
         for (const auto& el : m_data) {
             const bool go = f(el);
             if (not go)
@@ -1082,12 +1104,12 @@ public:
         }
     }
 
-    virtual auto element_at(size_t  n) const -> std::optional<const_value_type> override final {
+    auto element_at(size_t  n) const -> std::optional<const_value_type> {
         if (n < m_data.size())
             return m_data.at(n);
         return {};
     }
-    virtual size_t size() const  override final {
+    size_t size() const {
         return m_data.size();
     }
 private:
@@ -1256,12 +1278,12 @@ public:
         }
     }
 
-    virtual auto element_at(size_t  n) const -> std::optional<const_value_type> override final {
+    auto element_at(size_t  n) const -> std::optional<const_value_type> {
         if (n < size())
             return m_begin + m_stride * n;
         return {};
     }
-    virtual size_t size() const  override final {
+    size_t size() const {
         return std::abs((m_end - m_begin)) / std::abs(m_stride);
     }
 
@@ -1331,5 +1353,5 @@ template<typename T>
 auto lazy_own(const T& cont) {
     return OwningView<typename T::value_type>(cont);
 }
-
+#undef AS_NEEDED
 #endif

@@ -22,7 +22,6 @@ struct TestObject {
     std::string z;
 };
 
-
 void test_basic_transfromations() {
     std::vector<TestObject> vec = { TestObject({0, 0.2, "object 1"}), TestObject({11, 0.2, "object 2"}), TestObject({22, 0.5, "object 3"}), TestObject({33, 0.5, "object 4"}) };
     auto fto = functional_vector(vec);
@@ -62,15 +61,68 @@ void test_advanced() {
     }
     {
         auto s = fto.zip(fto.reverse()).map(F(_.first.x * _.second.x)).sum(); // 0x33 11x22 22x11 33x00
-        VALUE(s) EXPECTED( 22*11*2 );
+        VALUE(s) EXPECTED(22 * 11 * 2);
     }
 }
+
+class Interface {
+public:
+    virtual int getX() const = 0;
+    virtual int getY() const = 0;
+    virtual ~Interface() {}
+};
+
+class ImplA : public Interface {
+public:
+    ImplA(int x, int y) {
+        arr[0] = x;
+        arr[1] = y;
+    }
+    int getX() const override { return arr[0]; }
+    int getY() const override { return arr[1]; }
+private:
+    int arr[2];
+};
+
+
+class ImplB : public Interface {
+public:
+    ImplB(double a, double b) : x{ a }, y{ b } {}
+    int getX() const override { return x; }
+    int getY() const override { return y; }
+private:
+    double x, y;
+};
+
+void test_heterogenous_chaining() {
+    std::vector<ImplA> vecA = { ImplA(1,2), ImplA(4,8), ImplA(5,25) };
+    std::vector<ImplB> vecB = { ImplB(-1,1), ImplB(-4,4), ImplB(-5,5) };
+
+    auto a = lazy_view(vecA);
+    auto b = lazy_view(vecB);
+    auto chained = a.chain<Interface>(b);
+    const auto x0 = chained.map( F(_.getX())).element_at(0).value();
+    VALUE( x0 ) EXPECTED( 1 );
+    const auto x3 = chained.map( F(_.getX())).element_at(3).value();
+    VALUE( x3 ) EXPECTED( -1 );
+    const auto y3 = chained.map( F(_.getY())).element_at(3).value();
+    VALUE( y3 ) EXPECTED( 1 );
+    const auto sumx = chained.map(F(_.getX())).sum();
+    VALUE( sumx ) EXPECTED( 0 );
+    const auto sumx_fitst4 = chained.take(4).map(F(_.getX())).sum();
+    VALUE( sumx_fitst4 ) EXPECTED( 9 );
+}
+
+
+
+
 
 
 int main() {
     const int failed =
-        +SUITE(test_basic_transfromations)
-        + SUITE(test_advanced);
+        + SUITE(test_basic_transfromations)
+        + SUITE(test_advanced)
+        + SUITE(test_heterogenous_chaining);
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;
 }
