@@ -1294,6 +1294,35 @@ private:
     T m_stride;
 };
 
+
+template<typename T>
+class One : public FunctionalInterface<One<T>, T> {
+public:
+    using interface = FunctionalInterface<One<T>, T >;
+    using value_type = typename interface::value_type;
+    using const_value_type = const value_type;
+    static constexpr bool is_permanent = true;
+    static constexpr bool is_finite = true;
+    One(const T& data) 
+        : interface(*this),
+        m_data(data) {}
+
+    template<typename F>
+    void foreach_imp(F f, lfv_details::foreach_instructions = {}) const {
+        f(m_data);
+    }
+    auto element_at(size_t  n) const -> std::optional<const_value_type> {
+        if (n == 0 )
+            return m_data;
+        return {};
+    }
+    size_t size() const { return 1; }
+
+
+private:
+    T m_data;
+};
+
 // infinite series of doubled where each next is the previous multiplied by ratio
 template<typename T, typename U>
 Series<T> geometric_stream(T coeff, U ratio) {
@@ -1353,5 +1382,11 @@ template<typename T>
 auto lazy_own(const T& cont) {
     return OwningView<typename T::value_type>(cont);
 }
+
+template<typename T>
+auto one_own(const T& ele) { 
+    return One(ele);
+}
+
 #undef AS_NEEDED
 #endif

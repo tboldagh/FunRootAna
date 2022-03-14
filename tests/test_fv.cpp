@@ -510,6 +510,20 @@ void test_initializer_list() {
     VALUE(lv) EXPECTED (16);
 }
 
+
+void test_one_element_container() {
+    auto one = one_own(7.15);
+
+    auto filtered_ok = one.filter(F(_>3));
+    VALUE(filtered_ok.size()) EXPECTED(1);
+    VALUE(filtered_ok.get().value()) EXPECTED( 7.15);
+    auto filtered_toempty = one.filter(F(_<3));
+    VALUE(filtered_toempty.size()) EXPECTED(0);
+
+
+
+}
+
 int main() {
     const int failed =
         + SUITE(test_type_presentation)
@@ -535,7 +549,8 @@ int main() {
         + SUITE(test_to_ref_ptr)
         + SUITE(test_lazy_own)
         + SUITE(test_deffered)
-        + SUITE(test_initializer_list);
+        + SUITE(test_initializer_list)
+        + SUITE(test_one_element_container);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;
