@@ -261,6 +261,33 @@ Function saving histograms in the file.
 ## HIST1/HIST2/EFF/PROFF
 Create (one-time)/register respective histograms.
 
+## operators >>
+Fill the histogram on the right of `>>` with the data from the left of the `>>`.
+Accepted at the left side:
+### plain old data - acts identically to the fill 
+### pairs and triples - acts like weighted filling
+### std::optional - conditional fill
+### functional container - fill histogram from all data in the container
+
+# TTree access
+The ROOT Tree reading is provided by the `Access` class that offers a handy API for iteration over events and access to the tree branches in two forms:
+## For traditional looping
+E.g. for a construct like
+```c++
+for (Access event(t); event; ++event)
+```
+the ++, and conversion to bool are provided. Range of events iterated over can be limited by passing additional arguments to the constructor.
+## For functional like container API
+Additional wrapper `TreeView` is provided, for that. It has an API that is identical to the one explained above for Lazy/Eager vectors. The tree is considered an infinite container and thus operations like sorting or reversing are unavailable.
+
+
+
+Branches data can be accessed via getters:
+## get<StoredType> 
+returns branch content (works for PODs and std::vector of PODs)
+
+## branch_view<StoredType>  
+makes the data available via copy-less functional lazy container
 # Configuration
 The `Conf` class offers two sources of configuration. The config file formatted as follows:
 ```
