@@ -9,6 +9,8 @@
 #include <type_traits>
 #include "TTree.h"
 #include "TLeaf.h"
+#include "LazyFunctionalVector.h"
+
 
 #include "Math/Vector4D.h"
 #include "TLorentzVector.h"
@@ -81,9 +83,9 @@ namespace {
 		}
 		operator bool() const { return data != nullptr; }
 	};
-
-
 }
+
+
 
 class Access {
 public:
@@ -110,6 +112,19 @@ public:
 		return value;
 	}
 
+	template<typename T, typename std::enable_if<not std::is_pod<T>::value, int>::type = 0>
+	auto branch_view(const std::string& name) {
+		auto br = fillbr<T>(m_tree, name, m_current);
+		return lazy_view(*(br.data));
+	}
+
+	template<typename T, typename std::enable_if<std::is_pod<T>::value, int>::type = 0 >
+	auto branch_view(const std::string& name) {
+		auto br = fillbrpod<T>(m_tree, name, m_current);
+		return one_own(*(br.data));
+	}
+
+
 	// TLorentzVecor gettter
 	std::vector<TLorentz> tlget(const std::string& brprefix);
 
@@ -120,6 +135,8 @@ public:
 	void operator++() { ++m_current; }
 	size_t current() const { return m_current; }
 	TTree* tree() const { return m_tree; }
+
+
 private:
 	size_t m_current;
 	TTree* m_tree{ nullptr };
@@ -130,26 +147,25 @@ private:
 #define FBR(_type,_brname)     fillbr<std::vector<_type>> _brname( m_tree, #_brname , m_current);
 #define COND_FBR(_type,_brname)     fillbr<std::vector<_type>> _brname( m_tree, #_brname , m_current, true);
 
-#include "LazyFunctionalVector.h"
 /**
  * Helper class enabling procssing of the wrapped tree alike the lazy container
  * The tree is considered to be an infinite container (so some functions, that are anyways useless, are not available)
  * Example:
  * class MyData : public Access {...};
- * FunctionalAccess<MyData> data( treePtr );
+ * TreeView<MyData> data( treePtr );
  * data.filter(...).take(...).skip(...).foreach(...);
  * For instance to simply count the elements passing the criteria:
  * data.count( [](auto d){ return d... }); // predicate
  * Typical use is though to just do: data.foreach( ...lambda... );
  **/
 template<typename AccessDerivative>
-class FunctionalAccess : public FunctionalInterface<FunctionalAccess<AccessDerivative>, AccessDerivative> {
+class TreeView : public FunctionalInterface<TreeView<AccessDerivative>, AccessDerivative> {
 public:
-	using interface = FunctionalInterface<FunctionalAccess<AccessDerivative>, AccessDerivative>;
+	using interface = FunctionalInterface<TreeView<AccessDerivative>, AccessDerivative>;
 	static constexpr bool is_permanent = false;
 	static constexpr bool is_finite = false;
 
-	FunctionalAccess(TTree* t)
+	TreeView(TTree* t)
 		: interface(*this),
 		m_access(t) {}
 

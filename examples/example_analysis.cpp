@@ -76,7 +76,7 @@ public:
         //for (PointsTreeAccess event(t); event; ++event) 
 
         // or via functional collection interface
-        FunctionalAccess<PointsTreeAccess> events(t); // the tree wrapped in an functional container
+        TreeView<PointsTreeAccess> events(t); // the tree wrapped in an functional container
 
         events
         .take(2000) // take only first 1000 events
@@ -85,12 +85,17 @@ public:
             // analyse content of the data entry
             const int category = event.template get<int>("category");
             category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram with a plain , (creation done on demand and only once)
+            auto category_view = event.template branch_view<int>("category");
+            category_view >> HIST1("categories_view_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram with a plain , (creation done on demand and only once)
 
-            const auto x = lazy_own(std::move(event.template get<std::vector<float>>("x"))); // get vector of data & wrap it into a functional style container
-            x >> HIST1("x", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
-            x.map( F(_ - 1) ) >> HIST1("x_shifted", "transformed x;|x-1|", 20, 0, 1); // transform & fill the histogram
+            const auto x_copy = lazy_own(std::move(event.template get<std::vector<float>>("x"))); // get vector of data & wrap it into a functional style container
+            // or
+            const auto x_view = event.template branch_view<std::vector<float>>("x"); // // obtain directly functional style container directly (avoids data copies)
 
-            std::make_pair(x.sum(), x.size()) >> HIST2("tot_vs_size", ";sum;size", 20, 0, 150, 20, 0, 150);
+            x_copy >> HIST1("x_copy", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
+            x_view >> HIST1("x_view", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
+
+            std::make_pair(x_view.sum(), x_view.size()) >> HIST2("tot_vs_size", ";sum;size", 20, 0, 150, 20, 0, 150);
 
             // processing objects
             auto points = lazy_own(std::move(event.getPoints()));
