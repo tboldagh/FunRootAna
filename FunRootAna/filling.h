@@ -24,6 +24,10 @@
 // fill from PODs 
 // 0.7 >> hist;
 
+template<typename T>
+void operator >> (const std::optional<T>& v, TH1& h ) {
+    if ( v.has_value() ) v.value() >> h;
+}
 
 void operator >> ( double v, TH1 & h) {
     h.Fill(v);

@@ -115,6 +115,13 @@ public:
         test_vec_fill(v1);
     }
 
+    void test_option_fill() {
+        auto o = HIST1("o", ";x;y", 10, 0, 2);
+        std::optional<double> (3) >> o;
+        std::optional<double> (6) >> o;
+        std::optional<double> () >> o;
+        VALUE( o.GetEntries()) EXPECTED(2);
+    }
 
 
 };
@@ -165,8 +172,9 @@ void test_eager_fill() {
      t1.test_eager_fill();
 }
 
-void test_lazy_fill() {
-
+void test_option_fill() {
+     HistogrammingClassTest t1;
+     t1.test_option_fill();
 }
 
 
@@ -175,7 +183,7 @@ int main() {
     const int failed = SUITE(test_create)
         + SUITE(test_fill)
         + SUITE(test_eager_fill)
-        + SUITE(test_lazy_fill);
+        + SUITE(test_option_fill);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;
