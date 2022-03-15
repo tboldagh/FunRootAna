@@ -84,7 +84,6 @@ How do we profit from the fact the fact that we have objects. Is it still single
 
 # The functional container
 A concise set of transformations that get us from the data to the data summary (histogram in this case) is possible thanks to the Functional Vector wrappers.
-It is really a `std::vector` with extra methods.
 Among many functions it offers, three that are the most relevant:
 * `map` - that takes function defining the mapping operation i.e. can be as simple as taking attribute of an object or as complicated as ... 
 * `filter` - that produces another container with potentially reduced set of elements
@@ -114,6 +113,40 @@ Other, maybe less commonly used functions, but still good to know about are:
 * `max` & `min`
 * `first`, `last`, `element_at` or `[]` for single element access
 * ... and couple more.
+
+It is really like a `std::vector` with these extra methods. However these extra methods allow to write a very clear and expressive code. 
+For example, assume the task to find a maximum value in the two containers or, if both are empty obtain a default. The imperative code would look somewhat like this:
+```c++
+// data1 is a vector containing doubles
+double max = std::numeric_limits<double>::min();
+for ( auto el: data1) {
+  if ( el > max ) {
+    max = el;
+  }
+}
+for ( auto el: data2) {
+  if ( el > max ) {
+    max = el;
+  }
+}
+
+if ( max == std::numeric_limits<double>::min()) {
+  max = 100;
+}
+// or with STL
+double max = 100.0;
+auto max_el1 = std::max_element(std::begin(data1), std::end(data1));
+if ( max_el1 != std::end(data1))
+  max = *max_el1;
+auto max_el2 = std::max_element(std::begin(data2), std::end(data2));
+if ( max_el1 != std::end(data2) && *max_el2 > *max_el1)
+  max = *max_el;
+
+
+// or with the functional container
+const double max = data1.chain(data2).max().get().value_or(100.0);
+```
+The difference in the clarity of the intent is just striking. And so is the difference of the amount of code to write. Note also that, since there is no need to update the state of the `max` it can be made constant.
 
 ## Lazy vs eager evaluation
 The transformations performed  can be evaluated immediately or left till actual histogram filling (or any other summary) is needed.  The EagerFunctionalVector features the first approach.
