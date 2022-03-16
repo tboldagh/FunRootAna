@@ -57,7 +57,7 @@ The containers are named "vectors", but in fact they can wrap other stl containe
 ### wrap(cont)
 Produces eager container.
 
-### lazy_view(cont)/lazy_own(cont)/lazy_own(cont&&)
+### lazy_view(cont)/lazy_own(cont)/lazy_own(cont&&)/one_own(data&)
 Produces lazy containers.
 lazy_view does not cause a copy. The lazy_own involve copies. The lazy_own with move optimizes copy by moving instead.
 ```c++
@@ -66,6 +66,7 @@ auto dview = lazy_view(d); // this best option in this case
 
 auto fview = lazy_own( std::move(code returning a vector) ); // best option in this case
 
+one_own(7) // produces a container of single element
 ```
 
 
@@ -168,6 +169,16 @@ Produces a container that is the concatenation of the two operands.
 data1.chain(data2) // just concatenation of the the two
 data1.chain(data1) // repeated container (no actual copies are involved) 
 data1.chain(data2).chain(data3).chain(data4) // concatenation of 4 containers
+```
+Chaining is allowed for containers of objects from the same hierarchy. i.e. 
+```c++
+class Base{ virtual int x() const = 0; };
+class DerivedA : public Base {...};
+class DerivedB : public Base {...};
+
+// assume container a has objects of type DerivedA, and b objects of type DerivedB
+a.chain<Base>(b).filter(F(_.x() > 0)).map(F(_.x())) >> HIST1...
+// allows for processing the data from both containers using interface Base
 ```
 
 ### zip( cont )
