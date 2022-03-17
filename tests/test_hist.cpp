@@ -140,11 +140,8 @@ public:
         VALUE( (unsigned)fromchain.GetEntries() ) EXPECTED( v1.size() + v2.size() );
 
         auto fromgroup = HIST1("fromgroup", "", 5, 0, 5);
-        // TODO understand the issue with this
-//        v1.group(2).map( F(_.sum()) )  >> fromgroup;
-        // VALUE( (unsigned)fromgroup.GetEntries() ) EXPECTED( v1.size() - 1 );
-
-
+        v1.group(2,1).map( F(_.sum()) )  >> fromgroup;
+        VALUE( (unsigned)fromgroup.GetEntries() ) EXPECTED( v1.size() - 1 );
     }
 };
 

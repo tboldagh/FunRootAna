@@ -650,7 +650,7 @@ class NView : public FunctionalInterface<NView<Container>, typename select_type_
 public:
     using interface = FunctionalInterface<NView<Container>, typename select_type_for_n_view<Container>::type>;
     using value_type = typename interface::value_type;
-    static constexpr bool is_finite = Container::is_finite;
+    static constexpr bool is_finite = true;
 
     NView(const Container& c, size_t n, size_t jump)
         : interface(*this),
@@ -1187,13 +1187,13 @@ public:
     RefView()
         : interface(*this) {}
 
-    void insert(typename interface::argument_type d) { m_data.push_back(d); }
+    void insert(typename interface::argument_type d) { m_data.push_back(std::ref(d)); }
     void clear() { m_data.clear(); }
 
     template<typename F>
     void foreach_imp(F f, lfv_details::foreach_instructions = {}) const {
         for (const auto& el : m_data) {
-            const bool go = f(el.value());
+            const bool go = f(el.get());
             if (not go)
                 break;
         }
@@ -1207,8 +1207,11 @@ public:
     size_t size() const {
         return m_data.size();
     }
+
+    auto& _underlying() { return m_data; }
+
 private:
-    Container<const std::reference_wrapper<T>, std::allocator<std::reference_wrapper<T>>> m_data;
+    Container<std::reference_wrapper<const T>, std::allocator<std::reference_wrapper<const T>>> m_data;
 };
 
 
