@@ -358,7 +358,7 @@ public:
     auto combinations(size_t) {}
     auto permutations(size_t) {}
 
-    // sum, allows to transform the object before summation (i.e. can act like map + sum)
+    // sum, allows to transform the object before summation (i.e. can act like map + sum), for empty container returns the default value
     template<typename F = decltype(id)>
     auto sum(F f = id) const {
         static_assert(Container::is_finite, "Can't sum an infinite container");
@@ -1199,12 +1199,12 @@ public:
         }
     }
 
-    virtual auto element_at(size_t  n) const -> std::optional<value_type> override final {
+    auto element_at(size_t  n) const -> std::optional<value_type> {
         if (n < m_data.size())
             return m_data.at(n);
         return {};
     }
-    virtual size_t size() const  override final {
+    size_t size() const {
         return m_data.size();
     }
 private:

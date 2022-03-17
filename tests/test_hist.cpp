@@ -121,9 +121,31 @@ public:
         std::optional<double> (6) >> o;
         std::optional<double> () >> o;
         VALUE( o.GetEntries()) EXPECTED(2);
+    }    
+
+    void test_joins_fill() {
+        auto v1 = lazy_own(std::move(std::vector<float>({0.1, 0.2, 0.1})));
+        auto v2 = lazy_own(std::move(std::vector<float>({3, 2, 1, 4})));
+
+        auto fromcartesian = HIST1("fromcartesian", "", 5, 0, 5);
+        v1.cartesian(v2).map( F(_.first+_.second) ) >> fromcartesian;
+        VALUE(fromcartesian.GetEntries()) EXPECTED( v1.size()*v2.size());
+
+        auto fromzip = HIST1("fromzip", "", 5, 0, 5);
+        v1.zip(v2).map( F(_.first + _.second)) >> fromzip;
+        VALUE( (unsigned)fromzip.GetEntries() ) EXPECTED(lazy_own({v1.size(), v2.size()}).min().get().value() );
+
+        auto fromchain = HIST1("fromchain", "", 5, 0, 5);
+        v1.chain(v2) >> fromchain;
+        VALUE( (unsigned)fromchain.GetEntries() ) EXPECTED( v1.size() + v2.size() );
+
+        auto fromgroup = HIST1("fromgroup", "", 5, 0, 5);
+        // TODO understand the issue with this
+//        v1.group(2).map( F(_.sum()) )  >> fromgroup;
+        // VALUE( (unsigned)fromgroup.GetEntries() ) EXPECTED( v1.size() - 1 );
+
+
     }
-
-
 };
 
 void test_create() {
@@ -178,12 +200,19 @@ void test_option_fill() {
 }
 
 
+void test_joins_fill() {
+     HistogrammingClassTest t1;
+     t1.test_joins_fill();
+}
+
+
 
 int main() {
     const int failed = SUITE(test_create)
         + SUITE(test_fill)
         + SUITE(test_eager_fill)
-        + SUITE(test_option_fill);
+        + SUITE(test_option_fill)
+        + SUITE(test_joins_fill);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;

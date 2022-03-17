@@ -447,6 +447,7 @@ void test_group() {
     const size_t s2_by_1 = x.group(2, 1).size();
     VALUE(s2_by_1) EXPECTED(3);
     x.group(2, 1).foreach(S(std::cout << _.element_at(0).value() << ":" << _.element_at(1).value() << " "));
+    x.group(2).map( F(_.sum()));
 }
 
 void test_stat() {
