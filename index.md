@@ -205,23 +205,47 @@ Also the data available in tree branches is available using the same, functional
 
 # Histograms handling
 To keep to the promise of "one line per histogram" the histogram can't be declared / booked / registered / filled / saved separately. Right!?
-All of this has to happen in one statement. `HandyHists` class helps with that. There are only two functionalities that we need to know about.
+All of this has to happen in one statement. `HandyHists` class helps with that. There are only tree functionalities that we need to know about.
 * `save` method that saves the histograms in a ROOT file (name given as an argument). *The file must not exist.* **No, there is no option to overwrite this behavior.**
-* `HIST*` macros that: declare/book/register histograms and return a `ROOT TH` object reference.
+* macros that: declare/book/register histograms and return a `ROOT TH` object reference.
   The arguments taken by these macros are just passed over to constructors of respective histogram classes. 
   In macros ending with `V` the `std::vector<double>` is used to define bin limits.
-In the header `filling.h` a bunch of `>>` operators are defined to facilitate easy insertions of the data from functional containers (but also PODs).
-Defined are: `HIST1` `HIST1V` for 1D histograms, `PROF`, `PROFV` for profiles, `EFF` `EFFV` for efficiencies, `HIST2` for 2D histograms.
+  Defined are: `HIST1` `HIST1V` for 1D histograms, `PROF1`, `PROF1V` for profiles, `EFF1` `EFF1V` for efficiencies, `HIST2` for 2D histograms,
+* and the context control.
 
-The histogram made in a given file & line has to have always the same name. If name chaining is needed the `HCONTEXT` call can be used before. 
+## Operator `>>` for histograms filling
+In the header `filling.h` a bunch of `>>` operators are defined to facilitate easy insertions of the data from functional containers (but also PODs).
+Histograms can be filled with their respective API however for syntactical clarity a set of operators `>>` is provided. Examples above illustrate how it can be used. In summary the value on the left side of `>>` can be either, single value, container of values or the  `std::optional`. For single value only one filling operation occur, if the functional container precedes the `>>` all the data in the container will be entered in the histogram and the std::optional is used to fill only when has a value. 
+
+
+### Filling with weights
+To fill 1D histogram either the scalars or pairs of values can be used. In the later case the second value plays the role of weight. Similarly, the 2D histograms and profile plot are can filled with pairs or triples. In the later case the last value in the triple is the weight. When filling efficiency plot the first value of the pair should be boolean. When the triple of values is used the last one is the weight. As mentioned above, the values in the containers are taken one by one and entered in the histograms. For example:
+```c++
+  // v1 is a vector of object with accessors x(), y(), weight()
+  v1.map(F(make_pair(_.x(), _.y()))) >> HIST2(...); // has the same meaning as
+  for ( auto el: v1 ) {
+    HIST2(...).Fill(el.x(), el.y());
+  }
+  v1.map(F(make_triple(_.x(), _.y(), _.weight()))) >> HIST2(...); // has the same meaning as
+  for ( auto el: v1 ) {
+    HIST2(...).Fill(el.x(), el.y(), el.weigh());
+  }
+```
+In the above example the `HIST2` can be replaced by `PROF1`. If the `x()` would be a boolean access the `EFF1` filling would be implemented identically. 
+
+## Context of the histogram
+We often need to make similar histograms for different selection of data. For that the FunRootAna provides context switching helper, `HCONTEXT` taking the `string` argument. The names of histograms in the  scope where the context is defined obtain a common prefix in their name. 
+The `HCONTEXT` should be used instead of tweaking histogram name. (This behavior allows certain optimization.)
+An example illustrates the use of the context:
 ```c++
 {
     HCONTEXT("HighRes_");
-    HIST1("x", ...); // here the histogram name realy becomes HighRes_x 
+    HIST1("x", ...); // here the histogram name in the output file becomes HighRes_x 
     HIST1(std::string("x"+std::to_string(i)), ...); // this will be runtime error
 }
 ```
-The `HCONTEXT` argument can depend on some variables (and so can change) if needed. This behavior allows certain optimization. In any way, it is usually good idea to add context in scopes so that the histograms in the output are somewhat organized. Contexts are nesting, that is:
+The `HCONTEXT` argument can depend on some variables (and so can change) if needed.   
+Contexts are nesting, that is:
 ```c++
 {
   HCONTEXT("PointsAnalysis_");
@@ -233,8 +257,6 @@ The `HCONTEXT` argument can depend on some variables (and so can change) if need
 ```
 would produce the histogram `PointsAnalysis_BasicPositions_x` histogram in the output.
 When the name contains `/` i.e. `A/x` histograms `x` end up in subdirectory `A`  in the output file.
-
-Histograms can be filled with their respective API however for syntactical clarity a set of operators `>>` is provided. Examples above illustrate how it can be used. In summary the value on the left side of `>>` can be either, single value, container of values or the  `std::optional`. For single value only one filling operation occur, if the functional container precedes the `>>` all the data in the container will be entered in the histogram and the std::optional is used to fill only when has a value.
 
 
 # Additional functionalities
