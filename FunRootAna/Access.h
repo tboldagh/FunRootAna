@@ -125,7 +125,9 @@ public:
 	}
 
 
-	// TLorentzVecor gettter
+	// TLorentzVector gettter, from branches named: pt, eta, phi, potentially prefixed by the string passed in the argument
+	// eg. if the tree has branches electron_pt, electron_eta, electron_phi 
+	// the tlget("electron_") will return vector of TLorentzVercors
 	std::vector<TLorentz> tlget(const std::string& brprefix);
 
 	// looping helpers

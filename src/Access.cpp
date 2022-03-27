@@ -17,9 +17,9 @@
 
 std::vector<TLorentz> Access::tlget( const std::string& brprefix ) {
   std::vector<TLorentz> result;
-  fillbr<std::vector<float>>ptBr ( m_tree, brprefix + "_pt" , m_current);
-  fillbr<std::vector<float>>etaBr( m_tree, brprefix + "_eta", m_current);
-  fillbr<std::vector<float>>phiBr( m_tree, brprefix + "_phi", m_current);
+  fillbr<std::vector<float>>ptBr ( m_tree, brprefix + "pt" , m_current);
+  fillbr<std::vector<float>>etaBr( m_tree, brprefix + "eta", m_current);
+  fillbr<std::vector<float>>phiBr( m_tree, brprefix + "phi", m_current);
   result.reserve(ptBr.data->size());
   for ( size_t i= 0, end = ptBr.data->size(); i != end; ++i )  {
     TLorentz tl;

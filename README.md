@@ -279,7 +279,7 @@ Accepted at the left side:
 ### pairs and triples - acts like weighted filling
 ### std::optional - conditional fill
 ### functional container - fill histogram from all data in the container
-
+### the `>>` can be chained to fill multiple histograms with the same quantity
 # TTree access
 The ROOT Tree reading is provided by the `Access` class that offers a handy API for iteration over events and access to the tree branches in two forms:
 ## For traditional looping

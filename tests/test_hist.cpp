@@ -79,7 +79,8 @@ public:
     template<typename V>
     void test_vec_fill( const V& vec) {
         auto h1 = HIST1("eh1", ";x;y", 4, 0, 1);
-        vec >> h1;
+        vec >> h1
+            >> HIST1("eh1fine", ";x;y", 40, 0, 1);
         VALUE( h1.GetEntries()) EXPECTED (6);
         VALUE( h1.GetBinContent(0)) EXPECTED (2); // underflows
         VALUE( h1.GetBinContent(1)) EXPECTED (1); // 0 - 0.25
@@ -119,7 +120,9 @@ public:
         auto o = HIST1("o", ";x;y", 10, 0, 2);
         std::optional<double> (3) >> o;
         std::optional<double> (6) >> o;
-        std::optional<double> () >> o;
+        std::optional<double> () >> o 
+                                 >> HIST1("o2", ";x;y", 100, 0, 2)
+                                 >> HIST1("o3", ";x;y", 100, 0, 0.2); // multiple fills
         VALUE( o.GetEntries()) EXPECTED(2);
     }    
 

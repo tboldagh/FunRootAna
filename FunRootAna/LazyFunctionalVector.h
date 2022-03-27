@@ -146,7 +146,6 @@ public:
         return InspectView<Container, S>(m_actual_container, s);
     }
 
-
     // count of elements, this is an eager operation
     AS_NEEDED
     size_t size() const {
@@ -154,13 +153,13 @@ public:
         m_actual_container.foreach_imp([&c](const_reference_type) { c++; return true;});
         return c;
     }
+
     AS_NEEDED
     bool empty() const {
         size_t c = 0;
         m_actual_container.foreach_imp([&c](const_reference_type) { c++; return false;});
         return c == 0;
     }
-
 
     // count element satisfying predicate, this is an eager operation
     template<typename Predicate>
@@ -1182,8 +1181,6 @@ public:
     static constexpr bool is_permanent = true;
     static constexpr bool is_finite = true;
 
-
-
     RefView()
         : interface(*this) {}
 
@@ -1326,13 +1323,13 @@ private:
     T m_data;
 };
 
-// infinite series of doubled where each next is the previous multiplied by ratio
+// infinite series of doubles following the geometric series recipe
 template<typename T, typename U>
 Series<T> geometric_stream(T coeff, U ratio) {
     return Series<T>([ratio](T c) { return c * ratio; }, coeff);
 }
 
-// infinite series if starting from initial value incremented by increment
+// infinite series starting from initial value incremented by the increment
 template<typename T>
 Series<T> arithmetic_stream(T initial, T increment) {
     return Series<T>([increment](double c) { return c + increment; }, initial);

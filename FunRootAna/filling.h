@@ -25,114 +25,136 @@
 // 0.7 >> hist;
 
 template<typename T>
-void operator >> (const std::optional<T>& v, TH1& h ) {
+const std::optional<T>& operator >> (const std::optional<T>& v, TH1& h ) {
     if ( v.has_value() ) v.value() >> h;
+    return v;
 }
 
-void operator >> ( double v, TH1 & h) {
+double operator >> ( double v, TH1 & h) {
     h.Fill(v);
+    return v;
 }
 
-void operator >> ( float v, TH1 & h) {
+float operator >> ( float v, TH1 & h) {
     h.Fill(v);
+    return v;
 }
 
-void operator >> ( int v, TH1 & h) {
+int operator >> ( int v, TH1 & h) {
     h.Fill(v);
+    return v;
 }
 
-void operator >> ( unsigned v, TH1 & h) {
+unsigned operator >> ( unsigned v, TH1 & h) {
     h.Fill(v);
+    return v;
 }
 
-void operator >> ( long unsigned int v, TH1 & h) {
+long unsigned int operator >> ( long unsigned int v, TH1 & h) {
     h.Fill(v);
+    return v;
 }
-void operator >> ( long int v, TH1 & h) {
+long int operator >> ( long int v, TH1 & h) {
     h.Fill(v);
+    return v;
 }
 
 
 template<typename T, typename U>
-void operator >> ( const std::pair<T,U>& v, TH2 & h) {
+const std::pair<T,U>& operator >> ( const std::pair<T,U>& v, TH2 & h) {
     h.Fill(v.first, v.second);
+    return v;
 }
 
 template<typename T, typename U>
-void operator >> ( const std::pair<T,U>& v, TProfile & h) {
+const std::pair<T,U>& operator >> ( const std::pair<T,U>& v, TProfile & h) {
     h.Fill(v.first, v.second);
+    return v;
 }
 
 template<typename T>
-void operator >> ( const std::pair<bool,T>& v, TEfficiency & h) {
+const std::pair<bool,T>& operator >> ( const std::pair<bool,T>& v, TEfficiency & h) {
     h.Fill(v.first, v.second);
+    return v;
 }
 
 // fill with the weight
 template<typename T, typename U>
-void operator >> ( const std::pair<T,U>& v, TH1 & h) {
+const std::pair<T,U>& operator >> ( const std::pair<T,U>& v, TH1 & h) {
     h.Fill(v.first, v.second);
+    return v;
 }
 
 template<typename T, typename U, typename V>
-void operator >> ( const triple<T,U,V>& v, TH2 & h) {
+const triple<T,U,V>& operator >> ( const triple<T,U,V>& v, TH2 & h) {
     h.Fill(v.first, v.second, v.third);
+    return v;
 }
 
 template<typename T, typename U, typename V>
-void operator >> ( const triple<T,U,V>& v, TProfile & h) {
+const triple<T,U,V>& operator >> ( const triple<T,U,V>& v, TProfile & h) {
     h.Fill(v.first, v.second, v.third);
+    return v;
 }
 template<typename T, typename U>
-void operator >> ( const triple<bool,T,U>& v, TEfficiency & h) {
+const triple<bool,T,U>& operator >> ( const triple<bool,T,U>& v, TEfficiency & h) {
     h.Fill(v.first, v.second, v.third);
+    return v;
 }
 
 
 // Eager vector fill API
 template<typename T>
-void operator >> ( const EagerFunctionalVector<T>& v, TH1 & h) {
+const EagerFunctionalVector<T>& operator >> ( const EagerFunctionalVector<T>& v, TH1 & h) {
     v.foreach( [&h]( const T& el){ el >> h; } );
+    return v;
 }
 template<typename T>
-void operator >> ( const EagerFunctionalVector<T>& v, TH2 & h) {
+const EagerFunctionalVector<T>& operator >> ( const EagerFunctionalVector<T>& v, TH2 & h) {
     v.foreach( [&h]( const T& el){ el >> h; } );
+    return v;
 }
 
 template<typename T>
-void operator >> ( const EagerFunctionalVector<T>& v, TProfile & h) {
+const EagerFunctionalVector<T>& operator >> ( const EagerFunctionalVector<T>& v, TProfile & h) {
     v.foreach( [&h]( const T& el){ el >> h; } );
+    return v;
 }
 
 
 template<typename T>
-void operator >> ( const EagerFunctionalVector<T>& v, TEfficiency & h) {
+const EagerFunctionalVector<T>& operator >> ( const EagerFunctionalVector<T>& v, TEfficiency & h) {
     v.foreach( [&h]( const T& el){ el >> h; } );
+    return v;
 }
 
 // lazy vector
 template<typename A, typename T >
-void operator >> ( const FunctionalInterface<A,T>& v, TH1 & h) {
+const FunctionalInterface<A,T>& operator >> ( const FunctionalInterface<A,T>& v, TH1 & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
+    return v;
 }
 
 template<typename A, typename T >
-void operator >> ( const FunctionalInterface<A,T>& v, TH2 & h) {
+const FunctionalInterface<A,T>& operator >> ( const FunctionalInterface<A,T>& v, TH2 & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
+    return v;
 }
 
 template<typename A, typename T >
-void operator >> ( const FunctionalInterface<A,T>& v, TProfile & h) {
+const FunctionalInterface<A,T>& operator >> ( const FunctionalInterface<A,T>& v, TProfile & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
+    return v;
 }
 
 template<typename A, typename T >
-void operator >> ( const FunctionalInterface<A,T>& v, TEfficiency & h) {
+const FunctionalInterface<A,T>& operator >> ( const FunctionalInterface<A,T>& v, TEfficiency & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
+    return v;
 }
 
 
 
-// TODO code remaining fills
+// TODO code remaining fills or replaec by templates
 
 #endif
