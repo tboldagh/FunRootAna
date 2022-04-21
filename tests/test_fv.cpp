@@ -520,10 +520,50 @@ void test_one_element_container() {
     VALUE(filtered_ok.get().value()) EXPECTED( 7.15);
     auto filtered_toempty = one.filter(F(_<3));
     VALUE(filtered_toempty.size()) EXPECTED(0);
+}
 
+void test_match() {
+    // test how finding best element between two containers would work (also when no match is found)
+    auto ints = lazy_own({1,4,5,6});
+    auto floats = lazy_own({1.5,3.9,5.12});
+    auto distance = [&floats](int i) { 
+        // returns value it i is closer to ant of the floats than 0.2
+        return floats.filter( CLOSURE( std::abs(_-i) < 0.2) ).min( CLOSURE( std::abs(_-i)) ).get(); 
+    };
+    VALUE(distance(1).has_value()) EXPECTED(false);
+    // TODO - this needs fixing - strange memory issues here
+//    // r.size();
+//     auto close_pairs = ints.map( CLOSURE( std::make_pair(_,distance(_))) );
+//     VALUE( close_pairs.size() ) EXPECTED( 4 );
+//     VALUE( close_pairs.element_at(0).value().first ) EXPECTED(1);
+//     VALUE( close_pairs.element_at(1).value().first ) EXPECTED(4);
+//     VALUE( close_pairs.element_at(0).value().second.size() ) EXPECTED(0);
+//     VALUE( close_pairs.element_at(1).value().second.size() ) EXPECTED(0);
 
+    // auto only_with_matches = close_pairs.filter( F(not _.second.empty()) ); // can filter missing
+    // VALUE( only_with_matches.element_at(0).value().first ) EXPECTED( 4 );
+    // VALUE( only_with_matches.element_at(1).value().first ) EXPECTED( 5 );
+
+//    auto defaulted_matches = close_pairs.map( F( std::make_pair( _.first, _.second.get().value_or(-1)) ) ).stage();
 
 }
+
+void test_ptr_view() {
+    std::vector<int*> v;
+    v.push_back( new int(1));
+    v.push_back( new int(7));
+    v.push_back( new int(-3));
+    auto lv = lazy_ptr_view(v);
+    const int s = lv.map(F(*_)).sum();
+    VALUE(s) EXPECTED(5);
+    const int s1 = lv.filter(F(*_ > 0)).map(F(*_)).sum();
+    VALUE(s1) EXPECTED(8);
+    const int s2 = lv.toref().filter(F(_>0)).sum();
+    VALUE(s2) EXPECTED(s1);
+
+}
+
+
 
 int main() {
     const int failed =
@@ -551,7 +591,9 @@ int main() {
         + SUITE(test_lazy_own)
         + SUITE(test_deffered)
         + SUITE(test_initializer_list)
-        + SUITE(test_one_element_container);
+        + SUITE(test_one_element_container)
+        + SUITE(test_match)
+        + SUITE(test_ptr_view);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;

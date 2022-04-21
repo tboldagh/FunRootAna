@@ -111,7 +111,7 @@ public:
     using const_reference_type = const value_type&;
     // optimal type to pass around
     using argument_type = typename std::conditional<std::is_pointer<Stored>::value,
-        const value_type,
+        const_value_type,
         const_reference_type>::type;
 
     // identity (noop)
@@ -160,7 +160,7 @@ public:
         m_actual_container.foreach_imp([&c](const_reference_type) { c++; return false;});
         return c == 0;
     }
-
+    
     // count element satisfying predicate, this is an eager operation
     template<typename Predicate>
     size_t count(Predicate pred) const {
