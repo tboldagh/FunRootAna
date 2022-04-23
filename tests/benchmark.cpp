@@ -20,9 +20,7 @@ void randfill(std::vector<double>& v) {
 
 template<typename V>
 double filter_map_sum(const V& v) {
-
     double result = v.filter(F(_ < 0.5)).map(F(_ + 1)).sum();
-
     return result;
 }
 
@@ -72,7 +70,7 @@ int main() {
     auto lazy_big  = lazy_view(big);
     std::cout << "[ms] eager filter_map_sum on big vector " <<    measure( filter_map_sum<decltype(eager_big)>, eager_big, 100) << std::endl;
     std::cout << "[ms] lazy  filter_map_sum on big vector " <<    measure( filter_map_sum<decltype(lazy_big)>, lazy_big, 100) << std::endl;
-    std::cout << "[ms] basic filter_map_sum on small vector " <<    measure( traditional, big, 100) << std::endl;
+    std::cout << "[ms] basic filter_map_sum on big vector " <<    measure( traditional, big, 100) << std::endl;
 
 
 
@@ -82,7 +80,7 @@ int main() {
     auto lazy_large  = lazy_view(large);
     std::cout << "[ms] eager filter_map_sum on large vector " <<    measure( filter_map_sum<decltype(eager_large)>, eager_large, 100) << std::endl;
     std::cout << "[ms] lazy  filter_map_sum on large vector " <<    measure( filter_map_sum<decltype(lazy_large)>, lazy_large, 100) << std::endl;
-    std::cout << "[ms] basic filter_map_sum on small vector " <<    measure( traditional, large, 100) << std::endl;
+    std::cout << "[ms] basic filter_map_sum on large vector " <<    measure( traditional, large, 100) << std::endl;
 
 
 

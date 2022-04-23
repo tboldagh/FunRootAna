@@ -373,8 +373,7 @@ public:
   }
 
 
-  const EagerFunctionalVector<Stored>& stage()  const { return *this; }
-  const EagerFunctionalVector<Stored>& cache()  const { return *this; }
+  const std::vector<Stored>& stage()  const { return container; }
 
   const EagerFunctionalVector<Stored> join(const EagerFunctionalVector<Stored>& other)  const {
     EagerFunctionalVector<Stored> ret(container.begin(), container.end());

@@ -88,7 +88,8 @@ public:
             auto category_view = event.template branch_view<int>("category");
             category_view >> HIST1("categories_view_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram with a plain , (creation done on demand and only once)
 
-            const auto x_copy = lazy_own(std::move(event.template get<std::vector<float>>("x"))); // get vector of data & wrap it into a functional style container
+            std::vector<float> xVector = event.template get<std::vector<float>>("x");
+            const auto x_copy = lazy_view(xVector); // get vector of data & wrap it into a functional style container
             // or
             const auto x_view = event.template branch_view<std::vector<float>>("x"); // // obtain directly functional style container directly (avoids data copies)
 
@@ -98,7 +99,8 @@ public:
             std::make_pair(x_view.sum(), x_view.size()) >> HIST2("tot_vs_size", ";sum;size", 20, 0, 150, 20, 0, 150);
 
             // processing objects
-            auto points = lazy_own(std::move(event.getPoints()));
+            auto pointsVector = event.getPoints();
+            auto points = lazy_view(pointsVector);
             points.map( F(_.rho_xy()) ) >> HIST1("rho_xy", ";rho", 100, 0, 5); // to extract the a quantity of interest for filling we do the "map" operation
             points.map(F(_.z)) >> HIST1("z", ";zcoord", 100, 0, 10); // another example
             points.filter(F(_.z > 1.0) ).map( F(_.rho_xy())) >> HIST1("rho", ";rho_{z>1}", 100, 0, 10); // another example

@@ -57,7 +57,7 @@ namespace lfv_details {
 
         T& get() { return *ptr; }
     };
-    struct as_needed{};
+    struct as_needed {};
 }
 #define AS_NEEDED //template<typename T=lfv_details::as_needed>
 
@@ -85,13 +85,23 @@ template<typename Container1, typename Comparator> class MMView;
 template<typename T> class Range;
 
 namespace lfv_details {
-    template<typename C> struct has_fast_element_access_tag { static constexpr bool value = false; };
+    template<typename T> struct has_fast_element_access_tag { static constexpr bool value = false; };
     template<typename T> struct has_fast_element_access_tag<DirectView<T>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<OwningView<std::vector<T>>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<OwningView<T, std::vector>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<RefView<T, std::vector>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<RefView<T, std::deque>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<Range<T>> { static constexpr bool value = true; };
+
+    template<typename T> struct stores_data_tag { static constexpr bool value = false; };
+    template<typename T> struct stores_data_tag<OwningView<T>> { static constexpr bool value = true; };
+    template<typename T> struct stores_data_tag<RefView<T>> { static constexpr bool value = true; };
+
+    template<typename T>
+    struct container_reference {
+        using type = typename std::conditional<lfv_details::stores_data_tag<T>::value,
+            const T&, const T>::type;
+    };
 }
 
 namespace lfv {
@@ -116,9 +126,9 @@ public:
 
     // identity (noop)
     static constexpr auto id = [](const Stored& x) -> const Stored& { return x; };
-
+    
     FunctionalInterface(const Container& cont) : m_actual_container(cont) {}
-    ~FunctionalInterface() {}
+    virtual ~FunctionalInterface() { }
 
     // transform using function provided, this is lazy operation
     template<typename F>
@@ -150,22 +160,22 @@ public:
     AS_NEEDED
     size_t size() const {
         size_t c = 0;
-        m_actual_container.foreach_imp([&c](const_reference_type) { c++; return true;});
+        m_actual_container.foreach_imp([&c](argument_type) { c++; return true;});
         return c;
     }
 
     AS_NEEDED
     bool empty() const {
         size_t c = 0;
-        m_actual_container.foreach_imp([&c](const_reference_type) { c++; return false;});
+        m_actual_container.foreach_imp([&c](argument_type) { c++; return false;});
         return c == 0;
     }
-    
+
     // count element satisfying predicate, this is an eager operation
     template<typename Predicate>
     size_t count(Predicate pred) const {
         size_t c = 0;
-        m_actual_container.foreach_imp([&c, pred](const_reference_type el) {
+        m_actual_container.foreach_imp([&c, pred](argument_type el) {
             c += (pred(el) ? 1 : 0); return true; });
         return c;
     }
@@ -176,7 +186,7 @@ public:
     template<typename Predicate>
     bool contains(Predicate f) const {
         bool found = false;
-        m_actual_container.foreach_imp([f, &found](const_reference_type el) {
+        m_actual_container.foreach_imp([f, &found](argument_type el) {
             if (f(el)) {
                 found = true;
                 return false;
@@ -247,20 +257,13 @@ public:
         return TakeSkipWhileView<Container, F, lfv_details::skip_elements>(m_actual_container, f);
     }
 
-    // creates intermediate container to speed following up operations, typically useful after sorting
-    AS_NEEDED
-    auto stage() const -> OwningView<Stored> {
+    // creates saves the data to STL container (vector by default)
+    template<template<typename, typename> typename C = std::vector>
+    C<Stored, std::allocator<Stored>> stage() const {
         static_assert(Container::is_finite, "Can't stage an infinite container");
-        OwningView<Stored> c;
-        m_actual_container.foreach_imp([&c](argument_type el) { c.insert(el); return true; });
+        C<Stored, std::allocator<Stored>> c;
+        push_back_to(c);
         return c;
-    }
-
-    // lazy stage, that is, the data will be staged when needed
-    AS_NEEDED
-    auto cache() const -> CachedView<Container> {
-        static_assert(Container::is_finite, "Can't cache an infinite container");
-        return CachedView<Container>(m_actual_container);
     }
 
     AS_NEEDED
@@ -295,7 +298,7 @@ public:
 
 
     // concatenate two containers, in a lazy way
-    template<typename ExposedType=value_type, typename Other>
+    template<typename ExposedType = value_type, typename Other>
     auto chain(const Other& c) const {
         static_assert(Container::is_finite, "Can't chain with an infinite container");
 
@@ -506,7 +509,7 @@ public:
     }
     FilteredView() = delete;
 private:
-    const Container& m_foreach_imp_provider;
+    const Container m_foreach_imp_provider;
     Filter m_filterOp;
 };
 
@@ -552,7 +555,7 @@ public:
     }
     SortedView() = delete;
 private:
-    const Container& m_foreach_imp_provider;
+    const Container m_foreach_imp_provider;
     KeyExtractor m_keyExtractor;
 };
 
@@ -576,7 +579,6 @@ public:
 
     template<typename F>
     void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
-        if (m_actual_container.empty()) return;
         lfv_details::one_element_stack_container< compared_type > extremeValue;
         lfv_details::one_element_stack_container< std::reference_wrapper<const value_type> > extremeElement;
 
@@ -594,12 +596,13 @@ public:
             }
             return true;
             }, how);
-        if (not extremeElement.empty())
+        if (not extremeElement.empty()) {
             f(extremeElement.get().get());
+        }
     }
     MMView() = delete;
 private:
-    const Container& m_actual_container;
+    const Container m_actual_container;
     KeyExtractor m_keyExtractor;
     lfv_details::min_max_logic_t m_logic;
 };
@@ -632,7 +635,7 @@ public:
     }
     MappedView() = delete;
 private:
-    const Container& m_foreach_imp_provider;
+    const Container m_foreach_imp_provider;
     Mapping m_mappingOp;
 };
 
@@ -662,12 +665,10 @@ public:
         value_type group;
         m_foreach_imp_provider.foreach_imp([f, this, &group](const auto& el) {
             group.insert(el);
-            //                       std::cout << "NView " << group.size() << " " << el << std::endl;
             if (group.size() == m_group) {
                 const bool go = f(group);
                 if (not go)
                     return false;
-                //                std::cout << m_group << " " << m_jump << " " << group.size() << std::endl;
                 if (m_group == m_jump)
                     group.clear();
                 else
@@ -677,7 +678,7 @@ public:
             }, how);
     }
 private:
-    const Container& m_foreach_imp_provider;
+    const Container m_foreach_imp_provider;
     size_t m_group;
     size_t m_jump;
 };
@@ -688,6 +689,7 @@ public:
     using interface = FunctionalInterface<TakeSkipNView<Container, logic>, typename Container::value_type>;
     using value_type = typename interface::value_type;
     static constexpr bool is_finite = logic == lfv_details::take_elements or Container::is_finite;
+    static constexpr bool is_permanent = Container::is_permanent;
 
     TakeSkipNView(const Container& c, size_t n, size_t stride = 1, lfv_details::skip_take_logic_t l = lfv_details::take_elements)
         : interface(*this),
@@ -735,7 +737,7 @@ public:
     }
 
 private:
-    const Container& m_foreach_imp_provider;
+    const Container m_foreach_imp_provider;
     size_t m_elementsToTake;
     size_t m_stride;
 };
@@ -779,7 +781,7 @@ public:
     }
 
 private:
-    const Container& m_foreach_imp_provider;
+    const Container m_foreach_imp_provider;
 };
 
 
@@ -819,7 +821,7 @@ public:
             }, how);
     }
 private:
-    const Container& m_foreach_imp_provider;
+    const Container m_foreach_imp_provider;
     size_t m_offset;
 };
 
@@ -876,7 +878,7 @@ public:
 
     TakeSkipWhileView() = delete;
 private:
-    const Container& m_foreach_imp_provider;
+    const Container m_foreach_imp_provider;
     Filter m_filterOp;
 };
 
@@ -925,8 +927,8 @@ public:
     }
 
 private:
-    const Container1& m_foreach_imp_provider1;
-    const Container2& m_foreach_imp_provider2;
+    const Container1 m_foreach_imp_provider1;
+    const Container2 m_foreach_imp_provider2;
 
 };
 
@@ -974,8 +976,8 @@ public:
         }
     }
 private:
-    const Container1& m_foreach_imp_provider1;
-    const Container2& m_foreach_imp_provider2;
+    const Container1 m_foreach_imp_provider1;
+    const Container2 m_foreach_imp_provider2;
 };
 
 
@@ -1012,8 +1014,8 @@ public:
         , how);
     }
 private:
-    const Container1& m_foreach_imp_provider1;
-    const Container2& m_foreach_imp_provider2;
+    const Container1 m_foreach_imp_provider1;
+    const Container2 m_foreach_imp_provider2;
 };
 
 
@@ -1050,9 +1052,9 @@ public:
     }
 
 private:
-    const Container& m_data;
+    const Container m_data;
 };
-
+// only for internal use (expensive and insecure to copy)
 template<typename T, template<typename, typename> typename Container>
 class OwningView final : public FunctionalInterface<OwningView<T, Container>, T> {
 public:
@@ -1115,36 +1117,6 @@ private:
     Container<T, std::allocator<T>> m_data;
 };
 
-template<typename Container>
-class CachedView : public FunctionalInterface<CachedView<Container>, typename Container::value_type> {
-public:
-    using interface = FunctionalInterface<CachedView<Container>, typename Container::value_type>;
-    using value_type = typename interface::value_type;
-    static constexpr bool is_finite = Container::is_finite;
-    static constexpr bool is_permanent = true;
-
-
-    CachedView(const Container& c)
-        : interface(*this),
-        m_foreach_imp_provider(c) {}
-
-    template<typename F>
-    void foreach_imp(F f, lfv_details::foreach_instructions how = {}) const {
-        if (not m_filled) {
-            m_foreach_imp_provider.foreach_imp([this](const auto& el) {
-                m_cache.insert(el);
-                return true;
-                });
-        }
-        m_filled = true;
-        m_cache.foreach_imp(f, how);
-    }
-private:
-    const Container& m_foreach_imp_provider;
-    mutable bool m_filled = false;
-    mutable OwningView<value_type> m_cache;
-};
-
 
 template<typename Container, typename S>
 class InspectView : public FunctionalInterface<InspectView<Container, S>, typename Container::value_type> {
@@ -1168,7 +1140,7 @@ public:
             how);
     }
 private:
-    const Container& m_foreach_imp_provider;
+    const Container m_foreach_imp_provider;
     S m_subroutine;
 };
 
@@ -1303,7 +1275,7 @@ public:
     using const_value_type = const value_type;
     static constexpr bool is_permanent = true;
     static constexpr bool is_finite = true;
-    One(const T& data) 
+    One(const T& data)
         : interface(*this),
         m_data(data) {}
 
@@ -1312,7 +1284,7 @@ public:
         f(m_data);
     }
     auto element_at(size_t  n) const -> std::optional<const_value_type> {
-        if (n == 0 )
+        if (n == 0)
             return m_data;
         return {};
     }
@@ -1361,30 +1333,10 @@ auto lazy_view(const T& cont) {
     return DirectView(cont);
 }
 
-template<typename T>
-auto lazy_ptr_view(const T& cont) {
-    return DirectView(cont);
-}
 
 
 template<typename T>
-OwningView<T> lazy_own(const std::vector<T>&& vec) {
-    return OwningView<T>(vec);
-}
-
-template<typename T>
-OwningView<T> lazy_own(const std::initializer_list<T>& il) {
-    return OwningView<T>(std::vector(il));
-}
-
-
-template<typename T>
-auto lazy_own(const T& cont) {
-    return OwningView<typename T::value_type>(cont);
-}
-
-template<typename T>
-auto one_own(const T& ele) { 
+auto one_own(const T& ele) {
     return One(ele);
 }
 

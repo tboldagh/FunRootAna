@@ -112,7 +112,8 @@ public:
 
 
     void test_lazy_fill()  {
-        auto v1 = lazy_own(std::move(std::vector<float>({-1, -0.2, 0.5, 0.2, 1.5, 0.7})));
+        std::vector<float> data({-1, -0.2, 0.5, 0.2, 1.5, 0.7});
+        auto v1 = lazy_view(data);
         test_vec_fill(v1);
     }
 
@@ -127,8 +128,10 @@ public:
     }    
 
     void test_joins_fill() {
-        auto v1 = lazy_own(std::move(std::vector<float>({0.1, 0.2, 0.1})));
-        auto v2 = lazy_own(std::move(std::vector<float>({3, 2, 1, 4})));
+        std::vector<float> data1({0.1, 0.2, 0.1});
+        std::vector<float> data2({3, 2, 1, 4});
+        auto v1 = lazy_view(data1);
+        auto v2 = lazy_view(data2);
 
         auto fromcartesian = HIST1("fromcartesian", "", 5, 0, 5);
         v1.cartesian(v2).map( F(_.first+_.second) ) >> fromcartesian;
@@ -136,7 +139,7 @@ public:
 
         auto fromzip = HIST1("fromzip", "", 5, 0, 5);
         v1.zip(v2).map( F(_.first + _.second)) >> fromzip;
-        VALUE( (unsigned)fromzip.GetEntries() ) EXPECTED(lazy_own({v1.size(), v2.size()}).min().get().value() );
+        VALUE( (unsigned)fromzip.GetEntries() ) EXPECTED( 3 ); // shortest of content in data1 & data2
 
         auto fromchain = HIST1("fromchain", "", 5, 0, 5);
         v1.chain(v2) >> fromchain;

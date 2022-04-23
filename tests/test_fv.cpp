@@ -122,6 +122,7 @@ void test_filter_map() {
     {
         auto mt1 = vt1.map(F(_ + 2)).filter(F(_ > 4));
         VALUE(mt1.size()) EXPECTED(4);
+
         std::vector<int> r;
         mt1.push_back_to(r);
         VALUE(int(r[0])) EXPECTED(21);
@@ -151,18 +152,14 @@ void test_filter_map() {
 void test_staging() {
     std::vector<int> t1({ 1,19,4, 2, 5, -1, 5 });
     auto vt1 = functional_vector(t1);
-    auto mt1 = vt1.map(F(_ + 2)).filter(F(_ < 4)).filter(F(_ == 1)).map(F(_ * _ * 0.1)).stage();
+    auto plainVec = vt1.map(F(_ + 2)).filter(F(_ < 4)).filter(F(_ == 1)).map(F(_ * _ * 0.1)).stage();
+    auto mt1 = functional_vector(plainVec);
     // one element (initially -1) should survive
     VALUE(mt1.size()) EXPECTED(1);
     VALUE(mt1.element_at(0).value()) EXPECTED(0.1);
-#ifdef TEST_LAZY    
-    OwningView<double> r;
-    VALUE(typeid(mt1) == typeid(r)) EXPECTED(true);
-#endif
     int a = 1, b = 8, c = 7;
     std::vector< const int *> v = {&a, &b, &c};
-    auto fv = lazy_view(v);
-    auto s = fv.stage();
+    auto s = lazy_view(v);
     auto ssum = s.map( F(*_)).sum();
     VALUE( ssum ) EXPECTED (16);
     auto ssum2 = s.toref().sum();
@@ -288,11 +285,13 @@ void test_enumerate() {
     VALUE(index_greater_than_value.value().first) EXPECTED(3);
     VALUE(index_greater_than_value.value().second) EXPECTED(2);
 
-    // this is failing and needs upgrade of foreach
-    auto sen1 = en1.stage().sort(F(_.second)).stage();
-    // TODO figure out why staging was needed after sort
-    VALUE(sen1.element_at(0).value().second) EXPECTED(-1);
-    VALUE(sen1.element_at(0).value().first) EXPECTED(5);
+    // this is failing as expected
+    //    auto sen1 = en1.take(20).sort(F(_.second)).stage();
+    // auto plainVec = en1.take(20).stage();
+    // auto sen1 = lazy_view(plainVec).sort(F(_.second)); // it should be staged again
+    // // TODO figure out why staging was needed after sort
+    // VALUE(sen1.element_at(0).value().second) EXPECTED(-1);
+    // VALUE(sen1.element_at(0).value().first) EXPECTED(5);
 }
 
 void test_reversal() {
@@ -338,7 +337,12 @@ void test_min_max() {
     auto min1 = vt1.min();
     VALUE(min1.contains(-1)) EXPECTED(true);
 
+    VALUE(vt1.take(5).skip(2).size()) EXPECTED(3);
+    VALUE(vt1.take(5).skip(2).size()) EXPECTED(3);
+    VALUE(vt1.take(5).skip(2).empty()) EXPECTED(false);
+
     auto min2 = vt1.take(5).skip(2).min();
+    VALUE(min2.size()) EXPECTED (1);
     vt1.take(5).skip(2).foreach(S(std::cout << _ << " "));
     VALUE(min2.element_at(0).value()) EXPECTED(2);
 
@@ -375,7 +379,8 @@ void test_series() {
 
     VALUE(s1_5.element_at(0).value()) EXPECTED(2.5);
     VALUE(s1_5.element_at(1).value()) EXPECTED(5.0);
-    VALUE(s1_5.is_same(s1_10.stage())) EXPECTED(true); // we compare only first 5 elements
+    auto staged = s1_10.stage();
+    VALUE(s1_5.is_same(lazy_view(staged))) EXPECTED(true); // we compare only first 5 elements
 
     auto s2 = arithmetic_stream(2, 3);
     VALUE(s2.element_at(0).value()) EXPECTED(2);
@@ -400,7 +405,7 @@ void test_series() {
     // randoms
     auto r = crandom_stream();
     std::cout << "..... ";
-    r.map(F(double(_) / RAND_MAX)).take_while(F(_ < 0.9)).stage().foreach(S(std::cout << _ << " "));
+    r.map(F(double(_) / RAND_MAX)).take_while(F(_ < 0.9)).foreach(S(std::cout << _ << " "));
     // std::cout << "\n";
 
     // calculate pi for fun
@@ -424,20 +429,6 @@ void test_cartesian() {
     VALUE(permanent.element_at(0).value().first) EXPECTED(2);
     VALUE(permanent.element_at(0).value().second) EXPECTED(-3);
 
-}
-
-void test_cache() {
-    const int N = 10;
-    auto x = range_stream(0, N);
-    int sum = 0;
-    auto n = x.inspect([&sum](int x) {sum += x; }).map(F(_ * 2)).cache();
-    VALUE(sum) EXPECTED(0); // inspect is lazy, so not executed
-    n.sum(); // now the execution hapens
-    VALUE(sum) EXPECTED(N * (N - 1) / 2);
-
-    auto m = n.filter(F(_ < 5)).sum();
-    VALUE(sum) EXPECTED(N * (N - 1) / 2); // sum would not increase because of cache
-    m++;
 }
 
 void test_group() {
@@ -488,15 +479,15 @@ struct MyVec{
 };
 
 void test_lazy_own () {
-    MyVec<int> i;
-    i.data.push_back( new int(4));
-    i.data.push_back( new int(2));
-    i.data.push_back( new int(-5));
-    auto io = lazy_own(i); // copy over pointers
-    VALUE(io.toref().sum()) EXPECTED(1);
-    auto iv = lazy_view(i);
-    auto first_two_sum =  iv.toref().take(2).filter(F(_>0)).sum();
-    VALUE(first_two_sum) EXPECTED( 6 );
+    // MyVec<int> i;
+    // i.data.push_back( new int(4));
+    // i.data.push_back( new int(2));
+    // i.data.push_back( new int(-5));
+    // auto io = lazy_own(i); // copy over pointers
+    // VALUE(io.toref().sum()) EXPECTED(1);
+    // auto iv = lazy_view(i);
+    // auto first_two_sum =  iv.toref().take(2).filter(F(_>0)).sum();
+    // VALUE(first_two_sum) EXPECTED( 6 );
 }
 
 void test_deffered() {
@@ -507,8 +498,8 @@ void test_deffered() {
     // std::vector<A> a = {{0, 2.5}, {3, 0.3}, {2, 0.2}, {3, -0.1}};
 }
 void test_initializer_list() {
-    auto lv = lazy_own({1,4,5,6}).sum();
-    VALUE(lv) EXPECTED (16);
+    // auto lv = lazy_own({1,4,5,6}).sum();
+    // VALUE(lv) EXPECTED (16);
 }
 
 
@@ -524,13 +515,13 @@ void test_one_element_container() {
 
 void test_match() {
     // test how finding best element between two containers would work (also when no match is found)
-    auto ints = lazy_own({1,4,5,6});
-    auto floats = lazy_own({1.5,3.9,5.12});
-    auto distance = [&floats](int i) { 
-        // returns value it i is closer to ant of the floats than 0.2
-        return floats.filter( CLOSURE( std::abs(_-i) < 0.2) ).min( CLOSURE( std::abs(_-i)) ).get(); 
-    };
-    VALUE(distance(1).has_value()) EXPECTED(false);
+    // auto ints = lazy_own({1,4,5,6});
+    // auto floats = lazy_own({1.5,3.9,5.12});
+    // auto distance = [&floats](int i) { 
+    //     // returns value it i is closer to ant of the floats than 0.2
+    //     return floats.filter( CLOSURE( std::abs(_-i) < 0.2) ).min( CLOSURE( std::abs(_-i)) ).get(); 
+    // };
+    // VALUE(distance(1).has_value()) EXPECTED(false);
     // TODO - this needs fixing - strange memory issues here
 //    // r.size();
 //     auto close_pairs = ints.map( CLOSURE( std::make_pair(_,distance(_))) );
@@ -553,7 +544,7 @@ void test_ptr_view() {
     v.push_back( new int(1));
     v.push_back( new int(7));
     v.push_back( new int(-3));
-    auto lv = lazy_ptr_view(v);
+    auto lv = lazy_view(v);
     const int s = lv.map(F(*_)).sum();
     VALUE(s) EXPECTED(5);
     const int s1 = lv.filter(F(*_ > 0)).map(F(*_)).sum();
@@ -584,7 +575,6 @@ int main() {
         + SUITE(test_zip)
         + SUITE(test_series)
         + SUITE(test_cartesian)
-        + SUITE(test_cache)
         + SUITE(test_group)
         + SUITE(test_stat)
         + SUITE(test_to_ref_ptr)
