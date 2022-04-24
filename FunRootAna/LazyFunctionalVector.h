@@ -1034,7 +1034,7 @@ public:
 
     template<typename F>
     void foreach_imp(F f, lfv_details::foreach_instructions = {}) const {
-        for (const auto& el : m_data) {
+        for (const auto& el : m_data.get()) {
             const bool go = f(el);
             if (not go)
                 break;
@@ -1043,16 +1043,16 @@ public:
 
     using optional_value = std::optional<const_value_type>;
     optional_value element_at(size_t  n) const {
-        if (n < m_data.size())
-            return m_data.at(n);
+        if (n < m_data.get().size())
+            return m_data.get().at(n);
         return {};
     }
     size_t size() const {
-        return m_data.size();
+        return m_data.get().size();
     }
-
+    void update_container(const Container& m) {m_data = m;}
 private:
-    const Container m_data;
+    std::reference_wrapper<const Container> m_data;
 };
 // only for internal use (expensive and insecure to copy)
 template<typename T, template<typename, typename> typename Container>

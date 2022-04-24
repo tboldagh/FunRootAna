@@ -368,7 +368,16 @@ void test_zip() {
     VALUE(same) EXPECTED(true);
     VALUE(diff) EXPECTED(false);
 }
-
+void test_redirect() {
+#ifdef TEST_LAZY
+    std::vector<int> t1({ 1, 19 });
+    std::vector<int> t2({-1, 5 });
+    auto v = DirectView(t1);
+    VALUE(v.sum()) EXPECTED(20);
+    v.update_container(t2);
+    VALUE(v.sum()) EXPECTED(4);
+#endif
+}
 void test_series() {
 #ifdef TEST_LAZY
     auto s1 = geometric_stream(2.5, 2);
@@ -573,6 +582,7 @@ int main() {
         + SUITE(test_reversal)
         + SUITE(test_min_max)
         + SUITE(test_zip)
+        + SUITE(test_redirect)
         + SUITE(test_series)
         + SUITE(test_cartesian)
         + SUITE(test_group)
