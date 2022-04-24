@@ -73,7 +73,8 @@ How do we profit from the fact the fact that we have objects. Is it still single
 ```c++
        for (PointsTreeAccess event(t); event; ++event) {
             // processing objects example
-            auto points = lazy_own(std::move(event.getPoints()));
+            auto pointsVec = event.getPoints();
+            auto points = lazy_view(pointsVec);
             points.map( F(_.rho_xy()) ) >> HIST1("rho_xy", ";rho", 100, 0, 5); // to extract the a quantity of interest for filling we do the "map" operation
             points.map(F(_.z)) >> HIST1("z", ";zcoord", 100, 0, 10); // another example
             points.filter(F(_.z > 1.0) ).map( F(_.rho_xy())) >> HIST1("rho", ";rho_{z>1}", 100, 0, 10); // another example
@@ -154,10 +155,8 @@ If the containers are large in your particular problem it may be expensive to ma
 Another strategy can be used in this case. That is *lazy* evaluation. In this approach objects crated by every transformation are in fact very lightweight (i.e. no data is copied). 
 Instead, the *recipes* of how to transform the data when it will be needed are kept in these intermediate objects. 
 This functionality is provided by several classes residing in LazyFunctionalVector _(still under some development)_.
-You can switch between one or the other implementation quite conveniently by just changing the include file which you use and rename `wrap` into `lazy_own/lazy_view`.
+You can switch between one or the other implementation quite conveniently by just changing the include file which you use and rename `wrap` into `lazy_view`. An important difference though is that the lazy containers do not manage memory, that is they avoid copying the data and thus are significantly faster. But you need to be aware about the data lifetime. If in doubt, you can always `stage` the data and then view it again.
 In general the lazy vector beats the eager one in terms of performance _(an effort to optimise both implementation is ongoing)_.
-
-If the container that is to be processed is guaranteed to reside in memory the lazy wrapper can be very lazy! That is it does not have to copy the data into own memory and should be constructed with `lazy_view`.  If the container may disappear from the memory before the operation on data are all done the initial copy has to be done. In this case `lazy_own` should be used for construction.
 
 
 The depth of the transformations in the lazy container are unlimited. It may be thus reasonable to construct the transformation in steps:
@@ -170,16 +169,13 @@ step2a.map(...) >> HIST1("a", ...); // computations of step1 and step2a involved
 step2b.map(...) >> HIST1("b", ...)  // computations of step1 repeated!!! followed by step2b  
 ```
 It may be optimal to actually cache the `step1` result in memory so the operations needed to obtain do not need to be repeated.
-The method `stage` (or `cache`) produces such an intermediate copy that is operated on by further transformations. This way, the transformations before the call to `stage` are not repeated. See an example.
+The method `stage` produces copy that could then be operated on by further transformations. This way, the transformations before the call to `stage` are not repeated. See an example:
 ```c++
 auto step1 = lazy_view(data).map(...).filter(...).take(...).stage(); // computations done and intermediate container created
-auto step1 = lazy_view(data).map(...).filter(...).take(...).cache(); // computations done when first time needed, then reused
-
+auto step2 = lazy_view(step1).map(...).filter(...).take(...).stage(); // computations done when first time needed, then reused
 ```
-
-In fact you can mix the two approaches if needed calling `as_eager()`, and other way round: `lazy_view(v.unwrap())`, but that should never be necessary.
-
-# ROOT TTree as a lazy collection
+The result of stage is just a `std::vector`. If other containers are better suited, i.e. `std::list`  the call would look lie this: `...).stage<std::list>();`. This way you can generate sets or maps, whatever fits best.
+# TTree as a lazy collection
 
 The entries stored in the `TTree` can be considered as a functional collection as well. All typical transformations can then be applied to it. An example is shown below. It is advised however (for performance reason) to process the TTree only once. That is, to end the operations with the `foreach` that obtains a function processing the data stored in the tree.
 Also the data available in tree branches is available using the same, functional, interface.
