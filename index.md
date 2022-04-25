@@ -210,14 +210,14 @@ All of this has to happen in one statement. `HandyHists` class helps with that. 
 * and the context control.
 
 ## Operator `>>` for histograms filling
-In the header `filling.h` a bunch of `>>` operators are defined to facilitate easy insertions of the data from functional containers (but also PODs).
-Histograms can be filled with their respective API however for syntactical clarity a set of operators `>>` is provided. Examples above illustrate how it can be used. In summary the value on the left side of `>>` can be either, single value, container of values or the  `std::optional`. For single value only one filling operation occur, if the functional container precedes the `>>` all the data in the container will be entered in the histogram and the std::optional is used to fill only when has a value. 
+In the header `filling.h` a bunch of `>>` operators are defined to facilitate easy insertions of the data from functional containers and PODs into histograms.
+Histograms can be filled with their respective API however for syntactical clarity a set of operators `>>` is provided. Examples above illustrate how it can be used. In summary the value on the left side of `>>` can be either, single value, container of values or the  `std::optional`. For single value only one filling operation occur, if the functional container precedes the `>>` all the data in the container will be entered in the histogram. When the std::optional is used, the fill operation occurs only when there is a value in it. 
 
 
 ### Filling with weights
-To fill 1D histogram either the scalars or pairs of values can be used. In the later case the second value plays the role of weight. Similarly, the 2D histograms and profile plot are can filled with pairs or triples. In the later case the last value in the triple is the weight. When filling efficiency plot the first value of the pair should be boolean. When the triple of values is used the last one is the weight. As mentioned above, the values in the containers are taken one by one and entered in the histograms. For example:
+To fill 1D histogram either the scalars or pairs of values can be used. In the later case the second value plays the role of weight. Similarly, the 2D histograms and profile plot are filled with pairs or triples. In the later case the last value in the triple is the weight. When filling efficiency plot the first value of the pair should be boolean. When the triple of values is used the last one is the weight. As mentioned above, the values in the containers are taken one by one and entered in the histograms. For example:
 ```c++
-  // v1 is a vector of object with accessors x(), y(), weight()
+  // v1 is a vector of object with getters x(), y(), weight()
   v1.map(F(make_pair(_.x(), _.y()))) >> HIST2(...); // has the same meaning as
   for ( auto el: v1 ) {
     HIST2(...).Fill(el.x(), el.y());
