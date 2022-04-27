@@ -10,7 +10,7 @@
 #include "EagerFunctionalVector.h"
 
 // this is to compare (very roughly) performance if lazy and eager functional vectors
-
+using namespace lfv;
 
 
 void randfill(std::vector<double>& v) {

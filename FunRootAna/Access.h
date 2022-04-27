@@ -115,13 +115,13 @@ public:
 	template<typename T, typename std::enable_if<not std::is_pod<T>::value, int>::type = 0>
 	auto branch_view(const std::string& name) {
 		auto br = fillbr<T>(m_tree, name, m_current);
-		return lazy_view(*(br.data));
+		return lfv::lazy_view(*(br.data));
 	}
 
 	template<typename T, typename std::enable_if<std::is_pod<T>::value, int>::type = 0 >
 	auto branch_view(const std::string& name) {
 		auto br = fillbrpod<T>(m_tree, name, m_current);
-		return one_own(*(br.data));
+		return lfv::one_own(*(br.data));
 	}
 
 
@@ -161,9 +161,9 @@ private:
  * Typical use is though to just do: data.foreach( ...lambda... );
  **/
 template<typename AccessDerivative>
-class TreeView : public FunctionalInterface<TreeView<AccessDerivative>, AccessDerivative> {
+class TreeView : public lfv::FunctionalInterface<TreeView<AccessDerivative>, AccessDerivative> {
 public:
-	using interface = FunctionalInterface<TreeView<AccessDerivative>, AccessDerivative>;
+	using interface = lfv::FunctionalInterface<TreeView<AccessDerivative>, AccessDerivative>;
 	static constexpr bool is_permanent = false;
 	static constexpr bool is_finite = false;
 
@@ -172,7 +172,7 @@ public:
 		m_access(t) {}
 
 	template<typename F>
-	void foreach_imp(F f, lfv_details::foreach_instructions = {}) const {
+	void foreach_imp(F f, lfv::details::foreach_instructions = {}) const {
 		for (; m_access; ++m_access) {
 			const bool go = f(m_access);
 			if (not go) break;

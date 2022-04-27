@@ -130,25 +130,25 @@ const EagerFunctionalVector<T>& operator >> ( const EagerFunctionalVector<T>& v,
 
 // lazy vector
 template<typename A, typename T >
-const FunctionalInterface<A,T>& operator >> ( const FunctionalInterface<A,T>& v, TH1 & h) {
+const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterface<A,T>& v, TH1 & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
     return v;
 }
 
 template<typename A, typename T >
-const FunctionalInterface<A,T>& operator >> ( const FunctionalInterface<A,T>& v, TH2 & h) {
+const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterface<A,T>& v, TH2 & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
     return v;
 }
 
 template<typename A, typename T >
-const FunctionalInterface<A,T>& operator >> ( const FunctionalInterface<A,T>& v, TProfile & h) {
+const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterface<A,T>& v, TProfile & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
     return v;
 }
 
 template<typename A, typename T >
-const FunctionalInterface<A,T>& operator >> ( const FunctionalInterface<A,T>& v, TEfficiency & h) {
+const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterface<A,T>& v, TEfficiency & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
     return v;
 }

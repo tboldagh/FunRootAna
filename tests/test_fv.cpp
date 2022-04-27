@@ -7,7 +7,7 @@
 #include "LazyFunctionalVector.h"
 #include <vector>
 
-
+using namespace lfv;
 #ifdef TEST_LAZY
 #define functional_vector lazy_view
 #else
@@ -31,8 +31,8 @@ void test_type_presentation() {
     decltype(mt2)::value_type z2;
     VALUE(typeid(z2) == typeid(double)) EXPECTED(true);
 
-    static_assert(lfv_details::has_fast_element_access_tag<int>::value == false);
-    static_assert(lfv_details::has_fast_element_access_tag<DirectView<std::vector<double>>>::value == true);
+    static_assert(details::has_fast_element_access_tag<int>::value == false);
+    static_assert(details::has_fast_element_access_tag<DirectView<std::vector<double>>>::value == true);
 }
 
 void test_element_access() {

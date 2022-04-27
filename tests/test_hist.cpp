@@ -11,6 +11,7 @@
 
 #include "filling.h"
 
+using namespace lfv;
 class HistogrammingClassTest : public HandyHists {
 public:
     void test_create() {

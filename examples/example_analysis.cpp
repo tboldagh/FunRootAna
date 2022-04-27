@@ -23,6 +23,7 @@ struct Point{
 #include "Access.h"
 #include "LazyFunctionalVector.h"
 #include "filling.h"
+using namespace lfv;
 class PointsTreeAccess : public Access {
     public:
         using Access::Access;

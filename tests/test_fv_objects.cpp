@@ -7,7 +7,7 @@
 #include "LazyFunctionalVector.h"
 #include <vector>
 
-
+using namespace lfv;
 #ifdef TEST_LAZY
 #define functional_vector lazy_view
 #else
