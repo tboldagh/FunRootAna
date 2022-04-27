@@ -31,19 +31,19 @@ void HandyHists::save(const std::string& fname) {
   TDirectory* current = gDirectory;
   TFile* f = TFile::Open(fname.c_str(), "NEW");
   assure(f != nullptr, "Opening output file " + fname);
-  for (auto [hash, hptr] : m_h1) {
+  for (auto hptr : m_h1) {
     _save(f, hptr);
   }
 
-  for (auto [hash, hptr] : m_h2) {
+  for (auto hptr : m_h2) {
     _save(f, hptr);
   }
 
-  for (auto [hash, hptr] : m_eff) {
+  for (auto hptr : m_eff) {
     _save(f, hptr);
   }
 
-  for (auto [hash, hptr] : m_prof) {
+  for (auto hptr : m_prof) {
     _save(f, hptr);
   }
   f->Write();
@@ -51,7 +51,5 @@ void HandyHists::save(const std::string& fname) {
   gDirectory = current;
 }
 
-
 std::string HistContext::s_histContext = "";
-uint32_t HistContext::s_histContextNum = chash(HistContext::s_histContext.c_str());
 
