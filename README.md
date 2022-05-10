@@ -57,27 +57,26 @@ The containers are named "vectors", but in fact they can wrap other stl containe
 ### wrap(cont)
 Produces eager container.
 
-### lazy_view(cont)/lazy_own(cont)/lazy_own(cont&&)/one_own(data&)
+### lazy_view(cont)/one_own(data&)
 Produces lazy containers.
-lazy_view does not cause a copy. The lazy_own involve copies. The lazy_own with move optimizes copy by moving instead.
+lazy_view does not cause a copy. 
 ```c++
 std::vector<MyData> d = ...; // data available in scope
 auto dview = lazy_view(d); // this best option in this case
 
-auto fview = lazy_own( std::move(code returning a vector) ); // best option in this case
 
-one_own(7) // produces a container of single element
+auto oneel = one_own(7) // produces a container of single element
 ```
 
 
 ### map( transformer )
-Creates elements after transforming them.
+Exposes elements after transforming them.
 ```c++
 data.map( F(_*_) ) // produces squared elements
 ``` 
 
 ### filter( predicate )
-Crates reduced set of elements
+Exposes reduced set of elements
 ```c++
 data.filter(F(_<0)).count();
 ```
