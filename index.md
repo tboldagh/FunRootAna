@@ -25,9 +25,9 @@ You can start the analysis with some basic plots:
 ```c++
 for (Access event(t); event; ++event) {
     auto category = event.get<int>("category");
-    const auto x = wrap(event.get<std::vector<float>>("x")); // get vector of data & wrap it into functional style container
-
     category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram, (creation done on demand and only once, the >> operator is responsible for filling)
+    const auto xVec = event.get<std::vector<float>>("x"); // get vector of data & wrap it into functional style container
+    auto x = lazy_view(xVec);
     x >> HIST1("x", ";x[mm]", 100, 0, 100); // fill the histogram with the x coordinates (all of them)
     x >> HIST1("x_wide", ";x[mm]", 100, 0, 1000); // fill another histogram with the x coordinate
     x.filter( F(category==0)) >> HIST1("x_cat_0", ";x[mm]", 100, 0, 100); // we can filter the data before filling
