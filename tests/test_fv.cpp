@@ -487,29 +487,7 @@ struct MyVec{
 
 };
 
-void test_lazy_own () {
-    // MyVec<int> i;
-    // i.data.push_back( new int(4));
-    // i.data.push_back( new int(2));
-    // i.data.push_back( new int(-5));
-    // auto io = lazy_own(i); // copy over pointers
-    // VALUE(io.toref().sum()) EXPECTED(1);
-    // auto iv = lazy_view(i);
-    // auto first_two_sum =  iv.toref().take(2).filter(F(_>0)).sum();
-    // VALUE(first_two_sum) EXPECTED( 6 );
-}
 
-void test_deffered() {
-    // TODO
-    // struct A {int a; float b;};    
-    // auto l = lazy_deferred<std::vector<A>>();
-    // auto op = l.filter(F( _.a == 3 )).map(F(_.a*_.b)).take_while( F(_>0));
-    // std::vector<A> a = {{0, 2.5}, {3, 0.3}, {2, 0.2}, {3, -0.1}};
-}
-void test_initializer_list() {
-    // auto lv = lazy_own({1,4,5,6}).sum();
-    // VALUE(lv) EXPECTED (16);
-}
 
 
 void test_one_element_container() {
@@ -563,7 +541,19 @@ void test_ptr_view() {
 
 }
 
+void test_array_view() {
+#ifdef TEST_LAZY
+    int data[5] = {1,7,8,2,-1};
+    auto array_view = lazy_view(data, sizeof(data)/sizeof(int));
+    VALUE( array_view.sum() ) EXPECTED ( 17 );
+    VALUE( array_view.take(3).sum() ) EXPECTED ( 16 );
 
+    auto byptr_view = lazy_view( data, data+4);
+    VALUE( byptr_view.sum() ) EXPECTED (18);
+    VALUE( byptr_view.skip(3).max().get().value() ) EXPECTED (2);
+    VALUE( byptr_view.element_at(5).has_value()) EXPECTED(false);
+#endif
+}
 
 int main() {
     const int failed =
@@ -588,12 +578,10 @@ int main() {
         + SUITE(test_group)
         + SUITE(test_stat)
         + SUITE(test_to_ref_ptr)
-        + SUITE(test_lazy_own)
-        + SUITE(test_deffered)
-        + SUITE(test_initializer_list)
         + SUITE(test_one_element_container)
         + SUITE(test_match)
-        + SUITE(test_ptr_view);
+        + SUITE(test_ptr_view)
+        + SUITE(test_array_view);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;

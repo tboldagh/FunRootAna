@@ -39,7 +39,7 @@ namespace {
 			br->GetEntry(event);
 		}
 		~fillbr() {
-			br->SetAddress(0);
+			if (br) { br->SetAddress(0); }
 		}
 		size_t size() const { return data->size(); }
 		typename T::value_type at(size_t i) const { return data->at(i); }

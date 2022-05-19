@@ -1278,6 +1278,42 @@ private:
     T m_data;
 };
 
+template<typename Data>
+class ArrayView final : public FunctionalInterface<ArrayView<Data>, Data> {
+public:
+    using interface = FunctionalInterface<ArrayView<Data>, Data>;
+    using value_type = typename interface::value_type;
+    using const_value_type = typename interface::const_value_type;
+    static constexpr bool is_permanent = true;
+    static constexpr bool is_finite = true;
+
+    ArrayView(const Data* arr, size_t sz)
+        : interface(*this), m_data(arr), m_size(sz) {}
+
+    template<typename F>
+    void foreach_imp(F f, details::foreach_instructions = {}) const {
+        for ( size_t index = 0; index < m_size; ++index){
+            const bool go = f(m_data[index]);
+            if (not go)
+                break;
+        }
+    }
+
+    using optional_value = std::optional<const_value_type>;
+    optional_value element_at(size_t  n) const {
+        if (n < m_size)
+            return m_data[n];
+        return {};
+    }
+    size_t size() const {
+        return m_size;
+    }
+    void update_container(const Data* arr, const size_t sz) {m_data = arr; m_size = sz; }
+private:
+    const Data* m_data;
+    const size_t m_size;
+};
+
 // infinite series of doubles following the geometric series recipe
 template<typename T, typename U>
 Series<T> geometric_stream(T coeff, U ratio) {
@@ -1310,14 +1346,24 @@ Range<T> range_stream(T begin, T end, T stride = 1) {
     return Range<T>(begin, end, stride);
 }
 
-
+// view the data in the container
 template<typename T>
 auto lazy_view(const T& cont) {
     return DirectView(cont);
 }
 
+//!< view the data in plain array
+template<typename T>
+auto lazy_view(const T* array, size_t size) {
+    return ArrayView(array, size);
+}
+//!< see above
+template<typename T>
+auto lazy_view(const T* array, const T* arrayend) {
+    return ArrayView(array, arrayend-array);
+}
 
-
+//!< view one data piece (contrary to the views the data is copied & owned by the container)
 template<typename T>
 auto one_own(const T& ele) {
     return One(ele);
@@ -1330,6 +1376,8 @@ namespace details {
     template<typename T> struct has_fast_element_access_tag<RefView<T, std::vector>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<RefView<T, std::deque>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<Range<T>> { static constexpr bool value = true; };
+    template<typename T> struct has_fast_element_access_tag<ArrayView<T>> { static constexpr bool value = true; };
+
 }
 
 } // eof lfv namespace
