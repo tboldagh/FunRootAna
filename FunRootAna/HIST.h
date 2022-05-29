@@ -17,7 +17,7 @@
 
 
 struct HistContext {
-  HistContext(const std::string& str)  {
+  HistContext(const std::string_view str)  {
     m_prev = s_histContext;
     s_histContext += str;
   }
@@ -32,7 +32,7 @@ struct HistContext {
   static const std::string& current() {
     return s_histContext;
   }
-
+  static void reserve() { s_histContext.reserve(512); }
   static std::string s_histContext;
   std::string m_prev;
 };
@@ -42,6 +42,7 @@ struct HistContext {
 
 class HandyHists {
  public:
+  HandyHists() { HistContext::reserve();  }
   template<typename H>
     H* reg( H* h ) {
     h->SetDirectory(0);
