@@ -25,11 +25,11 @@ struct HistContext {
     s_histContext = m_prev;
   }
   static const char* name( const char* n ) {
-    static std::string s{};
+    static std::string s(512, '\0');
     s = s_histContext + n ;   
     return s.c_str();
   }
-  static const std::string& current() {
+  static const std::string_view current() {
     return s_histContext;
   }
   static void reserve() { s_histContext.reserve(512); }
@@ -150,6 +150,17 @@ class HandyHists {
     for ( auto & [c, h]: cache) \
       if ( c == HistContext::current() ) return *h; \
     cache.emplace_back( HistContext::current(), this->effreg( new TEfficiency(HistContext::name(__NAME),__TITLE,__XBINS,__XMIN,__XMAX))); \
+    static std::string name = __NAME; \
+    assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
+    return *cache.back().second; \
+  }())
+
+#define EFF2( __NAME,__TITLE,__XBINS,__XMIN,__XMAX,__YBINS,__YMIN,__YMAX ) \
+  ([&]() -> TEfficiency& { \
+    static std::vector< std::pair<std::string, TEfficiency*>> cache; \
+    for ( auto & [c, h]: cache) \
+      if ( c == HistContext::current() ) return *h; \
+    cache.emplace_back( HistContext::current(), this->effreg( new TEfficiency(HistContext::name(__NAME),__TITLE,__XBINS,__XMIN,__XMAX,__YBINS,__YMIN,__YMAX))); \
     static std::string name = __NAME; \
     assure( name.empty() or name == __NAME, std::string("Histograms names consitency in ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
     return *cache.back().second; \

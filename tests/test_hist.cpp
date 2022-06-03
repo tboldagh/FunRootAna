@@ -68,7 +68,28 @@ public:
 
         auto ef = EFF1("eff", "", 2, 0, 2);
         std::make_pair(true, 0.3) >> ef;
-        make_triple(true, 0.3, 1.5) >> ef;
+        std::make_pair(false, 0.5) >> ef;
+        std::make_pair(false, 1.5) >> ef;
+        make_triple(true, 0.3, 1.5) >> ef; // filling with the weight
+        VALUE(ef.GetPassedHistogram()->GetBinContent(1)) EXPECTED (2.5);
+        VALUE(ef.GetTotalHistogram()->GetBinContent(1)) EXPECTED (3.5);
+        VALUE(ef.GetPassedHistogram()->GetBinContent(2)) EXPECTED (0);
+        VALUE(ef.GetTotalHistogram()->GetBinContent(2)) EXPECTED (1);
+
+
+        auto ef2 = EFF2("eff", "", 2, 0, 2, 2, 0, 10);
+        make_triple(true, 0.3, 5.5) >> ef2;
+        make_triple(false, 1.3, 5.5) >> ef2;
+        VALUE(ef2.GetPassedHistogram()->GetBinContent(1,1)) EXPECTED (0);
+        VALUE(ef2.GetTotalHistogram()->GetBinContent(1,1)) EXPECTED (0);
+        VALUE(ef2.GetPassedHistogram()->GetBinContent(1,2)) EXPECTED (1);
+        VALUE(ef2.GetTotalHistogram()->GetBinContent(1,2)) EXPECTED (1);
+        VALUE(ef2.GetPassedHistogram()->GetBinContent(2,2)) EXPECTED (0);
+        VALUE(ef2.GetTotalHistogram()->GetBinContent(2,2)) EXPECTED (1);
+
+
+
+
 
         auto p = PROF1("prof", "", 2, 0, 2);
         std::make_pair(0.2, 0.3) >> p;

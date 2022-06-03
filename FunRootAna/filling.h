@@ -74,6 +74,7 @@ const std::pair<T,U>& operator >> ( const std::pair<T,U>& v, TProfile & h) {
 
 template<typename T>
 const std::pair<bool,T>& operator >> ( const std::pair<bool,T>& v, TEfficiency & h) {
+    if ( h.GetDimension() == 2) throw std::runtime_error("pair<bool, value> insufficient to fill 2D TEfficiency, triple<bool, y_value, x_value> is needed");
     h.Fill(v.first, v.second);
     return v;
 }
@@ -98,7 +99,11 @@ const triple<T,U,V>& operator >> ( const triple<T,U,V>& v, TProfile & h) {
 }
 template<typename T, typename U>
 const triple<bool,T,U>& operator >> ( const triple<bool,T,U>& v, TEfficiency & h) {
-    h.Fill(v.first, v.second, v.third);
+    if ( h.GetDimension() == 2 ) {
+        h.Fill(v.first, v.second, v.third);
+    } else if ( h.GetDimension() == 1 ) {
+        h.FillWeighted(v.first, v.third, v.second);
+    }
     return v;
 }
 
