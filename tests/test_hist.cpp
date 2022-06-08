@@ -16,10 +16,16 @@ class HistogrammingClassTest : public HandyHists {
 public:
     void test_create() {
         HIST1("h1", ";x;y", 10, 0, 2);
-        HIST1V("h2", ";x;y", std::vector<double>({ 0, 0.5, 1, 3, 10, 20 }));
-        HIST2("h3", ";x;y", 10, 0, 2, 3, -0.5, 2.5);
-        EFF1("e1", ";x;eff", 100, 0, 10);
-        EFF1V("e2", ";x;eff", std::vector<double>({ -1, 0, 1 }));
+        HIST1V("h1v", ";x;y", std::vector<double>({ 0, 0.5, 1, 3, 10, 20 }));
+
+        HIST2("h2", ";x;y", 10, 0, 2, 3, -0.5, 2.5);
+        HIST2V("h2v", ";x;y;z", std::vector<double>({ 0, 0.5, 1, 3, 10, 20 }), std::vector<double>({ -100, 0, 200, 1000 }));
+
+        EFF1("e1", ";x;eff", 100, 0, 10).Fill(true, 5);
+
+        EFF1V("e1v", ";x;eff", std::vector<double>({ -1, 0, 1, 5, 50 })).Fill(true, 7);
+        EFF2V("e2v", ";x;y;eff", std::vector<double>({ -1, 0, 1 }), std::vector<double>({ 0, 5, 15, 50, 500, 5000 })).Fill(true, 0.5, 70);
+
         PROF1("p1", ";x;y", 10, 0, 1);
         PROF1V("p2", ";x;y", std::vector<double>({ 0, 0.5, 1, 3, 10, 20 }));
         {
@@ -184,16 +190,32 @@ void test_create() {
     TFile* f = TFile::Open(fname.c_str(), "OLD");
     VALUE(f) NOT_EXPECTED(nullptr);
     VALUE(f->Get("h1")) NOT_EXPECTED(nullptr);
-    VALUE(f->Get("h2")) NOT_EXPECTED(nullptr);
     VALUE(s(f->Get("h1")->ClassName())) EXPECTED("TH1D");
+    VALUE(f->Get("h1v")) NOT_EXPECTED(nullptr);
+    VALUE(s(f->Get("h1v")->ClassName())) EXPECTED("TH1D");
+    VALUE(((TH1D*)f->Get("h1v"))->GetXaxis()->GetNbins()) EXPECTED(5);
 
-    VALUE(f->Get("h3")) NOT_EXPECTED(nullptr);
-    VALUE(s(f->Get("h3")->ClassName())) EXPECTED("TH2D");
+
+    VALUE(f->Get("h2")) NOT_EXPECTED(nullptr);
+    VALUE(s(f->Get("h2")->ClassName())) EXPECTED("TH2D");
+
+    VALUE(f->Get("h2v")) NOT_EXPECTED(nullptr);
+    VALUE(s(f->Get("h2v")->ClassName())) EXPECTED("TH2D");
+    VALUE(((TH2D*)f->Get("h2v"))->GetXaxis()->GetNbins()) EXPECTED(5);
+    VALUE(((TH2D*)f->Get("h2v"))->GetYaxis()->GetNbins()) EXPECTED(3);
+
 
     VALUE(f->Get("e1")) NOT_EXPECTED(nullptr);
     VALUE(s(f->Get("e1")->ClassName())) EXPECTED("TEfficiency");
 
-    VALUE(f->Get("e2")) NOT_EXPECTED(nullptr);
+    VALUE(f->Get("e1v")) NOT_EXPECTED(nullptr);
+    VALUE(s(f->Get("e1v")->ClassName())) EXPECTED("TEfficiency");
+    VALUE(((TEfficiency*)f->Get("e1v"))->GetTotalHistogram()->GetXaxis()->GetNbins()) EXPECTED(4);
+
+    VALUE(f->Get("e2v")) NOT_EXPECTED(nullptr);
+    VALUE(s(f->Get("e2v")->ClassName())) EXPECTED("TEfficiency");
+    VALUE(((TEfficiency*)f->Get("e2v"))->GetTotalHistogram()->GetXaxis()->GetNbins()) EXPECTED(2);
+    VALUE(((TEfficiency*)f->Get("e2v"))->GetTotalHistogram()->GetYaxis()->GetNbins()) EXPECTED(5);
 
     VALUE(f->Get("p1")) NOT_EXPECTED(nullptr);
     VALUE(s(f->Get("p1")->ClassName())) EXPECTED("TProfile");
@@ -229,8 +251,6 @@ void test_joins_fill() {
      HistogrammingClassTest t1;
      t1.test_joins_fill();
 }
-
-
 
 int main() {
     const int failed = SUITE(test_create)
