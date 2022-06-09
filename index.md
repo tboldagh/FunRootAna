@@ -206,7 +206,7 @@ All of this has to happen in one statement. `HandyHists` class helps with that. 
 * macros that: declare/book/register histograms and return a `ROOT TH` object reference.
   The arguments taken by these macros are just passed over to constructors of respective histogram classes. 
   In macros ending with `V` the `std::vector<double>` is used to define bin limits.
-  Defined are: `HIST1` for 1D histograms, `PROF1` for profiles, `EFF1` `EFF2` for efficiencies, `HIST2` for 2D histograms,
+  Defined are: `HIST1` for 1D histograms, `PROF1` for profiles, `EFF1`, `EFF2` for efficiencies, `HIST2` for 2D histograms, `HIST3` for 3D,
 * and the context control.
 
 ## Operator `>>` for histograms filling
