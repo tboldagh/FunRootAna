@@ -21,6 +21,9 @@ public:
         HIST2("h2", ";x;y", 10, 0, 2, 3, -0.5, 2.5);
         HIST2V("h2v", ";x;y;z", std::vector<double>({ 0, 0.5, 1, 3, 10, 20 }), std::vector<double>({ -100, 0, 200, 1000 }));
 
+        HIST3("h3", ";x;y", 10, 0, 2, 3, -0.5, 2.5, 12, 0, 1.2);
+        HIST3V("h3v", ";x;y;z", std::vector<double>({ 0, 0.5, 1, 3, 10, 20 }), std::vector<double>({ -100, 0, 200, 1000 }), std::vector<double>({ 0.1, 0.2, 0.3, 0.4, 1.0 }));
+
         EFF1("e1", ";x;eff", 100, 0, 10).Fill(true, 5);
 
         EFF1V("e1v", ";x;eff", std::vector<double>({ -1, 0, 1, 5, 50 })).Fill(true, 7);
@@ -203,6 +206,16 @@ void test_create() {
     VALUE(s(f->Get("h2v")->ClassName())) EXPECTED("TH2D");
     VALUE(((TH2D*)f->Get("h2v"))->GetXaxis()->GetNbins()) EXPECTED(5);
     VALUE(((TH2D*)f->Get("h2v"))->GetYaxis()->GetNbins()) EXPECTED(3);
+
+
+    VALUE(f->Get("h3")) NOT_EXPECTED(nullptr);
+    VALUE(s(f->Get("h3")->ClassName())) EXPECTED("TH3D");
+
+    VALUE(f->Get("h3v")) NOT_EXPECTED(nullptr);
+    VALUE(s(f->Get("h3v")->ClassName())) EXPECTED("TH3D");
+    VALUE(((TH2D*)f->Get("h3v"))->GetXaxis()->GetNbins()) EXPECTED(5);
+    VALUE(((TH2D*)f->Get("h3v"))->GetYaxis()->GetNbins()) EXPECTED(3);
+    VALUE(((TH2D*)f->Get("h3v"))->GetZaxis()->GetNbins()) EXPECTED(4);
 
 
     VALUE(f->Get("e1")) NOT_EXPECTED(nullptr);
