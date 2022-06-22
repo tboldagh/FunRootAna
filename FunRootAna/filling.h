@@ -172,6 +172,12 @@ const EagerFunctionalVector<T>& operator >> ( const EagerFunctionalVector<T>& v,
 }
 
 template<typename T>
+const EagerFunctionalVector<T>& operator >> ( const EagerFunctionalVector<T>& v, TH3 & h) {
+    v.foreach( [&h]( const T& el){ el >> h; } );
+    return v;
+}
+
+template<typename T>
 const EagerFunctionalVector<T>& operator >> ( const EagerFunctionalVector<T>& v, TProfile & h) {
     v.foreach( [&h]( const T& el){ el >> h; } );
     return v;
@@ -196,6 +202,13 @@ const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterfac
     v.foreach( [&h]( const auto& el){ el >> h; } );
     return v;
 }
+
+template<typename A, typename T >
+const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterface<A,T>& v, TH3 & h) {
+    v.foreach( [&h]( const auto& el){ el >> h; } );
+    return v;
+}
+
 
 template<typename A, typename T >
 const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterface<A,T>& v, TProfile & h) {
