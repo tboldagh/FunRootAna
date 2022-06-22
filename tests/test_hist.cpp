@@ -61,18 +61,29 @@ public:
         h2.Fill(0.5, 0.5);
         h2.Fill(0.5, 0.5);
         h2.Fill(1.5, 1.5, 0.2);
-        h2.Fill(2.5, 2.5, 0.5); 
+        make_triple(2.5, 2.5, 0.5) >> h2;
         // fills using operators
         std::make_pair(0.5, 1.5) >> h2;
         make_triple(2.5, 1.5, 2.7) >> h2;
+        std::make_tuple(2.5, 1.5, 0.1) >> h2;
 
-
-        VALUE(h2.GetEntries()) EXPECTED (6);
+        VALUE(h2.GetEntries()) EXPECTED (7);
         VALUE(h2.GetBinContent(1, 1)) EXPECTED (2);
         VALUE(h2.GetBinContent(1, 2)) EXPECTED (1);
         VALUE(h2.GetBinContent(2, 2)) EXPECTED (0.2);
         VALUE(h2.GetBinContent(3, 3)) EXPECTED (0.5);
-        VALUE(h2.GetBinContent(3, 2)) EXPECTED (2.7);
+        VALUE(h2.GetBinContent(3, 2)) EXPECTED (2.8); // sum of weights 2.7 +0.1
+
+
+        auto h3 = HIST3("fh3", ";x;y;z", 3, 0, 3, 3, 0, 3, 4, -1, 1);
+        h3.Fill(0.5, 0.5, 0.51);
+        make_triple(1.5, 0.1, -0.9) >> h3;
+        std::make_tuple(1.5, 0.1, -0.9) >> h3;
+        std::make_tuple(1.5, 0.1, -0.9, 3.0) >> h3; // weighted fill
+
+        VALUE( h3.GetEntries() ) EXPECTED ( 4 );
+        VALUE( h3.GetBinContent(1, 1, 4)) EXPECTED (1);
+        VALUE( h3.GetBinContent(2, 1, 1)) EXPECTED (5); //
 
 
         auto ef = EFF1("eff", "", 2, 0, 2);
@@ -80,10 +91,12 @@ public:
         std::make_pair(false, 0.5) >> ef;
         std::make_pair(false, 1.5) >> ef;
         make_triple(true, 0.3, 1.5) >> ef; // filling with the weight
+        std::make_tuple(true, 1.3, 0.5) >> ef; // filling with the weight
+
         VALUE(ef.GetPassedHistogram()->GetBinContent(1)) EXPECTED (2.5);
         VALUE(ef.GetTotalHistogram()->GetBinContent(1)) EXPECTED (3.5);
-        VALUE(ef.GetPassedHistogram()->GetBinContent(2)) EXPECTED (0);
-        VALUE(ef.GetTotalHistogram()->GetBinContent(2)) EXPECTED (1);
+        VALUE(ef.GetPassedHistogram()->GetBinContent(2)) EXPECTED (0.5);
+        VALUE(ef.GetTotalHistogram()->GetBinContent(2)) EXPECTED (1.5);
 
 
         auto ef2 = EFF2("eff", "", 2, 0, 2, 2, 0, 10);
@@ -95,10 +108,6 @@ public:
         VALUE(ef2.GetTotalHistogram()->GetBinContent(1,2)) EXPECTED (1);
         VALUE(ef2.GetPassedHistogram()->GetBinContent(2,2)) EXPECTED (0);
         VALUE(ef2.GetTotalHistogram()->GetBinContent(2,2)) EXPECTED (1);
-
-
-
-
 
         auto p = PROF1("prof", "", 2, 0, 2);
         std::make_pair(0.2, 0.3) >> p;

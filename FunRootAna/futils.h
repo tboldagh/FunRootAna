@@ -27,6 +27,8 @@ struct triple {
 template<typename T, typename U, typename V>
 triple<T, U, V> make_triple(T t, U u, V v) { return { t,u,v }; }
 
+
+
 template<typename T, typename U>
 std::ostream& operator<<(std::ostream& o, const std::pair<T,U>& v ) {return o << v.first << ":" << v.second<< " "; }
 

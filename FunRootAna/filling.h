@@ -93,16 +93,67 @@ const triple<T,U,V>& operator >> ( const triple<T,U,V>& v, TH2 & h) {
 }
 
 template<typename T, typename U, typename V>
+const std::tuple<T,U,V>& operator >> ( const std::tuple<T,U,V>& v, TH2 & h) {
+    h.Fill(std::get<0>(v), std::get<1>(v), std::get<2>(v));
+    return v;
+}
+
+
+template<typename T, typename U, typename V>
+const triple<T,U,V>& operator >> ( const triple<T,U,V>& v, TH3 & h) {
+    h.Fill(v.first, v.second, v.third);
+    return v;
+}
+
+template<typename T, typename U, typename V>
+const std::tuple<T,U,V>& operator >> ( const std::tuple<T,U,V>& v, TH3 & h) {
+    h.Fill(std::get<0>(v), std::get<1>(v), std::get<2>(v));
+    return v;
+}
+
+template<typename T, typename U, typename V, typename Z>
+const std::tuple<T,U,V,Z>& operator >> ( const std::tuple<T,U,V,Z>& v, TH3 & h) {
+    h.Fill(std::get<0>(v), std::get<1>(v), std::get<2>(v), std::get<3>(v));
+    return v;
+}
+
+
+template<typename T, typename U, typename V>
 const triple<T,U,V>& operator >> ( const triple<T,U,V>& v, TProfile & h) {
     h.Fill(v.first, v.second, v.third);
     return v;
 }
+
+template<typename T, typename U, typename V>
+const std::tuple<T,U,V>& operator >> ( const std::tuple<T,U,V>& v, TProfile & h) {
+    h.Fill(std::get<0>(v), std::get<1>(v), std::get<2>(v));
+    return v;
+}
+
+
 template<typename T, typename U>
 const triple<bool,T,U>& operator >> ( const triple<bool,T,U>& v, TEfficiency & h) {
+    std::make_tuple(v.first, v.second, v.third) >> h;
+    return v;
+}
+
+template<typename U, typename V>
+const std::tuple<bool,U,V>& operator >> ( const std::tuple<bool,U,V>& v, TEfficiency & h) {
     if ( h.GetDimension() == 2 ) {
-        h.Fill(v.first, v.second, v.third);
+        h.Fill(std::get<0>(v), std::get<1>(v), std::get<2>(v));
     } else if ( h.GetDimension() == 1 ) {
-        h.FillWeighted(v.first, v.third, v.second);
+        h.FillWeighted(std::get<0>(v), std::get<2>(v), std::get<1>(v)); // ROOT is inconsistent here
+    }
+    return v;
+}
+
+
+template<typename U, typename V, typename Z>
+const std::tuple<bool,U,V,Z>& operator >> ( const std::tuple<bool,U,V,Z>& v, TEfficiency & h) {
+    if ( h.GetDimension() == 2 ) {
+        h.FillWeighted(std::get<0>(v), std::get<3>(v), std::get<1>(v), std::get<2>(v)); // ROOT is inconsistent here    
+    } else {
+        throw std::runtime_error("Can not fill (yet?) efficiencies other than 2D using tuple of 4");
     }
     return v;
 }
