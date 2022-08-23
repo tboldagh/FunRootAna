@@ -12,7 +12,7 @@
 #include "TH2.h"
 #include "TH3.h"
 #include "TProfile.h"
-
+#include "LazyFunctionalVector.h"
 #include "Weights.h"
 #include "assure.h"
 
@@ -51,16 +51,28 @@ class HandyHists {
   }
   template<typename H>
   H* hreg( H* h) {
+    assure( not lfv::lazy_view(m_h)
+            .contains( [h]( const TH1* in){ return std::string(h->GetName()) == in->GetName();}  ), 
+              std::string("Cant have two TH1 of the same name ") + h->GetName(), true );
+
     m_h.push_back(reg ( h ));
     return h;      
   }
 
   TEfficiency* effreg( TEfficiency* h) {
+    assure( not lfv::lazy_view(m_eff)
+            .contains( [h]( const TEfficiency* in){ return std::string(h->GetName()) == in->GetName();}  ), 
+              std::string("Cant have two TEfficiency of the same name ") + h->GetName(), true );
+
     m_eff.push_back(reg ( h ));
     return h;      
   }
 
   TProfile* profreg( TProfile* h) {
+    assure( not lfv::lazy_view(m_prof)
+            .contains( [h]( const TProfile* in){ return std::string(h->GetName()) == in->GetName();}  ), 
+              std::string("Cant have two TProfile of the same name ") + h->GetName(), true );
+
     m_prof.push_back(reg ( h ));    
     return h;      
   }
