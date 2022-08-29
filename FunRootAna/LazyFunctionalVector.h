@@ -38,6 +38,8 @@ namespace details {
         preserve_t preserve = temporary;
     };
 
+    struct as_needed {};
+
     template<typename T>
     struct one_element_stack_container {
         T* ptr = nullptr;
@@ -58,8 +60,26 @@ namespace details {
 
         T& get() { return *ptr; }
     };
-    struct as_needed {};
-}
+
+    template<typename T>
+    struct one_element_stack_container<T*> {
+        const T* ptr = nullptr;
+
+        template<typename U>
+        void insert(const U* el) {
+            if (ptr != nullptr) throw std::runtime_error("one_element_container already has content");
+            ptr = el;
+        }
+        template<typename U>
+        void replace(const U* el) {
+            ptr = el;
+        }
+        bool empty() const { return ptr == nullptr; }
+
+        const T* get() { return ptr; }
+    };
+  }
+
 #define AS_NEEDED //template<typename T=details::as_needed>
 
 
@@ -1369,6 +1389,8 @@ auto one_own(const T& ele) {
     return One(ele);
 }
 
+
+
 namespace details {
     template<typename T> struct has_fast_element_access_tag<DirectView<T>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<OwningView<std::vector<T>>> { static constexpr bool value = true; };
@@ -1379,6 +1401,8 @@ namespace details {
     template<typename T> struct has_fast_element_access_tag<ArrayView<T>> { static constexpr bool value = true; };
 
 }
+
+
 
 } // eof lfv namespace
 #undef AS_NEEDED

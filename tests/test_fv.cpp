@@ -528,16 +528,28 @@ void test_match() {
 
 void test_ptr_view() {
     std::vector<int*> v;
+
     v.push_back( new int(1));
     v.push_back( new int(7));
     v.push_back( new int(-3));
     auto lv = lazy_view(v);
+    VALUE( *(lv.get().value()) ) EXPECTED( 1 );
     const int s = lv.map(F(*_)).sum();
     VALUE(s) EXPECTED(5);
     const int s1 = lv.filter(F(*_ > 0)).map(F(*_)).sum();
     VALUE(s1) EXPECTED(8);
     const int s2 = lv.toref().filter(F(_>0)).sum();
     VALUE(s2) EXPECTED(s1);
+
+    std::vector<const int*> vc;
+    vc.push_back(new int(5));
+    vc.push_back(new int(9));
+    vc.push_back(new int(15));
+    auto lvc = lazy_view(vc);
+    const int cs = lvc.filter( F(*_ > 6) ).toref().sum();
+    VALUE( cs ) EXPECTED( 24 );
+    const auto fc = lvc.filter(F(*_ >10)).get();
+    VALUE( *fc.value() ) EXPECTED( 15 );
 
 }
 
