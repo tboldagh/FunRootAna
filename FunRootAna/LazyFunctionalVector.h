@@ -694,7 +694,7 @@ public:
     static constexpr bool is_finite = logic == details::take_elements or Container::is_finite;
     static constexpr bool is_permanent = Container::is_permanent;
 
-    TakeSkipNView(const Container& c, size_t n, size_t stride = 1, details::skip_take_logic_t l = details::take_elements)
+    TakeSkipNView(const Container& c, size_t n, size_t stride = 1)
         : interface(*this),
         m_foreach_imp_provider(c),
         m_elementsToTake(n),

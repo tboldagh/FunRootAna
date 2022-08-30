@@ -9,14 +9,14 @@
 // macro generating generic, single agument, returning lambda
 // example use: filter( F(_ < 0)) - the _ is the lambda argument, the function is pure (i.e. sees no outer scope), if that is needed use C
 // when integrated in larger projects it may clash with other symbols 
-#define F(CODE) [](const auto &_) { return CODE; }
+#define F(CODE) []([[maybe_unused]] const auto &_) { return CODE; }
 
 
 // closure, like function but see outer scope by reference (can change external variables)
-#define CLOSURE(CODE) [&](const auto &_) { return CODE; }
+#define CLOSURE(CODE) [&]([[maybe_unused]] const auto &_) { return CODE; }
 
 // subroutine (nothing is returned)
-#define S(CODE) [&](const auto &_) { CODE; }
+#define S(CODE) [&]([[maybe_unused]] const auto &_) { CODE; }
 
 template<typename T, typename U, typename V>
 struct triple {

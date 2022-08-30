@@ -99,7 +99,7 @@ public:
         VALUE(ef.GetTotalHistogram()->GetBinContent(2)) EXPECTED (1.5);
 
 
-        auto ef2 = EFF2("eff", "", 2, 0, 2, 2, 0, 10);
+        auto ef2 = EFF2("eff1", "", 2, 0, 2, 2, 0, 10);
         make_triple(true, 0.3, 5.5) >> ef2;
         make_triple(false, 1.3, 5.5) >> ef2;
         VALUE(ef2.GetPassedHistogram()->GetBinContent(1,1)) EXPECTED (0);
