@@ -213,11 +213,11 @@ data1.cartesian(data2) // is A1, A2, B1, B2, C1, C2
 ### sum(transform) / sum()
 Sums element in the container. If the `transform` is provided is is identical to mapping and the summing.
 
-### accumulates (transform, initial_value)
+### accumulate (transform, initial_value)
 Standard reduction operation.
 ```c++
 // assume the data is 1 2 3 4 5
-data.reduce( []( auto total, auto el){ return total*el; }, 1) // is 1*2*3*4*5
+data.accumulate( []( auto total, auto el){ return total*el; }, 1) // is 1*2*3*4*5
 ```
 *Notice* This is very versatile operation and in fact can be used to implement almost all (non-lazy) operations of the container.
 
@@ -256,7 +256,7 @@ Random integers drawn using standard C random function.
 
 ### range_stream( begin, end, stride=1)
 Finite size stream of numbers
-`begin, begin +stride, begin + stride^2` ... until the value is not greater than the `end`.
+`begin, begin +stride, begin + stride*2, begin+stride*3` ... until the value is not greater than the `end`.
 
 
 
