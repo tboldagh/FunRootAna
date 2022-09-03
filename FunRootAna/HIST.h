@@ -7,6 +7,7 @@
 #include <map>
 #include <list>
 #include <iostream>
+#include <string>
 #include "TH1.h"
 #include "TEfficiency.h"
 #include "TH2.h"
@@ -16,7 +17,7 @@
 #include "Weights.h"
 #include "assure.h"
 
-
+using namespace std::string_literals;
 struct HistContext {
   HistContext(const std::string_view str)  {
     m_prev = s_histContext;
@@ -53,7 +54,7 @@ class HandyHists {
   H* hreg( H* h) {
     assure( not lfv::lazy_view(m_h)
             .contains( [h]( const TH1* in){ return std::string(h->GetName()) == in->GetName();}  ), 
-              std::string("Cant have two TH1 of the same name ") + h->GetName(), true );
+                "Cant have two TH1 of the same name "s + h->GetName(), true );
 
     m_h.push_back(reg ( h ));
     return h;      
@@ -108,6 +109,7 @@ class HandyHists {
     static std::vector< std::pair<std::string, TH1D*>> cache; \
     for ( auto & [c, h]: cache) \
       if ( c == HistContext::current() ) return *h; \
+    assure(__XMIN < __XMAX, "Bin limits ordered incorrectly in "s+__NAME, false); \
     cache.emplace_back( HistContext::current(), this->hreg ( new TH1D( HistContext::name(__NAME), __TITLE,__XBINS,__XMIN,__XMAX))); \
     static std::string name = __NAME; \
     assure( name.empty() or name == __NAME, std::string("Histograms defined in the same line can't be different, use HCONTEXT instead, issue in: ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
@@ -133,6 +135,7 @@ class HandyHists {
     static std::vector< std::pair<std::string, TProfile*>> cache; \
     for ( auto & [c, h]: cache) \
       if ( c == HistContext::current() ) return *h; \
+    assure(__XMIN < __XMAX, "Bin limits ordered incorrectly in "s+__NAME, false); \
     cache.emplace_back( HistContext::current() , this->profreg ( new TProfile(HistContext::name(__NAME),__TITLE,__XBINS,__XMIN,__XMAX))); \
     static std::string name = __NAME; \
     assure( name.empty() or name == __NAME, std::string("Histograms defined in the same line can't be different, use HCONTEXT instead, issue in: ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
@@ -156,6 +159,7 @@ class HandyHists {
     static std::vector< std::pair<std::string, TEfficiency*>> cache; \
     for ( auto & [c, h]: cache) \
       if ( c == HistContext::current() ) return *h; \
+    assure(__XMIN < __XMAX, "Bin limits ordered incorrectly in "s+__NAME, false); \
     cache.emplace_back( HistContext::current(), this->effreg( new TEfficiency(HistContext::name(__NAME),__TITLE,__XBINS,__XMIN,__XMAX))); \
     static std::string name = __NAME; \
     assure( name.empty() or name == __NAME, std::string("Histograms defined in the same line can't be different, use HCONTEXT instead, issue in: ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
@@ -167,6 +171,8 @@ class HandyHists {
     static std::vector< std::pair<std::string, TEfficiency*>> cache; \
     for ( auto & [c, h]: cache) \
       if ( c == HistContext::current() ) return *h; \
+    assure(__XMIN < __XMAX, "Bin X limits ordered incorrectly in "s+__NAME, false); \
+    assure(__YMIN < __YMAX, "Bin Y limits ordered incorrectly in "s+__NAME, false); \
     cache.emplace_back( HistContext::current(), this->effreg( new TEfficiency(HistContext::name(__NAME),__TITLE,__XBINS,__XMIN,__XMAX,__YBINS,__YMIN,__YMAX))); \
     static std::string name = __NAME; \
     assure( name.empty() or name == __NAME, std::string("Histograms defined in the same line can't be different, use HCONTEXT instead, issue in: ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
@@ -202,6 +208,8 @@ class HandyHists {
     static std::vector< std::pair<std::string, TH2D*>> cache; \
     for ( auto & [c, h]: cache) \
       if ( c == HistContext::current() ) return *h; \
+    assure(__XMIN < __XMAX, "Bin X limits ordered incorrectly in "s+__NAME, false); \
+    assure(__YMIN < __YMAX, "Bin Y limits ordered incorrectly in "s+__NAME, false); \
     cache.emplace_back( HistContext::current(), this->hreg( new TH2D( HistContext::name(__NAME),__TITLE,__XBINS,__XMIN,__XMAX,__YBINS,__YMIN,__YMAX )) ); \
     static std::string name = __NAME; \
     assure( name.empty() or name == __NAME, std::string("Histograms defined in the same line can't be different, use HCONTEXT instead, issue in: ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
@@ -226,6 +234,9 @@ class HandyHists {
     static std::vector< std::pair<std::string, TH3D*>> cache; \
     for ( auto & [c, h]: cache) \
       if ( c == HistContext::current() ) return *h; \
+    assure(__XMIN < __XMAX, "Bin X limits ordered incorrectly in "s+__NAME, false); \
+    assure(__YMIN < __YMAX, "Bin Y limits ordered incorrectly in "s+__NAME, false); \
+    assure(__ZMIN < __ZMAX, "Bin Y limits ordered incorrectly in "s+__NAME, false); \
     cache.emplace_back( HistContext::current(), this->hreg( new TH3D( HistContext::name(__NAME),__TITLE,__XBINS,__XMIN,__XMAX,__YBINS,__YMIN,__YMAX,__ZBINS,__ZMIN,__ZMAX )) ); \
     static std::string name = __NAME; \
     assure( name.empty() or name == __NAME, std::string("Histograms defined in the same line can't be different, use HCONTEXT instead, issue in: ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
