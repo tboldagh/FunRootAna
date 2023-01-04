@@ -131,13 +131,21 @@ void test_point_free() {
 #endif    
 }
 
+void test_pointers_collection() {
+    std::vector<const TestObject*> vec = { new TestObject(), new TestObject() };
+    auto v = lazy_view(vec).skip(1).take(1).stage();
+    VALUE(v.size()) EXPECTED (1);
+    lazy_view(vec).foreach(S(delete _));    
+}
+
 
 int main() {
     const int failed =
         + SUITE(test_basic_transfromations)
         + SUITE(test_advanced)
         + SUITE(test_heterogenous_chaining)
-        + SUITE(test_point_free);
+        + SUITE(test_point_free)
+        + SUITE(test_pointers_collection);
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;
 }

@@ -46,10 +46,11 @@ struct AbsWeightRAI{
 
 
 // helper to streamline selection from set of values according to a boolean condition
-// e.g use: double value  = option(condA, 0.2)
+// e.g const double val   = option(condA, 0.2)
 //                         .option(condB, 0.3)
 //                         .option(condC, 1.1)
-//                         .option(not condB, 0.9).select();
+//                         .option(0.1) // if none of the above applies
+//                         .select();
 // raises, if no condition is satisfied
 template<typename T = double>
 struct Selector {
@@ -74,7 +75,7 @@ struct Selector {
 };
 
 template<typename T = double>
-Selector<T> option(bool cond, double value) {
+Selector<T> option(bool cond, T value) {
     Selector<T> s;
     s.option(cond, value);
     return s;
