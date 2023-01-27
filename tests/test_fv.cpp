@@ -567,6 +567,18 @@ void test_array_view() {
 #endif
 }
 
+void test_string() {
+    std::string h("Hello there people");
+    auto lh = lazy_view(h);
+    auto f3 = lh.skip(6).take(3);
+    VALUE( f3.size() ) EXPECTED(3);
+    VALUE( f3.element_at(0).value() ) EXPECTED( 't' );
+    VALUE( lh.take(60).size() ) EXPECTED( h.size() );
+    auto filt = lh.filter(F(_ == 'o'));
+    VALUE(filt.size()) EXPECTED (2);
+}
+
+
 int main() {
     const int failed =
         + SUITE(test_type_presentation)
@@ -593,7 +605,8 @@ int main() {
         + SUITE(test_one_element_container)
         + SUITE(test_match)
         + SUITE(test_ptr_view)
-        + SUITE(test_array_view);
+        + SUITE(test_array_view)
+        + SUITE(test_string);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;
