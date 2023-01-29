@@ -24,11 +24,33 @@ struct Point{
 #include "LazyFunctionalVector.h"
 #include "filling.h"
 using namespace lfv;
+
+
+
+class PointRefVector : public CollatedBranchesContainer<PointRefVector, Point>{
+    public:
+        PointRefVector( const std::vector<float>& x, 
+            const std::vector<float>& y,
+            const std::vector<float>& z) 
+        : CollatedBranchesContainer(x.size()),
+        refx(x),
+        refy(y),
+        refz(z) {}
+        Point build(size_t current) const final override { return {refx[current], refy[current], refz[current]}; }
+    private:
+        const std::vector<float>& refx;
+        const std::vector<float>& refy;
+        const std::vector<float>& refz;
+};
+
+
 class PointsTreeAccess : public Access {
     public:
         using Access::Access;
        std::vector<Point> getPoints() {
             std::vector<Point> result;
+
+
 
            /* simple but not efficient, involves copying
            const auto x = get<std::vector<float>>("x");
@@ -50,6 +72,10 @@ class PointsTreeAccess : public Access {
             }
 
             return result;
+       }
+
+       auto getPV() {
+        return PointRefVector( get<std::vector<float>>("x"), get<std::vector<float>>("y"), get<std::vector<float>>("z") );
        }
 };
 
@@ -78,7 +104,11 @@ public:
 
         // or via functional collection interface
         TreeView<PointsTreeAccess> events(t); // the tree wrapped in an functional container
-
+        using std::chrono::high_resolution_clock;
+        using std::chrono::duration_cast;
+        using std::chrono::duration;
+        using std::chrono::milliseconds;
+        auto t1 = high_resolution_clock::now();
         events
         .take(2000) // take only first 1000 events
         .filter( [&](auto event){ return event.current() %2 == 1; }) // every second event (beause why not)
@@ -106,7 +136,16 @@ public:
             points.map(F(_.z)) >> HIST1("z", ";zcoord", 100, 0, 10); // another example
             points.filter(F(_.z > 1.0) ).map( F(_.rho_xy())) >> HIST1("rho", ";rho_{z>1}", 100, 0, 10); // another example
             points.map( F( std::make_pair(_.r(), _.z))) >>  HIST2("xy/r_z", ";x;y", 30, 0, 3, 20, 0, 15); // and 2D hist
+
+
+            PointRefVector pv = event.getPV();
+            auto lpv = lazy_view(pv);
+            lpv.map( F(_.rho_xy()) ) >> HIST1("rho_xy_lpv", ";rho", 100, 0, 5);
+
         });
+        auto t2 = high_resolution_clock::now();
+        duration<double, std::milli> spent = t2 - t1;
+        report("USED: " + std::to_string(spent.count()) +" milliseconds");
         f->Close();
     }
 };
