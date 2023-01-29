@@ -138,9 +138,9 @@ public:
             points.map( F( std::make_pair(_.r(), _.z))) >>  HIST2("xy/r_z", ";x;y", 30, 0, 3, 20, 0, 15); // and 2D hist
 
 
-            PointRefVector pv = event.getPV();
-            auto lpv = lazy_view(pv);
-            lpv.map( F(_.rho_xy()) ) >> HIST1("rho_xy_lpv", ";rho", 100, 0, 5);
+            // PointRefVector pv = event.getPV();
+            // auto lpv = lazy_view(pv);
+            // lpv.map( F(_.rho_xy()) ) >> HIST1("rho_xy_lpv", ";rho", 100, 0, 5);
 
         });
         auto t2 = high_resolution_clock::now();
