@@ -47,7 +47,7 @@ class PointRefVector : public CollatedBranchesContainer<PointRefVector, Point>{
 class PointsTreeAccess : public Access {
     public:
         using Access::Access;
-       std::vector<Point> getPoints() {
+        std::vector<Point> getPoints() {
             std::vector<Point> result;
 
 
@@ -73,9 +73,11 @@ class PointsTreeAccess : public Access {
 
             return result;
        }
-
+       // more memory efficient approach 
        auto getPV() {
-        return PointRefVector( get<std::vector<float>>("x"), get<std::vector<float>>("y"), get<std::vector<float>>("z") );
+        return PointRefVector( get<std::vector<float>>("x"),
+                               get<std::vector<float>>("y"),
+                               get<std::vector<float>>("z") );
        }
 };
 
@@ -130,17 +132,17 @@ public:
             std::make_pair(x_view.sum(), x_view.size()) >> HIST2("tot_vs_size", ";sum;size", 20, 0, 150, 20, 0, 150);
 
             // processing objects
-            auto pointsVector = event.getPoints();
-            auto points = lazy_view(pointsVector);
+            PointRefVector pointsRefVector = event.getPV();
+            auto points = lazy_view(pointsRefVector);            
+            // or
+            // auto pointsVector = event.getPoints();
+            // auto points = lazy_view(pointsVector);
             points.map( F(_.rho_xy()) ) >> HIST1("rho_xy", ";rho", 100, 0, 5); // to extract the a quantity of interest for filling we do the "map" operation
             points.map(F(_.z)) >> HIST1("z", ";zcoord", 100, 0, 10); // another example
             points.filter(F(_.z > 1.0) ).map( F(_.rho_xy())) >> HIST1("rho", ";rho_{z>1}", 100, 0, 10); // another example
             points.map( F( std::make_pair(_.r(), _.z))) >>  HIST2("xy/r_z", ";x;y", 30, 0, 3, 20, 0, 15); // and 2D hist
 
 
-            // PointRefVector pv = event.getPV();
-            // auto lpv = lazy_view(pv);
-            // lpv.map( F(_.rho_xy()) ) >> HIST1("rho_xy_lpv", ";rho", 100, 0, 5);
 
         });
         auto t2 = high_resolution_clock::now();
