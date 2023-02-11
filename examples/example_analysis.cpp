@@ -26,21 +26,22 @@ struct Point{
 using namespace lfv;
 
 
-
+// access using collated branches
 class PointRefVector : public CollatedBranchesContainer<PointRefVector, Point>{
     public:
-        PointRefVector( const std::vector<float>& x, 
-            const std::vector<float>& y,
-            const std::vector<float>& z) 
-        : CollatedBranchesContainer(x.size()),
-        refx(x),
-        refy(y),
-        refz(z) {}
-        Point build(size_t current) const final override { return {refx[current], refy[current], refz[current]}; }
+        using local_fillbr=fillbr<std::vector<float>>;
+        PointRefVector( TTree* t, size_t current_tree_element) 
+        : CollatedBranchesContainer(0),
+        refx(local_fillbr(t, "x", current_tree_element)),
+        refy(local_fillbr(t, "y", current_tree_element)),
+        refz(local_fillbr(t, "z", current_tree_element)) {
+            updateSize(refx.size());
+        }
+        Point build(size_t el) const final override { return {refx.at(el), refy.at(el), refz.at(el)}; }
     private:
-        const std::vector<float>& refx;
-        const std::vector<float>& refy;
-        const std::vector<float>& refz;
+        local_fillbr refx;
+        local_fillbr refy;
+        local_fillbr refz;
 };
 
 
@@ -50,19 +51,6 @@ class PointsTreeAccess : public Access {
         std::vector<Point> getPoints() {
             std::vector<Point> result;
 
-
-
-           /* simple but not efficient, involves copying
-           const auto x = get<std::vector<float>>("x");
-           const auto y = get<std::vector<float>>("y");
-           const auto z = get<std::vector<float>>("z");
-           result.reserve(x.size()); // to avoid reallocations
-            for ( size_t i = 0; i < x.size(); ++i) {
-                result.emplace_back(Point({x[i], y[i], z[i]}));
-            }
-           */
-
-           /* more efficient apprach */
            fillbr<std::vector<float>> xBranch( tree(), "x" , current());
            fillbr<std::vector<float>> yBranch( tree(), "y" , current());
            fillbr<std::vector<float>> zBranch( tree(), "z" , current());
@@ -74,10 +62,8 @@ class PointsTreeAccess : public Access {
             return result;
        }
        // more memory efficient approach 
-       auto getPV() {
-        return PointRefVector( get<std::vector<float>>("x"),
-                               get<std::vector<float>>("y"),
-                               get<std::vector<float>>("z") );
+       auto getPointsRefs() {
+        return PointRefVector( tree(), current() );
        }
 };
 
@@ -111,11 +97,12 @@ public:
         using std::chrono::duration;
         using std::chrono::milliseconds;
         auto t1 = high_resolution_clock::now();
+
         events
         .take(2000) // take only first 1000 events
         .filter( [&](auto event){ return event.current() %2 == 1; }) // every second event (beause why not)
         .foreach([&](auto event) {
-            // analyse content of the data entry
+           // analyse content of the data entry
             const int category = event.template get<int>("category");
             category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram with a plain , (creation done on demand and only once)
             auto category_view = event.template branch_view<int>("category");
@@ -132,7 +119,7 @@ public:
             std::make_pair(x_view.sum(), x_view.size()) >> HIST2("tot_vs_size", ";sum;size", 20, 0, 150, 20, 0, 150);
 
             // processing objects
-            PointRefVector pointsRefVector = event.getPV();
+            PointRefVector pointsRefVector = event.getPointsRefs();
             auto points = lazy_view(pointsRefVector);            
             // or
             // auto pointsVector = event.getPoints();
@@ -141,8 +128,6 @@ public:
             points.map(F(_.z)) >> HIST1("z", ";zcoord", 100, 0, 10); // another example
             points.filter(F(_.z > 1.0) ).map( F(_.rho_xy())) >> HIST1("rho", ";rho_{z>1}", 100, 0, 10); // another example
             points.map( F( std::make_pair(_.r(), _.z))) >>  HIST2("xy/r_z", ";x;y", 30, 0, 3, 20, 0, 15); // and 2D hist
-
-
 
         });
         auto t2 = high_resolution_clock::now();

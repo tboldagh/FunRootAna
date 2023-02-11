@@ -95,7 +95,7 @@ public:
 
 	// get any branch, two variants available for PODs (below) and vectors
 	template<typename T, typename std::enable_if<not std::is_pod<T>::value, int>::type = 0>
-	const T& get(const std::string& name) {
+	T get(const std::string& name) {
 		fillbr<T> br(m_tree, name, m_current);
 		return *(br.data);
 	}
@@ -121,7 +121,7 @@ public:
 
 
 	// TLorentzVector gettter, from branches named: pt, eta, phi, potentially prefixed by the string passed in the argument
-	// eg. if the tree has branches electron_pt, electron_eta, electron_phi 
+	// eg. if the tree has branches electron_pt, electron_eta, electron_phi
 	// the tlget("electron_") will return vector of TLorentzVectors
 	std::vector<TLorentz> tlget(const std::string& brprefix);
 
@@ -182,7 +182,7 @@ private:
 
 /**
  * Helper class allowing to view several branches (vectors) synchronously as one object
- * The CollatedBranchesIterator is not exposed to outside word and only the CollatedBranchesContainer is.
+ * The CollatedBranchesIterator is not exposed to outside and only the CollatedBranchesContainer is.
  * The idea is following:
  *  - the collection of objects is typically stored in tree as several simple branches, say Point x,y,z coordinates
  *  - they want to be viewed as one object Point with attributes x,y,z
@@ -193,7 +193,8 @@ private:
  *  z vector ++++++++++++++
  *  iterator ^ points to these consecutive elements and deref operator of it makes Point object.
  * User needs to supply class/struct that can take branches (ideally addresses/pointers) and provides build method co construct the object.
- * See an example example_analysis.cpp 
+ * @file example_analysis.cpp for an example
+ * @see CollatedBranchesContainer for more documentation
  * CollatedBranchContainer can be lazy_viewed
  **/
 namespace {
@@ -205,16 +206,23 @@ struct CollatedBranchesIterator {
     typename C::value_type operator*() const { return container.build(current); }
     size_t current = 0;
     const C& container;
-
 };
 }
 
 
 /**
  * @brief class that supports a synchronous iteration over several elementary branches
- * It is intended to be used with CRTP patterns
- * @tparam C - container handling construction of an object and handling of branches
+ * Assume data stored in two branches of type vector<float> x, y but we want to view them
+ * as a vector<Coord> for which the x and y are members.
+ * This class facilitates such access w/o ever creating vector<Coord> itself.
+ * Instead the individual branches are used as a source to produce the Coord objects
+ * while iterating over "pseudo" container of Coord objects.
+ *
+ * The class is intended to be used with CRTP patterns rather than usual inheritance.
  * @tparam VT - value type that is made of of collated branches
+ * @tparam C - pseudo container of VT objects
+ * it would gain access to the branches (possibly using fillbr helpers)
+ * it provides build method that, given index, construct object from branches under that index
  */
 
 template<typename C, typename VT>
@@ -222,17 +230,22 @@ class CollatedBranchesContainer {
     public:
         using value_type=VT;
         using iterator_type=CollatedBranchesIterator<CollatedBranchesContainer<C, VT>>;
-        CollatedBranchesContainer(size_t s) : size(s) {}
+        CollatedBranchesContainer(size_t s=0) : size(s) {}
         iterator_type begin() const { return iterator_type(0ul, *this); }
         iterator_type end() const { return iterator_type(size, *this); }
 		/**
 		 * @brief construct object from branches data
 		 * @param index of data elements in branch vectors
-		 * @return value_type 
+		 * @return value_type
+		 * To assure performance make sure the override is "final"
 		 */
         virtual value_type build( size_t index ) const = 0;
+
+	protected:
+		void updateSize(size_t s) { size = s; }
+
     private:
-        const size_t size = 0;
+        size_t size = 0;
 };
 
 
