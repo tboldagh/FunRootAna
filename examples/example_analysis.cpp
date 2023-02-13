@@ -23,6 +23,7 @@ struct Point{
 #include "Access.h"
 #include "LazyFunctionalVector.h"
 #include "filling.h"
+#include "parallel.h"
 using namespace lfv;
 
 
@@ -102,7 +103,7 @@ public:
         .take(2000) // take only first 1000 events
         .filter( [&](auto event){ return event.current() %2 == 1; }) // every second event (beause why not)
         .foreach([&](auto event) {
-           // analyse content of the data entry
+            // analyse content of the data entry
             const int category = event.template get<int>("category");
             category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram with a plain , (creation done on demand and only once)
             auto category_view = event.template branch_view<int>("category");
@@ -112,23 +113,25 @@ public:
             const auto x_copy = lazy_view(xVector); // get vector of data & wrap it into a functional style container
             // or
             const auto x_view = event.template branch_view<std::vector<float>>("x"); // // obtain directly functional style container directly (avoids data copies)
-
-            x_copy >> HIST1("x_copy", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
-            x_view >> HIST1("x_view", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
+            { PARALLEL;
+                x_copy >> HIST1("x_copy", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
+                x_view >> HIST1("x_view", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
+            }
 
             std::make_pair(x_view.sum(), x_view.size()) >> HIST2("tot_vs_size", ";sum;size", 20, 0, 150, 20, 0, 150);
 
             // processing objects
-            PointRefVector pointsRefVector = event.getPointsRefs();
-            auto points = lazy_view(pointsRefVector);            
+            // PointRefVector pointsRefVector = event.getPointsRefs();
+            // auto points = lazy_view(pointsRefVector);            
             // or
-            // auto pointsVector = event.getPoints();
-            // auto points = lazy_view(pointsVector);
+            auto pointsVector = event.getPoints();
+            auto points = lazy_view(pointsVector);
+            {PARALLEL; 
             points.map( F(_.rho_xy()) ) >> HIST1("rho_xy", ";rho", 100, 0, 5); // to extract the a quantity of interest for filling we do the "map" operation
             points.map(F(_.z)) >> HIST1("z", ";zcoord", 100, 0, 10); // another example
             points.filter(F(_.z > 1.0) ).map( F(_.rho_xy())) >> HIST1("rho", ";rho_{z>1}", 100, 0, 10); // another example
             points.map( F( std::make_pair(_.r(), _.z))) >>  HIST2("xy/r_z", ";x;y", 30, 0, 3, 20, 0, 15); // and 2D hist
-
+            }
         });
         auto t2 = high_resolution_clock::now();
         duration<double, std::milli> spent = t2 - t1;

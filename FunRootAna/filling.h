@@ -11,7 +11,7 @@
 #include <TProfile.h>
 #include "Weights.h"
 #include "HIST.h"
-
+#include "parallel.h"
 #include "EagerFunctionalVector.h"
 #include "LazyFunctionalVector.h"
 
@@ -249,7 +249,16 @@ const EagerFunctionalVector<T>& operator >> ( const EagerFunctionalVector<T>& v,
 // lazy vector
 template<typename A, typename T >
 const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterface<A,T>& v, TH1 & h) {
-    v.foreach( [&h]( const auto& el){ el >> h; } );
+    double sum = 0;
+    as_threaded_task([&v, &sum]() {
+        std::cerr << v.size() << " ";
+        v.foreach( [&sum]( const auto& el){ 
+            std::cerr << ".";
+            sum += el; } );
+        // std::cerr << "finished fill " << h.GetName() << " " << v.size() << "\n";
+        });
+    std::cerr << "scheduled fill " << h.GetName() << "\n";
+
     return v;
 }
 
