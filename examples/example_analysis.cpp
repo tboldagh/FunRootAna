@@ -21,6 +21,8 @@ struct Point{
 #include <utility>
 
 #include "Access.h"
+#include "Conf.h"
+
 #include "LazyFunctionalVector.h"
 #include "filling.h"
 using namespace lfv;
@@ -147,5 +149,9 @@ int main() {
     a.run();
     report(".. done, saving outut ..");
     a.save("Output.root");
+
+    Conf c;    
+    c.saveAsMetadata("Output.root", {{"metadata1", "example1"}, 
+                                    {"input", "TestTree.root"}});
     report("finished ...");
 }
