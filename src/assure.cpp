@@ -16,11 +16,21 @@ void assure( bool cond, const std::string& message, bool silentIfok) {
       std::cout << "... OK   " << message << "\n";
   }
 }
+
+void assure( bool cond, const std::string& messageOK, const std::string& messageFAIL) {
+  if ( cond == false ) {
+    std::cout << ".. ERROR " << messageFAIL << "\n";
+    exit(-1);
+  } else {
+      std::cout << "... OK   " << messageOK << "\n";
+  }
+}
+
 void report( const std::string& message) {
   std::cout << ".... INFO " << message << "\n";
 }
 
-void missing(const std::string& message ) {
+[[deprecated]] void missing(const std::string& message ) {
   assure(false, message);
   throw std::runtime_error(message);
 }

@@ -1230,43 +1230,43 @@ public:
     static constexpr bool is_finite = true;
     static_assert(std::is_arithmetic<value_type>::value, "Can't generate range of not arithmetic type");
 
-    Range(const T& begin, const T& end, const T& stride = 1)
+    Range(const T& begin, const T& end, const T& step = 1)
         : interface(*this),
         m_begin(begin),
         m_end(end),
-        m_stride(stride) {
-        if (m_stride == 0) throw std::runtime_error("the stride can be zero");
-        if (m_stride > 0 and m_begin > m_end) throw std::runtime_error("limits and stride will result in an infinite range");
-        if (m_stride < 0 and m_begin < m_end) throw std::runtime_error("limits and stride will result in an infinite range");
+        m_step(step) {
+        if (m_step == 0) throw std::runtime_error("the step can be zero");
+        if (m_step > 0 and m_begin > m_end) throw std::runtime_error("limits and step will result in an infinite range");
+        if (m_step < 0 and m_begin < m_end) throw std::runtime_error("limits and step will result in an infinite range");
 
     }
 
     template<typename F>
     void foreach_imp(F f, details::foreach_instructions = {}) const {
         T current = m_begin;
-        while ((m_stride > 0 and current < m_end) or (current > m_end)) {
+        while ((m_step > 0 and current < m_end) or (m_step < 0 and current > m_end)) {
             const bool go = f(current);
             if (not go)
                 break;
-            current = current + m_stride;
+            current = current + m_step;
             // std::cout << "X" << current << std::endl;
         }
     }
 
     auto element_at(size_t  n) const -> std::optional<const_value_type> {
         if (n < size())
-            return m_begin + m_stride * n;
+            return m_begin + m_step * n;
         return {};
     }
     size_t size() const {
-        return std::abs((m_end - m_begin)) / std::abs(m_stride);
+        return std::abs((m_end - m_begin)) / std::abs(m_step);
     }
 
 
 private:
     T m_begin;
     T m_end;
-    T m_stride;
+    T m_step;
 };
 
 
@@ -1362,8 +1362,8 @@ Series<T> crandom_stream() {
 
 // finite range from x = begin until x < end
 template<typename T>
-Range<T> range_stream(T begin, T end, T stride = 1) {
-    return Range<T>(begin, end, stride);
+Range<T> range_stream(T begin, T end, T step = 1) {
+    return Range<T>(begin, end, step);
 }
 
 // view the data in the container

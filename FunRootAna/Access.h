@@ -230,9 +230,9 @@ class CollatedBranchesContainer {
     public:
         using value_type=VT;
         using iterator_type=CollatedBranchesIterator<CollatedBranchesContainer<C, VT>>;
-        CollatedBranchesContainer(size_t s=0) : size(s) {}
+        CollatedBranchesContainer(size_t s=0) : m_size(s) {}
         iterator_type begin() const { return iterator_type(0ul, *this); }
-        iterator_type end() const { return iterator_type(size, *this); }
+        iterator_type end() const { return iterator_type(m_size, *this); }
 		/**
 		 * @brief construct object from branches data
 		 * @param index of data elements in branch vectors
@@ -240,12 +240,12 @@ class CollatedBranchesContainer {
 		 * To assure performance make sure the override is "final"
 		 */
         virtual value_type build( size_t index ) const = 0;
-
+		size_t size() const { return m_size; }
 	protected:
-		void updateSize(size_t s) { size = s; }
+		void updateSize(size_t s) { m_size = s; }
 
     private:
-        size_t size = 0;
+        size_t m_size = 0;
 };
 
 
