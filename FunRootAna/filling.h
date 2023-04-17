@@ -72,6 +72,11 @@ long int operator >> ( long int v, TH1 & h) {
     return v;
 }
 
+const std::string& operator >> ( const std::string& v, TH1 & h) {
+    h.Fill(v.c_str(), 1.0);
+    return v;
+}
+
 
 template<typename T, typename U>
 const std::pair<T,U>& operator >> ( const std::pair<T,U>& v, TH2 & h) {
