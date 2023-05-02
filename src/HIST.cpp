@@ -47,5 +47,4 @@ void HandyHists::save(const std::string& fname) {
   gDirectory = current;
 }
 
-std::string HistContext::s_histContext = "";
-
+const HistContext* HistContext::s_latest = nullptr;
