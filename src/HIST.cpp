@@ -48,3 +48,4 @@ void HandyHists::save(const std::string& fname) {
 }
 
 const HistContext* HistContext::s_latest = nullptr;
+static const HistContext topContext ("");
