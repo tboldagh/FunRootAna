@@ -69,6 +69,7 @@ public:
             return m_kvMap.find(key) != m_kvMap.end();
         }
     }
+
 private:
 
     std::map<std::string, std::string> m_kvMap;

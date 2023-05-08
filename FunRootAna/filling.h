@@ -30,6 +30,19 @@ const std::optional<T>& operator >> (const std::optional<T>& v, TH1& h ) {
     return v;
 }
 
+template<typename T, typename U>
+const std::pair<std::optional<T>, std::optional<U>>& operator >> (const std::pair<std::optional<T>, std::optional<U>>& v, TH1& h ) {
+    if ( v->first.has_value() && v->second.has_value() ) std::make_pair(v->first.value(), v->second.value()) >> h;
+    return v;
+}
+
+template<typename T, typename U>
+const std::pair<std::optional<T>, std::optional<U>>& operator >> (const std::pair<std::optional<T>, U>& v, TH1& h ) {
+    if ( v->first.has_value()  ) std::make_pair(v.first.value(), v.second) >> h;
+    return v;
+}
+
+
 double operator >> ( double v, TH1 & h) {
     h.Fill(v);
     return v;
@@ -67,10 +80,53 @@ const std::pair<T,U>& operator >> ( const std::pair<T,U>& v, TH2 & h) {
 }
 
 template<typename T, typename U>
+const std::pair<std::optional<T>, std::optional<U>>& operator >> (const std::pair<std::optional<T>, std::optional<U>>& v, TH2& h ) {
+    if ( v.first.has_value() && v.second.has_value() ) std::make_pair(v.first.value(), v.second.value()) >> h;
+    return v;
+}
+
+template<typename T, typename U>
+const std::pair<T, std::optional<U>>& operator >> (const std::pair<T, std::optional<U>>& v, TH2& h ) {
+    if ( v.second.has_value() ) std::make_pair(v.first, v.second.value()) >> h;
+    return v;
+}
+
+template<typename T, typename U>
+const std::pair<std::optional<T>, U>& operator >> (const std::pair<std::optional<T>, U>& v, TH2& h ) {
+    if ( v.first.has_value() ) std::make_pair(v.first.value(), v.second) >> h;
+    return v;
+}
+
+
+
+template<typename T, typename U>
+const std::pair<std::optional<T>, std::optional<U>>& operator >> (const std::pair<std::optional<T>, std::optional<U>>& v, TProfile& h ) {
+    if ( v.first.has_value() && v.second.has_value() ) std::make_pair(v.first.value(), v.second.value()) >> h;
+    return v;
+}
+
+template<typename T, typename U>
+const std::pair<T, std::optional<U>>& operator >> (const std::pair<T, std::optional<U>>& v, TProfile& h ) {
+    if ( v.second.has_value() ) std::make_pair(v.first, v.second.value()) >> h;
+    return v;
+}
+
+template<typename T, typename U>
+const std::pair<std::optional<T>, U>& operator >> (const std::pair<std::optional<T>, U>& v, TProfile& h ) {
+    if ( v.first.has_value() ) std::make_pair(v.first.value(), v.second) >> h;
+    return v;
+}
+
+
+
+
+template<typename T, typename U>
 const std::pair<T,U>& operator >> ( const std::pair<T,U>& v, TProfile & h) {
     h.Fill(v.first, v.second);
     return v;
 }
+
+
 
 template<typename T>
 const std::pair<bool,T>& operator >> ( const std::pair<bool,T>& v, TEfficiency & h) {
