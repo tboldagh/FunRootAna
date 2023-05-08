@@ -7,7 +7,7 @@
 #include <cmath>
 
 #include "assure.h"
-void assure( bool cond, const std::string& message, bool silentIfok) {
+void assure( bool cond, const std::string_view& message, bool silentIfok) {
   if ( cond == false ) {
     std::cout << ".. ERROR " << message << "\n";
     exit(-1);
@@ -17,7 +17,7 @@ void assure( bool cond, const std::string& message, bool silentIfok) {
   }
 }
 
-void assure( bool cond, const std::string& messageOK, const std::string& messageFAIL) {
+void assure( bool cond, const std::string_view& messageOK, const std::string_view& messageFAIL) {
   if ( cond == false ) {
     std::cout << ".. ERROR " << messageFAIL << "\n";
     exit(-1);
@@ -26,17 +26,17 @@ void assure( bool cond, const std::string& messageOK, const std::string& message
   }
 }
 
-void report( const std::string& message) {
+void report( const std::string_view& message) {
   std::cout << ".... INFO " << message << "\n";
 }
 
-[[deprecated]] void missing(const std::string& message ) {
+[[deprecated]] void missing(const std::string_view& message ) {
   assure(false, message);
-  throw std::runtime_error(message);
+  throw std::runtime_error(std::string(message));
 }
 
 
-void assure_about_equal(const std::string& msg, double a, double b, double tolerance ){
+void assure_about_equal(const std::string_view& msg, double a, double b, double tolerance ){
   if ( std::isnan(a) or std::isnan(b) ) {
     std::cout<< msg << " either the fist value: " + std::to_string(a) + " or the second value: " + std::to_string(b) + " are NaN" << std::endl;
     throw std::runtime_error("assure_about_equal NaN");

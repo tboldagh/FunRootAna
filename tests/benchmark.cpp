@@ -16,9 +16,10 @@ class HBenchmark : public HandyHists {
     void test_fixed_names() {
         HCONTEXT("top_");
         for ( int i = 0; i < 1000; i++) {
-            HCONTEXT("loop_");
+            HCONTEXT("group_");
             for ( int j = 0; j < 100 ; ++j ) {
-                HCONTEXT("loop_");
+                HCONTEXT("sub_");
+                // report( "... HC "+  HistContext::current() );
                 HIST1("a", "a", 10, 0, 10);
             }
         }
@@ -28,7 +29,9 @@ class HBenchmark : public HandyHists {
         for ( int i = 0; i < 10; i++) {
             HCONTEXT("loop_"+std::to_string(i)+"_");
             for ( int j = 0; j < 1000 ; ++j ) {
-                HCONTEXT("loop_");
+                HCONTEXT("tail_");
+                // report( "... HC "+  HistContext::current() );
+
                 HIST1("a", "a", 10, 0, 10);
             }
         }
