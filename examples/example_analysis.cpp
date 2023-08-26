@@ -20,7 +20,7 @@ struct Point{
 #include <vector>
 #include <utility>
 
-#include "Access.h"
+#include "ROOTTreeAccess.h"
 #include "Conf.h"
 
 #include "LazyFunctionalVector.h"
@@ -47,9 +47,9 @@ class PointRefVector : public CollatedBranchesContainer<PointRefVector, Point>{
 };
 
 
-class PointsTreeAccess : public Access {
+class PointsTreeROOTTreeAccess : public ROOTTreeAccess {
     public:
-        using Access::Access;
+        using ROOTTreeAccess::ROOTTreeAccess;
         std::vector<Point> getPoints() {
             std::vector<Point> result;
 
@@ -90,10 +90,10 @@ public:
         assure(t != nullptr, "Tree" );
 
         // a simple loop
-        //for (PointsTreeAccess event(t); event; ++event) 
+        //for (PointsTreeROOTTreeAccess event(t); event; ++event) 
 
         // or via functional collection interface
-        TreeView<PointsTreeAccess> events(t); // the tree wrapped in an functional container
+        TreeView<PointsTreeROOTTreeAccess> events(t); // the tree wrapped in an functional container
         using std::chrono::high_resolution_clock;
         using std::chrono::duration_cast;
         using std::chrono::duration;

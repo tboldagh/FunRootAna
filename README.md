@@ -280,11 +280,11 @@ Accepted at the left side:
 ### functional container - fill histogram from all data in the container
 ### the `>>` can be chained to fill multiple histograms with the same quantity
 # TTree access
-The ROOT Tree reading is provided by the `Access` class that offers a handy API for iteration over events and access to the tree branches in two forms:
+The ROOT Tree reading is provided by the `ROOTTreeAccess` class that offers a handy API for iteration over events and access to the tree branches in two forms:
 ## For traditional looping
 E.g. for a construct like
 ```c++
-for (Access event(t); event; ++event)
+for (ROOTTreeAccess event(t); event; ++event)
 ```
 the ++, and conversion to bool are provided. Range of events iterated over can be limited by passing additional arguments to the constructor.
 ## For functional like container API
