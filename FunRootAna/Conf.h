@@ -7,34 +7,34 @@
 #include <map>
 #include <string>
 class TFile;
-namespace {
-template <typename T> struct convertData {
+namespace strdataconv {
+template <typename T> struct convertTo {
   static T from(const std::string &value) {
     static_assert(true, "Can't convert it");
     return {};
   }
 };
 
-template <> struct convertData<std::string> {
+template <> struct convertTo<std::string> {
   static std::string from(const std::string &value) { return value; }
 };
 
-template <> struct convertData<const char *> {
+template <> struct convertTo<const char *> {
   static std::string from(const std::string &value) { return value; }
 };
 
-template <> struct convertData<float> {
+template <> struct convertTo<float> {
   static float from(const std::string &value) { return std::stof(value); }
 };
-template <> struct convertData<double> {
+template <> struct convertTo<double> {
   static double from(const std::string &value) { return std::stod(value); }
 };
 
-template <> struct convertData<int> {
+template <> struct convertTo<int> {
   static int from(const std::string &value) { return std::stoi(value); }
 };
 
-template <> struct convertData<bool> {
+template <> struct convertTo<bool> {
   static bool from(const std::string &value) {
     using namespace std::string_literals;
     return value == "1"s or value == "true"s or value == "True"s or
@@ -42,7 +42,8 @@ template <> struct convertData<bool> {
   }
 };
 
-} // namespace
+} // namespace strdataconv
+
 class Conf {
 public:
   // reads config from a the file of a given name
@@ -55,13 +56,13 @@ public:
       const char *val = std::getenv(key.c_str());
       if ( val ) {
         m_kvMap[key] = val;
-        return convertData<T>::from(val);
+        return strdataconv::convertTo<T>::from(val);
       }
       return def;
     } else {
       if (not has(key))
         return def;
-      return convertData<T>::from(m_kvMap.at(key));
+      return strdataconv::convertTo<T>::from(m_kvMap.at(key));
     }
   }
   bool has(const std::string &key) const {

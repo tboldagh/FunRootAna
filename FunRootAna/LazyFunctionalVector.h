@@ -1406,4 +1406,41 @@ namespace details {
 
 } // eof lfv namespace
 #undef AS_NEEDED
+
+
+
+/**
+ * Helper class enabling procssing of the Access objects alike the lazy container
+ * The tree is considered to be an infinite container (so some functions, that are anyways useless, are not available)
+ * Example:
+ * class MyData : public ROOTTreeAccess {...};
+ * TreeView<MyData> data( treePtr );
+ * data.filter(...).take(...).skip(...).foreach(...);
+ * For instance to simply count the elements passing the criteria:
+ * data.count( [](auto d){ return d... }); // predicate
+ * Typical use is though to just do: data.foreach( ...lambda... );
+ **/
+template<typename AccessDerivative>
+class AccessView : public lfv::FunctionalInterface<AccessView<AccessDerivative>, AccessDerivative> {
+public:
+	using interface = lfv::FunctionalInterface<AccessView<AccessDerivative>, AccessDerivative>;
+	static constexpr bool is_permanent = false;
+	static constexpr bool is_finite = false;
+
+	AccessView(AccessDerivative& t)
+		: interface(*this),
+		m_access(t) {}
+
+	template<typename F>
+	void foreach_imp(F f, lfv::details::foreach_instructions = {}) const {
+		for (; m_access.get(); ++m_access.get()) { // this is what the wrapped class needs to provide
+			const bool go = f(m_access.get());
+			if (not go) break;
+		}
+	}
+
+private:
+	std::reference_wrapper<AccessDerivative> m_access;
+
+};
 #endif

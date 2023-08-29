@@ -93,7 +93,8 @@ public:
         //for (PointsTreeROOTTreeAccess event(t); event; ++event) 
 
         // or via functional collection interface
-        TreeView<PointsTreeROOTTreeAccess> events(t); // the tree wrapped in an functional container
+        PointsTreeROOTTreeAccess acc(t);
+        AccessView<PointsTreeROOTTreeAccess> events(acc); // the tree wrapped in an functional container
         using std::chrono::high_resolution_clock;
         using std::chrono::duration_cast;
         using std::chrono::duration;
@@ -102,9 +103,10 @@ public:
 
         events
         .take(2000) // take only first 1000 events
-        .filter( [&](auto event){ return event.current() %2 == 1; }) // every second event (beause why not)
+        .filter( [&](auto event){ return event.current() %2 == 1; }) // every second event (because why not)
         .foreach([&](auto event) {
            // analyse content of the data entry
+            std::cerr << ".";
             const int category = event.template get<int>("category");
             category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram with a plain , (creation done on demand and only once)
             auto category_view = event.template branch_view<int>("category");

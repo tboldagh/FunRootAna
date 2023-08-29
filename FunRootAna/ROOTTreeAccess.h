@@ -144,40 +144,7 @@ private:
 #define FBR(_type,_brname)     fillbr<std::vector<_type>> _brname( m_tree, #_brname , m_current);
 #define COND_FBR(_type,_brname)     fillbr<std::vector<_type>> _brname( m_tree, #_brname , m_current, true);
 
-/**
- * Helper class enabling procssing of the wrapped tree alike the lazy container
- * The tree is considered to be an infinite container (so some functions, that are anyways useless, are not available)
- * Example:
- * class MyData : public ROOTTreeAccess {...};
- * TreeView<MyData> data( treePtr );
- * data.filter(...).take(...).skip(...).foreach(...);
- * For instance to simply count the elements passing the criteria:
- * data.count( [](auto d){ return d... }); // predicate
- * Typical use is though to just do: data.foreach( ...lambda... );
- **/
-template<typename ROOTTreeAccessDerivative>
-class TreeView : public lfv::FunctionalInterface<TreeView<ROOTTreeAccessDerivative>, ROOTTreeAccessDerivative> {
-public:
-	using interface = lfv::FunctionalInterface<TreeView<ROOTTreeAccessDerivative>, ROOTTreeAccessDerivative>;
-	static constexpr bool is_permanent = false;
-	static constexpr bool is_finite = false;
 
-	TreeView(TTree* t)
-		: interface(*this),
-		m_access(t) {}
-
-	template<typename F>
-	void foreach_imp(F f, lfv::details::foreach_instructions = {}) const {
-		for (; m_access; ++m_access) {
-			const bool go = f(m_access);
-			if (not go) break;
-		}
-	}
-
-private:
-	mutable ROOTTreeAccessDerivative m_access;
-
-};
 
 
 /**
