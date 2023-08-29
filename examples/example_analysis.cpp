@@ -88,18 +88,18 @@ public:
         assure(f != nullptr, "Input file");
         TTree* t = (TTree*)f->Get("points");
         assure(t != nullptr, "Tree" );
-
-        // a simple loop
-        //for (PointsTreeROOTTreeAccess event(t); event; ++event) 
-
-        // or via functional collection interface
-        PointsTreeROOTTreeAccess acc(t);
-        AccessView<PointsTreeROOTTreeAccess> events(acc); // the tree wrapped in an functional container
         using std::chrono::high_resolution_clock;
         using std::chrono::duration_cast;
         using std::chrono::duration;
         using std::chrono::milliseconds;
         auto t1 = high_resolution_clock::now();
+
+        // a simple loop
+        // for (PointsTreeROOTTreeAccess event(t); event; ++event) {
+
+        // or via functional collection interface
+        PointsTreeROOTTreeAccess acc(t);
+        AccessView<PointsTreeROOTTreeAccess> events(acc); // the tree wrapped in an functional container
 
         events
         .take(2000) // take only first 1000 events
@@ -133,7 +133,8 @@ public:
             points.filter(F(_.z > 1.0) ).map( F(_.rho_xy())) >> HIST1("rho", ";rho_{z>1}", 100, 0, 10); // another example
             points.map( F( std::make_pair(_.r(), _.z))) >>  HIST2("xy/r_z", ";x;y", 30, 0, 3, 20, 0, 15); // and 2D hist
 
-        });
+        }
+        );
         auto t2 = high_resolution_clock::now();
         duration<double, std::milli> spent = t2 - t1;
         report("USED: " + std::to_string(spent.count()) +" milliseconds");

@@ -110,7 +110,7 @@ public:
 	template<typename T, typename std::enable_if<not std::is_pod<T>::value, int>::type = 0>
 	auto branch_view(const std::string& name) {
 		auto br = fillbr<T>(m_tree, name, m_current);
-		return lfv::lazy_view(*(br.data));
+		return lfv::OwningView(*(br.data));
 	}
 
 	template<typename T, typename std::enable_if<std::is_pod<T>::value, int>::type = 0 >
