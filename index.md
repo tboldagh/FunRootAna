@@ -302,10 +302,18 @@ When the name contains `/` i.e. `A/x` histograms `x` end up in subdirectory `A` 
 ## Configuration of the analysis 
 Ach, everyone needs it at some point. So there it is, a simle helper `Conf` class that allows to:
 * read the config file of the form: `property=value` (# as first character are considered comments),
-* read environmental variables if config file is an empty string (i.e. before running the code you would do `export prperty=value`),
+* read environmental variables if config file is an empty string (i.e. before running the code you would do `export property=value`),
 * allows to check if the property is available with method `has("minx")`,
 * and get the property with `get` like this: `conf.get<float>("minx", 0.1)` which means: take the `minx` from the config, convert it to `float` before handing to me, but if missing use the value `0.1`.
-* Store the config in the output file in a form of metadata tree, i.e. key-value pairs (both are just strings).
+* Store the config in the output file in a form of metadata tree, i.e. key-value pairs (both are just strings). Additional information of this form can be saved conveniently in this way:
+```c++
+config.saveAsMetadata("file.root");
+// or with an additional info 
+config.saveAsMetadata("file.root",
+                      {{"extra1","value1"},
+                      {"extra2","value2"}});
+```
+
 ## Diagnostics 
 A trivial function `report` can be used to produce a message.
 More useful is the `assure` function that will check if the first argument evaluates to `true` and if not will complain & end the execution via exception. 
