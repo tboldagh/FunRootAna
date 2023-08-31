@@ -13,7 +13,7 @@ Let's see how.
 
 # Teaser
 The example illustrating the concept is based on analysis of the plain ROOT Tree. A more complex content can be also analysed (and is typically equally easy).
-Imagine you have the Tree with the info about some objects decomposed into 3 `std::vectors<float>`.
+Imagine you have the ROOT Tree with the info about some objects decomposed into 3 `std::vectors<float>`.
 Say these are `x,y,z` coordinates of some measurements. In the TTree the measurements are grouped in so called *events* (think cycles of measurements).  
 There is also an integer quantity indicating the event is in a category `category` - there is 5 of them, indexed from 0-4.
 
@@ -23,7 +23,7 @@ So the stage is set.
 You can start the analysis with some basic plots:
 
 ```c++
-for (Access event(t); event; ++event) {
+for (ROOTTreeAccess event(t); event; ++event) {
     auto category = event.get<int>("category");
     category >> HIST1("categories_count", ";category;count of events", 5, -0.5, 4.5); // create & fill the histogram, (creation done on demand and only once, the >> operator is responsible for filling)
     const auto xVec = event.get<std::vector<float>>("x"); // get vector of data & wrap it into functional style container
@@ -42,7 +42,7 @@ for (Access event(t); event; ++event) {
 }
 ```
 
-As a result of running that code over the TTree, histograms are made and saved in the output file. See complete code in example_analysis.cpp in examples dir.
+As a result of running that code over the TTree, histograms are made. See complete code in example_analysis.cpp in examples dir. It includes also oneliner to save the histograms in an output file.
 
 
 
@@ -62,11 +62,11 @@ struct Point{
 ```
 Most convenient way to extract a vector of those from the tree is to subclass the `Access` class and add a method that reconstructs it.
 ```c++
-  class MyDataAccess : public Access {
+  class MyDataAccess : public ROOTTreeAccess {
       std::vector<Point> getPoints();
   };
 ```
-For how to do it best check the `Access.cpp` source and/or example_analysis (there are better and worse implementations - the difference begin memory handling).
+For how to do it best check the `ROOTTreeAccess.cpp` source and/or example_analysis (there are better and worse implementations - the difference begin memory handling).
 
 
 How do we profit from the fact the fact that we have objects. Is it still single line per histogram? Let's see:
@@ -82,6 +82,44 @@ How do we profit from the fact the fact that we have objects. Is it still single
         }
         // see complete code in examples/example_analysis.cpp
 ```
+
+Sometimes making an intermediate `vector<T>` may be expensive. Because the vector is large or because the T is large. 
+An alternative could be to construct the `T` as we iterate over the data. 
+Technically this is achieved by keeping the content in separate containers and by proving a helper that looks like a `collection of T` 
+whereas underneath the objects are created on demand. The file `examples/example_analysis.cpp` contains an example of implementing this approach.
+
+# CSV files
+Similarly to ROOT trees tha data from CSV files can be read. 
+Let's say the data ia available in a file: `data.csv` with the following content corresponding to `x,y,z,label` quantities.
+```
+2.5,9.87,87.2,ready
+2.5,1.87,0.34,to check
+... and so on
+```
+It can be loaded similarly to the ROOT tree:
+```c++
+auto stream = std::ifstream("data.csv");
+using namesapce CSV;
+CSVAccess acc( Record(Item("x"), Skip(), Item("z"), Skip()), stream); // only ever care about x and z
+for ( ; acc; ++acc ) {
+  acc.get<int>("x").value() >> HIST1(...); // the get method returns std::optional (to gently handle issues in decoding or missing fields)  
+}
+```
+When defining the `Record` a delimiter different than the `,` can be specified like this: `Record(';', Item("x"), ... )`.
+If the delimiter changes from field to field this construct can be used: `Record(Item("x", ';'), Item("y", ';'), Item("label"))`. 
+That would work for CSV file formatted like this: 
+```
+1,2;hello
+3,4;there
+...
+```
+
+The fields in the record can be accessed with an index with two syntaxes: 
+`acc.get<int>(0)` for the first element. 
+If the fields location is fixed a compile time index can be provided in ths way:
+`acc.get<0, int>()`. It is the fastest way.
+The conversion happens only at the access so in case data filtering is involved it can be spared. 
+It also means that one data field can be accessed as few different data types. E.g. `acc.get<std::string>("x")` or `acc.get<unsigned>("x")` or `acc.get<double>("x")` are all valid uses.
 
 # The functional container
 A concise set of transformations that get us from the data to the data summary (histogram in this case) is possible thanks to the Functional Vector wrappers.
@@ -177,10 +215,15 @@ auto step2 = lazy_view(step1).map(...).filter(...).take(...).stage(); // computa
 The result of stage is just a `std::vector`. If other containers are better suited, i.e. `std::list`  the call would look lie this: `...).stage<std::list>();`. This way you can generate sets or maps, whatever fits best.
 # TTree as a lazy collection
 
-The entries stored in the `TTree` can be considered as a functional collection as well. All typical transformations can then be applied to it. An example is shown below. It is advised however (for performance reason) to process the TTree only once. That is, to end the operations with the `foreach` that obtains a function processing the data stored in the tree.
+The entries stored in the `TTree` of `CSV` can be considered as a functional collection as well. All typical transformations can then be applied to it. An example is shown below. It is advised however (for performance reason) to process the TTree only once. That is, to end the operations with the `foreach` that obtains a function processing the data stored in the tree.
 Also the data available in tree branches is available using the same, functional, interface.
 ```c++
-        FunctionalAccess<PointsTreeAccess> events(t); // the tree wrapped in an functional container
+        ROOTTreeAccess acc(t);
+        AccessView events(acc); // the tree wrapped in an functional container
+
+        // or for CSV 
+        // CSVAccess acc(Record(...), stream);
+        // AccessView events(acc);
 
         events
         .take(2000) // take only first 1000 events
@@ -259,10 +302,10 @@ When the name contains `/` i.e. `A/x` histograms `x` end up in subdirectory `A` 
 ## Configuration of the analysis 
 Ach, everyone needs it at some point. So there it is, a simle helper `Conf` class that allows to:
 * read the config file of the form: `property=value` (# as first character are considered comments),
-* read environmental variables if config file is an empty string (i.e. before running you do `export prperty=value`),
+* read environmental variables if config file is an empty string (i.e. before running the code you would do `export prperty=value`),
 * allows to check if the property is available with method `has("minx")`,
 * and get the property with `get` like this: `conf.get<float>("minx", 0.1)` which means: take the `minx` from the config, convert it to `float` before handing to me, but if missing use the value `0.1`.
-The code above does not depend on this.
+* Store the config in the output file in a form of metadata tree, i.e. key-value pairs (both are just strings).
 ## Diagnostics 
 A trivial function `report` can be used to produce a message.
 More useful is the `assure` function that will check if the first argument evaluates to `true` and if not will complain & end the execution via exception. 
