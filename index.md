@@ -309,9 +309,12 @@ Ach, everyone needs it at some point. So there it is, a simle helper `Conf` clas
 ```c++
 config.saveAsMetadata("file.root");
 // or with an additional info 
-config.saveAsMetadata("file.root",
-                      {{"extra1","value1"},
-                      {"extra2","value2"}});
+std::map<std::string, std::string> extraInfo;
+extraInfo["inputFile"] = "....";
+extraInfo["jobStartTime"] = "....";
+extraInfo["jobTime"] = "....";
+
+config.saveAsMetadata("file.root", extraInfo);
 ```
 
 ## Diagnostics 
