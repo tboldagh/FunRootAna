@@ -2,9 +2,11 @@
 #include <fstream>
 #include <functional>
 #include <limits>
+#include <map>
 #include <optional>
 #include <sstream>
 #include <tuple>
+#include <vector>
 
 #include "Conf.h"
 namespace CSV {
@@ -13,11 +15,12 @@ namespace CSV {
 */
 class Item {
 public:
-  Item(std::string_view name, char delim = ',')
+  Item(const std::string& name, char delim = ',')
       : m_name(name), m_delim(delim) {}
   void setDelim(char d) { m_delim = d; }
   inline const std::string &name() const { return m_name; }
   template <typename T> inline std::optional<T> get() const {
+    if ("UNKNOWN" == m_name ) return {};
     try {
       return std::optional(strdataconv::convertTo<T>::from(m_str));
     } catch (const std::invalid_argument &) {
@@ -25,13 +28,12 @@ public:
     }
   }
 
-
   inline std::istream &load(std::istream &istr) {
     std::getline(istr, m_str, m_delim);
     return istr;
   }
-private:
 
+private:
   std::string m_name;
   std::string m_str;
   char m_delim;
@@ -57,6 +59,7 @@ public:
     }
     return istr;
   }
+
 private:
   size_t m_fields;
   char m_delim = ',';
@@ -69,10 +72,13 @@ private:
 template <typename... I> class Record {
 public:
   // record with predefined common delimeter (different from ,)
-  Record(char delim, I... items) : m_items(items...) { setDelim(delim); }
+  Record(char delim, I... items) : m_items(items...) {
+    setDelim(delim);
+    fillNamesMap();
+  }
 
   // when each item defines delimeter
-  Record(I... items) : m_items(items...) {}
+  Record(I... items) : m_items(items...) { fillNamesMap(); }
 
   size_t size() const { return sizeof...(I); }
 
@@ -85,17 +91,15 @@ public:
     return istr;
   }
 
-  template <size_t el = 0> const Item &get(std::string_view name) const {
-    if constexpr (el == sizeof...(I)) {
-    } else {
-      const auto &item = std::get<el>(m_items);
-      if (item.name() == name) {
-        return item;
-      }
-      return get<el + 1>(name);
+  std::istream &loadHeader(std::istream &istr) { return istr; }
+
+  template <size_t el = 0> const Item &get(const std::string& name) const {
+    auto iterator = m_nameToIndexMap.find(name);
+    if (iterator == m_nameToIndexMap.end()) {
+      const static Item unknown("UNKNOWN");
+      return unknown;
     }
-    const static Item unknown("UNKNOWN");
-    return unknown;
+    return get(iterator->second);
   }
 
   template <size_t el = 0> const Item &get(size_t index) const {
@@ -122,9 +126,20 @@ public:
     return unknown;
   }
 
+  bool ready() const { return true; }
+
 private:
   std::tuple<I...> m_items;
   const size_t m_size = sizeof...(I);
+  std::map<std::string, size_t> m_nameToIndexMap;
+
+  template <size_t el = 0> void fillNamesMap() {
+    if constexpr (el == sizeof...(I)) {
+    } else {
+      m_nameToIndexMap[std::get<el>(m_items).name()] = el;
+      fillNamesMap<el + 1>();
+    }
+  }
 
   template <size_t el = 0> void setDelim(char delim) {
     if constexpr (el == sizeof...(I)) {
@@ -136,30 +151,101 @@ private:
 };
 } // namespace CSV
 
-// the record that can be red from the file header
-// struct DynamicRecord {
-// };
-
-// // read the record
+// read the record
 template <typename... I>
 std::istream &operator>>(std::istream &istr, CSV::Record<I...> &r) {
   return r.load(istr);
 }
 
+namespace CSV {
+// the record that can be red from the file header
+class DynamicRecord {
+public:
+  DynamicRecord(char delim) : m_delim(delim) {}
+
+  std::istream &load(std::istream &istr) {
+    for (auto &i : m_items) {
+      i.load(istr);
+    }
+    return istr;
+  }
+
+  std::istream &loadHeader(std::istream& istr) {
+    std::string headerline;
+    std::getline(istr, headerline);
+    std::istringstream histr(headerline);
+    while (not histr.eof()) {
+      std::string name;
+      std::getline(histr, name, m_delim);
+      m_items.push_back(Item(name, m_delim));
+      m_nameToIndexMap.insert({name,m_items.size()-1});
+    }
+    return istr;
+  }
+
+  bool ready() const { return not m_items.empty(); }
+
+  const Item &get(size_t index) const {
+    if ( index < m_items.size() )
+      return m_items[index];
+    const static Item unknown("UNKNOWN");
+    return unknown;
+  }
+
+  const Item &get(const std::string& name) const {
+    auto iterator = m_nameToIndexMap.find(name);
+    if (iterator == m_nameToIndexMap.end()) {
+      const static Item unknown("UNKNOWN");
+      return unknown;
+    }
+    return get(iterator->second);
+  }
+
+private:
+  char m_delim;
+  std::vector<Item> m_items;
+  std::map<std::string, size_t> m_nameToIndexMap;
+};
+
+} // EOF namespace CSV
+
+// read the record
+std::istream &operator>>(std::istream &istr, CSV::DynamicRecord &r) {
+  return r.load(istr);
+}
+
+
 template <typename R> class CSVAccess {
 public:
+  /**
+   * @brief Construct a new CSVAccess object
+   *
+   * @param record - definition of the CSV columns structure
+   */
   CSVAccess(R record) : m_record(std::move(record)) {}
+  /**
+   * @brief Construct a new CSVAccess object
+   *
+   * @param record - definition of the CSV structure
+   * @param istr - open input stream
+   */
   CSVAccess(R record, std::istream &istr)
       : m_record(std::move(record)), m_istr(istr) {
+    m_record.loadHeader(istr);
     loadRecord();
   }
 
+  /**
+   * @brief point the reader to the stream
+   *
+   * @param istr open input stream
+   */
   void pointto(std::istream &istr) {
     m_istr = istr;
     loadRecord();
   }
 
-  template <typename T> std::optional<T> get(std::string_view name) const {
+  template <typename T> std::optional<T> get(const std::string& name) const {
     return m_record.get(name).template get<T>();
   }
 

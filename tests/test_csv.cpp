@@ -92,6 +92,7 @@ void test_access() {
         VALUE(acc.get<std::string>("label").has_value()) EXPECTED(true);
         VALUE(acc.get<std::string>("label").value()) EXPECTED(sdef[count]);
     }
+    VALUE(count) EXPECTED(3);
 }
 
 void test_view() {
@@ -111,6 +112,28 @@ void test_view() {
     VALUE(concat) EXPECTED("hellopeoplethere");
 }
 
+void test_dyamic() {
+    std::string s("x,d,label\n1,3.34,hello\n2,0.34,people\n3,1.34,there\n");
+    const auto xdef = std::vector<int>({1, 2, 3});
+    const auto ddef = std::vector<float>({3.34, 0.34, 1.34});
+    const auto sdef = std::vector<std::string>({"hello", "people", "there"});
+    std::istringstream i(s);
+    CSVAccess acc(DynamicRecord(','), i);
+
+    size_t count = 0;
+    for ( ; acc; ++acc, ++count) {
+        VALUE(acc.get<int>("x").has_value()) EXPECTED(true);
+        VALUE(acc.get<int>("x").value()) EXPECTED(xdef[count]);
+        VALUE(acc.get<float>("d").has_value()) EXPECTED(true);
+        VALUE(acc.get<float>("d").value()) EXPECTED(ddef[count]);
+        VALUE(acc.get<std::string>("label").has_value()) EXPECTED(true);
+        VALUE(acc.get<std::string>("label").value()) EXPECTED(sdef[count]);
+        VALUE(acc.get<std::string>("info").has_value()) EXPECTED(false);
+
+    }
+    VALUE(count) EXPECTED(3);
+}
+
 int main() {
         const int failed =
             SUITE(test_items) +
@@ -118,7 +141,8 @@ int main() {
             SUITE(test_record_access_by_index) +
             SUITE(test_skip) +
             SUITE(test_access) +
-            SUITE(test_view);
+            SUITE(test_view)+
+            SUITE(test_dyamic);
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;
 
