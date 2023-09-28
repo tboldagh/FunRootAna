@@ -583,24 +583,24 @@ public:
     template<typename F>
     void foreach_imp(F f, details::foreach_instructions how = {}) const {
         details::one_element_stack_container< compared_type > extremeValue;
-        details::one_element_stack_container< std::reference_wrapper<const value_type> > extremeElement;
+        details::one_element_stack_container< value_type > extremeElement;
 
         m_actual_container.foreach_imp([&extremeValue, &extremeElement, this](typename interface::argument_type el) {
             compared_type val = m_keyExtractor(el);
             if (extremeValue.empty()) {
                 extremeValue.insert(val);
-                extremeElement.insert(std::cref(el));
+                extremeElement.insert(el);
             }
             if ((m_logic == details::max_elements and val >= extremeValue.get())
                 or
                 (m_logic == details::min_elements and val < extremeValue.get())) {
                 extremeValue.replace(val);
-                extremeElement.replace(std::cref(el));
+                extremeElement.replace(el);
             }
             return true;
             }, how);
         if (not extremeElement.empty()) {
-            f(extremeElement.get().get());
+            f(extremeElement.get());
         }
     }
     MMView() = delete;

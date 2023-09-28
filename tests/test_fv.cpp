@@ -550,6 +550,10 @@ void test_ptr_view() {
     VALUE( cs ) EXPECTED( 24 );
     const auto fc = lvc.filter(F(*_ >10)).get();
     VALUE( *fc.value() ) EXPECTED( 15 );
+    auto min = lv.min( F(*_) ).get().value();
+    VALUE(min) EXPECTED(v.data()[2]);
+    auto absmin = lv.min( F(std::abs(*_)) ).get().value();
+    VALUE(absmin) EXPECTED(v.data()[0]);
 
 }
 
