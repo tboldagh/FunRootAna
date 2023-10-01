@@ -34,20 +34,20 @@ struct HistContext {
   static std::string name( const char* n ) {
     return s_latest->current()+n;
   }
-  static const std::string current() {
+  static std::string current() {
     return  s_latest->text();
   }
 
-  static const size_t currentHash() {
+  static size_t currentHash() {
     return  s_latest->m_hash;
   }
 
 
-  static const bool sameAsCurrent( size_t contextHash) {
+  static bool sameAsCurrent( size_t contextHash) {
     return contextHash == s_latest->m_hash;
   }
 
-  inline const std::string text() const {
+  inline std::string text() const {
     return  prev() != nullptr ? prev()->text()+std::string(m_text) : std::string(m_text);
   }
   inline const HistContext* prev() const {
