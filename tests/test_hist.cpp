@@ -39,6 +39,12 @@ public:
                 HIST1("s1", ";x;y", 20, 0, 2);
             }
         }
+
+        GRAPH("data1", ";x;y");
+        {
+            HCONTEXT("dir/");
+            GRAPH("data2", ";x;y");
+        }
     }
     void test_fill() {
         auto h1 = HIST1("fh1", ";x;y", 3, 0, 3);
@@ -189,6 +195,18 @@ public:
         v1.group(2,1).map( F(_.sum()) )  >> fromgroup;
         VALUE( (unsigned)fromgroup.GetEntries() ) EXPECTED( v1.size() - 1 );
     }
+
+    void test_graphs() {
+        std::vector<std::pair<float, double>> data1({{0.1, 0.2},{0.2, 0.1}});
+        auto g1 = GRAPH("data1", ";x;y");
+        lazy_view(data1) >> g1;
+        VALUE(g1.GetN()) EXPECTED (2);
+
+        std::vector<std::tuple<float, double, double>> data2({{0.1, 0.2, 8},{0.2, 0.1, 0.7}});
+        auto g2 = GRAPH2("data2", ";x;y");
+        lazy_view(data2) >> g2;
+        VALUE(g2.GetN()) EXPECTED (2);
+    }
 };
 
 void test_create() {
@@ -248,6 +266,11 @@ void test_create() {
     VALUE(((TH1D*)(f->Get("scope1_s1")))->GetNbinsX()) EXPECTED(2);
     VALUE(((TH1D*)(f->Get("scope1_scope2_s1")))->GetNbinsX()) EXPECTED(20);
 
+    VALUE(f->Get("data1")) NOT_EXPECTED(nullptr);
+    VALUE(f->Get("data1")->ClassName()) NOT_EXPECTED("TGraph");
+    VALUE(f->Get("dir/data2")) NOT_EXPECTED(nullptr);
+    VALUE(f->Get("dir/data2")->ClassName()) NOT_EXPECTED("TGraph");
+
     gSystem->Unlink(fname.c_str());
 }
 
@@ -274,12 +297,19 @@ void test_joins_fill() {
      t1.test_joins_fill();
 }
 
+void test_graph() {
+    HistogrammingClassTest t1;
+    t1.test_graphs();
+}
+
+
 int main() {
     const int failed = SUITE(test_create)
         + SUITE(test_fill)
         + SUITE(test_eager_fill)
         + SUITE(test_option_fill)
-        + SUITE(test_joins_fill);
+        + SUITE(test_joins_fill)
+        + SUITE(test_graph);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;

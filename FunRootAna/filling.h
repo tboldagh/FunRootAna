@@ -7,6 +7,9 @@
 
 #include <TH1.h>
 #include <TH2.h>
+#include <TGraph.h>
+#include <TGraph2D.h>
+
 #include <TEfficiency.h>
 #include <TProfile.h>
 #include "Weights.h"
@@ -81,6 +84,24 @@ const std::string& operator >> ( const std::string& v, TH1 & h) {
 template<typename T, typename U>
 const std::pair<T,U>& operator >> ( const std::pair<T,U>& v, TH2 & h) {
     h.Fill(v.first, v.second);
+    return v;
+}
+
+template<typename T, typename U>
+const std::pair<T,U>& operator >> ( const std::pair<T,U>& v, TGraph & g) {
+    g.AddPoint(v.first, v.second);
+    return v;
+}
+
+template<typename T, typename U, typename V>
+const triple<T,U,V>& operator >> ( const triple<T,U,V>& v, TGraph2D & g) {
+    g.AddPoint(v.first, v.second, v.third);
+    return v;
+}
+
+template<typename T, typename U, typename V>
+const std::tuple<T,U,V>& operator >> ( const std::tuple<T,U,V>& v, TGraph2D & g) {
+    g.AddPoint(std::get<0>(v), std::get<1>(v), std::get<2>(v));
     return v;
 }
 
@@ -283,6 +304,17 @@ const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterfac
     return v;
 }
 
+template<typename A, typename T >
+const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterface<A,T>& v, TGraph & h) {
+    v.foreach( [&h]( const auto& el){ el >> h; } );
+    return v;
+}
+
+template<typename A, typename T >
+const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterface<A,T>& v, TGraph2D & h) {
+    v.foreach( [&h]( const auto& el){ el >> h; } );
+    return v;
+}
 
 
 // TODO code remaining fills or replaec by templates
