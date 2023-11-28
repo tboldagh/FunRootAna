@@ -12,6 +12,7 @@
 
 #include <TEfficiency.h>
 #include <TProfile.h>
+#include <TProfile2D.h>
 #include "Weights.h"
 #include "HIST.h"
 
@@ -149,6 +150,12 @@ const std::pair<std::optional<T>, U>& operator >> (const std::pair<std::optional
 template<typename T, typename U>
 const std::pair<T,U>& operator >> ( const std::pair<T,U>& v, TProfile & h) {
     h.Fill(v.first, v.second);
+    return v;
+}
+
+template<typename T, typename U, typename V>
+const triple<T,U,V>& operator >> ( const triple<T,U, V>& v, TProfile2D & h) {
+    h.Fill(v.first, v.second, v.third);
     return v;
 }
 
@@ -312,6 +319,13 @@ const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterfac
 
 template<typename A, typename T >
 const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterface<A,T>& v, TGraph2D & h) {
+    v.foreach( [&h]( const auto& el){ el >> h; } );
+    return v;
+}
+
+
+template<typename A, typename T >
+const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterface<A,T>& v, TProfile2D & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
     return v;
 }

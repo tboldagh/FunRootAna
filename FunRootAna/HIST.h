@@ -13,6 +13,7 @@
 #include "TH2.h"
 #include "TH3.h"
 #include "TProfile.h"
+#include "TProfile2D.h"
 #include "TGraph.h"
 
 #include "LazyFunctionalVector.h"
@@ -179,6 +180,20 @@ class HandyHists {
     return *cache.back().second; \
   }())
 
+#define PROF2( __NAME,__TITLE,__XBINS,__XMIN,__XMAX,__YBINS,__YMIN,__YMAX ) \
+  ([this]() -> TProfile2D& { \
+    static std::vector< std::pair<size_t, TProfile2D*>> cache; \
+    for ( auto & [contextHash, histogram]: cache) \
+      if ( HistContext::sameAsCurrent(contextHash) ) return *histogram; \
+    assure(__XMIN < __XMAX, "Bin limits ordered incorrectly in "s+__NAME, true); \
+    assure(__YMIN < __YMAX, "Bin Y limits ordered incorrectly in "s+__NAME, true); \
+    cache.emplace_back( HistContext::currentHash() , this->hreg ( new TProfile2D(HistContext::name(__NAME).c_str(),__TITLE,__XBINS,__XMIN,__XMAX,__YBINS,__YMIN,__YMAX))); \
+    static std::string name = __NAME; \
+    assure( name.empty() or name == __NAME, std::string("Profile2D defined in the same line can't be different, use HCONTEXT instead, issue in: ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
+    return *cache.back().second; \
+  }())
+
+
 #define PROF1V( __NAME,__TITLE,__VEC ) \
   ([this]() -> TProfile& { \
     static std::vector< std::pair<size_t, TProfile*>> cache; \
@@ -187,6 +202,18 @@ class HandyHists {
     cache.emplace_back( HistContext::currentHash(),  this->profreg ( new TProfile(HistContext::name(__NAME).c_str(),__TITLE,__VEC.size()-1,__VEC.data()))); \
     static std::string name = __NAME; \
     assure( name.empty() or name == __NAME, std::string("Histograms defined in the same line can't be different, use HCONTEXT instead, issue in: ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
+    return *cache.back().second; \
+  }())
+
+#define PROF2V( __NAME,__TITLE,__VECX,__VECY ) \
+  ([this]() -> TH1& { \
+    static std::vector< std::pair<size_t, TProfile2D*>> cache; \
+    for ( auto & [contextHash, histogram]: cache) \
+      if ( HistContext::sameAsCurrent(contextHash) ) return *histogram; \
+    cache.emplace_back( HistContext::currentHash(), this->hreg ( new TProfile2D( HistContext::name(__NAME).c_str(),__TITLE,__VECX.size()-1,__VECX.data(),__VECY.size()-1,__VECY.data())) ); \
+    static std::string name; \
+    assure( name.empty() or name == __NAME, std::string("TProfile2D defined in the same line can't be different, use HCONTEXT instead, issue in: ") + __FILE__ + ":" + std::to_string(__LINE__), true); \
+    name = __NAME; \
     return *cache.back().second; \
   }())
 

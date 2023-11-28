@@ -31,6 +31,9 @@ public:
 
         PROF1("p1", ";x;y", 10, 0, 1);
         PROF1V("p2", ";x;y", std::vector<double>({ 0, 0.5, 1, 3, 10, 20 }));
+        PROF2("p3", ";x;y;z", 10, 0, 10, 20, -2, 2);
+        PROF2V("p4", ";x;y;z", std::vector<double>({ 0, 0.5, 1, 3, 10, 20 }), std::vector<double>({ -100, 0, 200, 1000 }));
+
         {
             HCONTEXT("scope1_");
             HIST1("s1", ";x;y", 2, 0, 2);
@@ -118,9 +121,6 @@ public:
         auto p = PROF1("prof", "", 2, 0, 2);
         std::make_pair(0.2, 0.3) >> p;
         make_triple(1.1, 0.3, 1.5) >> p;
-
-
-
     }
     template<typename V>
     void test_vec_fill( const V& vec) {
@@ -260,6 +260,9 @@ void test_create() {
     VALUE(f->Get("p1")) NOT_EXPECTED(nullptr);
     VALUE(s(f->Get("p1")->ClassName())) EXPECTED("TProfile");
     VALUE(f->Get("p2")) NOT_EXPECTED(nullptr);
+
+    VALUE(s(f->Get("p3")->ClassName())) EXPECTED("TProfile2D");
+    VALUE(f->Get("p4")) NOT_EXPECTED(nullptr);
 
     VALUE(f->Get("scope1_s1")) NOT_EXPECTED(nullptr);
     VALUE(f->Get("scope1_scope2_s1")) NOT_EXPECTED(nullptr);
