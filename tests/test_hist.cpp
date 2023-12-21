@@ -197,6 +197,7 @@ public:
     }
 
     void test_graphs() {
+        #ifdef ALLOW_FILLING_TGRAPH
         std::vector<std::pair<float, double>> data1({{0.1, 0.2},{0.2, 0.1}});
         auto g1 = GRAPH("data1", ";x;y");
         lazy_view(data1) >> g1;
@@ -206,6 +207,7 @@ public:
         auto g2 = GRAPH2("data2", ";x;y");
         lazy_view(data2) >> g2;
         VALUE(g2.GetN()) EXPECTED (2);
+        #endif
     }
 };
 

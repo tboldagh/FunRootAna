@@ -7,8 +7,11 @@
 
 #include <TH1.h>
 #include <TH2.h>
+#if ROOT_VERSION_CODE >= ROOT_VERSION(6,26,6)
 #include <TGraph.h>
 #include <TGraph2D.h>
+// #define ALLOW_FILLING_TGRAPH
+#endif
 
 #include <TEfficiency.h>
 #include <TProfile.h>
@@ -87,7 +90,7 @@ const std::pair<T,U>& operator >> ( const std::pair<T,U>& v, TH2 & h) {
     h.Fill(v.first, v.second);
     return v;
 }
-
+#ifdef ALLOW_FILLING_TGRAPH
 template<typename T, typename U>
 const std::pair<T,U>& operator >> ( const std::pair<T,U>& v, TGraph & g) {
     g.AddPoint(v.first, v.second);
@@ -105,6 +108,7 @@ const std::tuple<T,U,V>& operator >> ( const std::tuple<T,U,V>& v, TGraph2D & g)
     g.AddPoint(std::get<0>(v), std::get<1>(v), std::get<2>(v));
     return v;
 }
+#endif 
 
 template<typename T, typename U>
 const std::pair<std::optional<T>, std::optional<U>>& operator >> (const std::pair<std::optional<T>, std::optional<U>>& v, TH2& h ) {
@@ -310,7 +314,7 @@ const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterfac
     v.foreach( [&h]( const auto& el){ el >> h; } );
     return v;
 }
-
+#ifdef ALLOW_FILLING_TGRAPH
 template<typename A, typename T >
 const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterface<A,T>& v, TGraph & h) {
     v.foreach( [&h]( const auto& el){ el >> h; } );
@@ -322,7 +326,7 @@ const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterfac
     v.foreach( [&h]( const auto& el){ el >> h; } );
     return v;
 }
-
+#endif
 
 template<typename A, typename T >
 const lfv::FunctionalInterface<A,T>& operator >> ( const lfv::FunctionalInterface<A,T>& v, TProfile2D & h) {
