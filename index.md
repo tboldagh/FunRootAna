@@ -194,7 +194,7 @@ Another strategy can be used in this case. That is *lazy* evaluation. In this ap
 Instead, the *recipes* of how to transform the data when it will be needed are kept in these intermediate objects. 
 This functionality is provided by several classes residing in LazyFunctionalVector _(still under some development)_.
 You can switch between one or the other implementation quite conveniently by just changing the include file which you use and rename `wrap` into `lazy_view`. An important difference though is that the lazy containers do not manage memory, that is they avoid copying the data and thus are significantly faster. But you need to be aware about the data lifetime. If in doubt, you can always `stage` the data and then view it again.
-In general the lazy vector beats the eager one in terms of performance _(an effort to optimise both implementation is ongoing)_.
+In general the lazy vector beats the eager one in terms of performance.
 
 
 The depth of the transformations in the lazy container are unlimited. It may be thus reasonable to construct the transformation in steps:
@@ -254,7 +254,7 @@ All of this has to happen in one statement. `HandyHists` class helps with that. 
 
 ## Operator `>>` for histograms filling
 In the header `filling.h` a bunch of `>>` operators are defined to facilitate easy insertions of the data from functional containers and PODs into histograms.
-Histograms can be filled with their respective API however for syntactical clarity a set of operators `>>` is provided. Examples above illustrate how it can be used. In summary the value on the left side of `>>` can be either, single value, container of values or the  `std::optional`. For single value only one filling operation occur, if the functional container precedes the `>>` all the data in the container will be entered in the histogram. When the std::optional is used, the fill operation occurs only when there is a value in it. 
+Histograms can be filled with their respective API however for syntactical clarity a set of operators `>>` is provided. Examples above illustrate how it can be used. In summary the value on the left side of `>>` can be either, single value, container of values or the  `std::optional`. For single value only one filling operation occur, if the functional container precedes the `>>` all the data in the container will be entered in the histogram. When the std::optional is used, the fill operation occurs only when there is a value in it. For 2/3-dimensional histograms or weighted histograms the values on the left can be std::pairs/std::tuples or std::array. E.g. to insert to a 2D histogram the pair of values is needed and it can be provided as `std::make_pair(a,b) >> hist;` or `std::make_tuple(a,b) >> hist;` or `std::array<2, float>({a, b}) >> hist;`. The same applies to filling from containers, i.e. each element needs to be mapped to a pair-like type.
 
 
 ### Filling with weights
@@ -265,7 +265,7 @@ To fill 1D histogram either the scalars or pairs of values can be used. In the l
   for ( auto el: v1 ) {
     HIST2(...).Fill(el.x(), el.y());
   }
-  v1.map(F(make_triple(_.x(), _.y(), _.weight()))) >> HIST2(...); // has the same meaning as
+  v1.map(F(make_tuple(_.x(), _.y(), _.weight()))) >> HIST2(...); // has the same meaning as
   for ( auto el: v1 ) {
     HIST2(...).Fill(el.x(), el.y(), el.weigh());
   }
