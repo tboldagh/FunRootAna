@@ -3,6 +3,9 @@
 // Distributed under the MIT License
 // (See accompanying file LICENSE file)
 
+#include "array"
+#include "tuple"
+
 #include "Testing.h"
 #include "TFile.h"
 #include "TSystem.h"
@@ -75,13 +78,14 @@ public:
         std::make_pair(0.5, 1.5) >> h2;
         make_triple(2.5, 1.5, 2.7) >> h2;
         std::make_tuple(2.5, 1.5, 0.1) >> h2;
+        std::array<float, 3>({2.5, 1.5, 0.1}) >> h2;
 
-        VALUE(h2.GetEntries()) EXPECTED (7);
+        VALUE(h2.GetEntries()) EXPECTED (8);
         VALUE(h2.GetBinContent(1, 1)) EXPECTED (2);
         VALUE(h2.GetBinContent(1, 2)) EXPECTED (1);
         VALUE(h2.GetBinContent(2, 2)) EXPECTED (0.2);
         VALUE(h2.GetBinContent(3, 3)) EXPECTED (0.5);
-        VALUE(h2.GetBinContent(3, 2)) EXPECTED (2.8); // sum of weights 2.7 +0.1
+        VALUE(h2.GetBinContent(3, 2)) EXPECTED (2.9); // sum of weights 2.7 +0.1 + 0.1
 
 
         auto h3 = HIST3("fh3", ";x;y;z", 3, 0, 3, 3, 0, 3, 4, -1, 1);
@@ -89,8 +93,10 @@ public:
         make_triple(1.5, 0.1, -0.9) >> h3;
         std::make_tuple(1.5, 0.1, -0.9) >> h3;
         std::make_tuple(1.5, 0.1, -0.9, 3.0) >> h3; // weighted fill
+        std::array<float, 3>({2.5, 1.5, 0.1}) >> h3;
+        std::array<float, 4>({2.5, 1.5, 0.1, 0.3}) >> h3; // weighted fill
 
-        VALUE( h3.GetEntries() ) EXPECTED ( 4 );
+        VALUE( h3.GetEntries() ) EXPECTED ( 6 );
         VALUE( h3.GetBinContent(1, 1, 4)) EXPECTED (1);
         VALUE( h3.GetBinContent(2, 1, 1)) EXPECTED (5); //
 
@@ -122,6 +128,7 @@ public:
         std::make_pair(0.2, 0.3) >> p;
         make_triple(1.1, 0.3, 1.5) >> p;
     }
+
     template<typename V>
     void test_vec_fill( const V& vec) {
         auto h1 = HIST1("eh1", ";x;y", 4, 0, 1);
@@ -140,6 +147,7 @@ public:
         auto h3 = HIST2("eh3", ";x;y", 4, 0, 1, 4, 0, 1);
         vec.map(F( std::make_pair(_, 1.5))) >> h3;
         vec.map(F( make_triple(_, 1.5, 0.5))) >> h3;
+        vec.map(F( std::make_tuple(_, 1.5, 0.5))) >> h3;
 
         auto ef = EFF1("eff", "", 2, 0, 2);
         vec.map(F( std::make_pair(_>1, 1.5))) >> ef;
@@ -149,13 +157,6 @@ public:
         vec.map(F( std::make_pair(_, 1.5))) >> p;
         vec.map(F( make_triple(_, 1.5, 0.5))) >> p;
     }
-
-    void test_eager_fill()  {
-        auto v1 = wrap(std::vector<float>({-1, -0.2, 0.5, 0.2, 1.5, 0.7}));
-        test_vec_fill(v1);
-
-    }
-
 
     void test_lazy_fill()  {
         std::vector<float> data({-1, -0.2, 0.5, 0.2, 1.5, 0.7});
@@ -286,11 +287,6 @@ void test_fill() {
      t1.test_fill();
 }
 
-void test_eager_fill() {
-     HistogrammingClassTest t1;
-     t1.test_eager_fill();
-}
-
 void test_option_fill() {
      HistogrammingClassTest t1;
      t1.test_option_fill();
@@ -311,7 +307,6 @@ void test_graph() {
 int main() {
     const int failed = SUITE(test_create)
         + SUITE(test_fill)
-        + SUITE(test_eager_fill)
         + SUITE(test_option_fill)
         + SUITE(test_joins_fill)
         + SUITE(test_graph);
