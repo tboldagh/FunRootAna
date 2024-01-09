@@ -123,6 +123,7 @@ public:
         const value_type>::type;
     using const_reference_type = const value_type&;
     // optimal type to pass around
+    // using argument_type = const value_type&;
     using argument_type = typename std::conditional<std::is_pointer<Stored>::value,
         const_value_type,
         const_reference_type>::type;
@@ -936,9 +937,9 @@ private:
 };
 
 template<typename Container1, typename Container2>
-class ZipView : public FunctionalInterface<ZipView<Container1, Container2>, typename std::pair<const typename Container1::value_type, const typename Container2::value_type> > {
+class ZipView : public FunctionalInterface<ZipView<Container1, Container2>, typename std::pair<typename Container1::interface::const_value_type, typename Container2::interface::const_value_type> > {
 public:
-    using interface = FunctionalInterface<ZipView<Container1, Container2>, typename std::pair<const typename Container1::value_type, const typename Container2::value_type> >;
+    using interface = FunctionalInterface<ZipView<Container1, Container2>, typename std::pair<typename Container1::interface::const_value_type, typename Container2::interface::const_value_type> >;
     using value_type = typename interface::value_type;
     static constexpr bool is_permanent = Container1::is_permanent && Container2::is_permanent;
     static constexpr bool is_finite = Container1::is_finite or Container2::is_finite;
@@ -956,9 +957,9 @@ public:
         if (details::has_fast_element_access_tag<Container2>::value) {
             m_foreach_imp_provider1.foreach_imp([f, &index, this](typename Container1::argument_type el1) {
                 auto el2_option = m_foreach_imp_provider2.element_at(index);
-                if (el2_option.has_value() == false) // reached end cof container 2
+                if (el2_option.has_value() == false) // reached end of container 2
                     return false;
-                const bool go = f(std::pair<typename Container1::const_reference_type, typename Container2::const_reference_type>(el1, el2_option.value()));
+                const bool go = f(std::pair<typename Container1::interface::argument_type, typename Container2::interface::argument_type>(el1, el2_option.value()));
                 if (not go)
                     return false;
                 index++;
@@ -966,11 +967,11 @@ public:
                 }, how);
         }
         else {
-            m_foreach_imp_provider2.foreach_imp([f, &index, this](typename Container2::const_reference_type el2) {
+            m_foreach_imp_provider2.foreach_imp([f, &index, this](typename Container2::argument_type el2) {
                 auto el1_option = m_foreach_imp_provider1.element_at(index);
                 if (el1_option.has_value() == false)
                     return false;
-                const bool go = f(std::pair<typename Container1::const_reference_type, typename Container2::value_type>(el1_option.value(), el2));
+                const bool go = f(std::pair<typename Container1::interface::argument_type, typename Container2::interface::argument_type>(el1_option.value(), el2));
                 if (not go)
                     return false;
                 index++;
@@ -985,9 +986,9 @@ private:
 
 
 template<typename Container1, typename Container2>
-class CartesianView : public FunctionalInterface<CartesianView<Container1, Container2>, typename std::pair<const typename Container1::value_type&, const typename Container2::value_type&> > {
+class CartesianView : public FunctionalInterface<CartesianView<Container1, Container2>, typename std::pair<typename Container1::interface::const_value_type, typename Container2::interface::const_value_type> > {
 public:
-    using interface = FunctionalInterface<CartesianView<Container1, Container2>, typename std::pair<const typename Container1::value_type&, const typename Container2::value_type&> >;
+    using interface = FunctionalInterface<CartesianView<Container1, Container2>, typename std::pair<typename Container1::interface::const_value_type, typename Container2::interface::const_value_type> >;
     using value_type = typename interface::value_type;
     static constexpr bool is_permanent = false;
     static_assert(Container1::is_finite&& Container2::is_finite, "Cartesian product makes sense only for finite containers");
@@ -1001,9 +1002,9 @@ public:
     template<typename F>
     void foreach_imp(F f, details::foreach_instructions how = {}) const {
         bool can_go = true;
-        m_foreach_imp_provider1.foreach_imp([f, this, how, &can_go](typename Container1::const_reference_type el1) {
-            m_foreach_imp_provider2.foreach_imp([f, el1, &can_go](typename Container2::const_reference_type el2) {
-                const bool go = f(std::pair<typename Container1::const_reference_type, typename Container2::const_reference_type>(el1, el2));
+        m_foreach_imp_provider1.foreach_imp([f, this, how, &can_go](typename Container1::interface::argument_type el1) {
+            m_foreach_imp_provider2.foreach_imp([f, el1, &can_go](typename Container2::interface::argument_type el2) {
+                const bool go = f(std::pair<typename Container1::interface::argument_type, typename Container2::interface::argument_type>(el1, el2));
                 if (not go) {
                     can_go = false;
                     return false;
