@@ -2,10 +2,10 @@
 // https://github.com/tboldagh/FunRootAna
 // Distributed under the MIT License
 // (See accompanying file LICENSE file)
-
+#include <vector>
 #include "Testing.h"
 #include "LazyFunctionalVector.h"
-#include <vector>
+#include "EagerFunctionalVector.h"
 
 using namespace lfv;
 #ifdef TEST_LAZY

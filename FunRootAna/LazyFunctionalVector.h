@@ -10,7 +10,6 @@
 #include <cmath>
 
 #include "futils.h"
-#include "EagerFunctionalVector.h"
 
 
 /*
@@ -472,13 +471,6 @@ public:
         m_actual_container.foreach_imp([&result](argument_type el) {
             result.insert(el); return true;
             });
-    }
-    // to non-lazy implementation
-    EagerFunctionalVector<value_type> as_eager() const {
-        static_assert(Container::is_finite, "Can't save an infinite container");
-        EagerFunctionalVector<Stored> tmp;
-        m_actual_container.foreach([&tmp](argument_type el) { tmp.__push_back(el); return true; });
-        return tmp;
     }
 
 protected:

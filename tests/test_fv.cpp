@@ -5,6 +5,8 @@
 
 #include "Testing.h"
 #include "LazyFunctionalVector.h"
+#include "EagerFunctionalVector.h"
+
 #include <vector>
 
 using namespace lfv;
