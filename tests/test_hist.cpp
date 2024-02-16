@@ -49,7 +49,9 @@ public:
         GRAPH("data1", ";x;y");
         {
             HCONTEXT("dir/");
+            GRAPH("data1", ";x;y");
             GRAPH("data2", ";x;y");
+            GRAPH2("data3", ";X;Y;Z");
         }
     }
     void test_fill() {
@@ -114,7 +116,7 @@ public:
         VALUE(ef.GetTotalHistogram()->GetBinContent(2)) EXPECTED (1.5);
 
 
-        auto ef2 = EFF2("eff1", "", 2, 0, 2, 2, 0, 10);
+        auto ef2 = EFF2("eff2", "title", 2, 0, 2, 2, 0, 10);
         make_triple(true, 0.3, 5.5) >> ef2;
         make_triple(false, 1.3, 5.5) >> ef2;
         VALUE(ef2.GetPassedHistogram()->GetBinContent(1,1)) EXPECTED (0);
@@ -273,11 +275,15 @@ void test_create() {
     VALUE(((TH1D*)(f->Get("scope1_scope2_s1")))->GetNbinsX()) EXPECTED(20);
 
     VALUE(f->Get("data1")) NOT_EXPECTED(nullptr);
-    VALUE(f->Get("data1")->ClassName()) NOT_EXPECTED("TGraph");
+    VALUE(s(f->Get("data1")->ClassName())) EXPECTED("TGraph");
+    VALUE(f->Get("dir/data1")) NOT_EXPECTED(nullptr);
+    VALUE(s(f->Get("dir/data1")->ClassName())) EXPECTED("TGraph");
     VALUE(f->Get("dir/data2")) NOT_EXPECTED(nullptr);
-    VALUE(f->Get("dir/data2")->ClassName()) NOT_EXPECTED("TGraph");
+    VALUE(s(f->Get("dir/data2")->ClassName())) EXPECTED("TGraph");
+    VALUE(f->Get("dir/data3")) NOT_EXPECTED(nullptr);
+    VALUE(s(f->Get("dir/data3")->ClassName())) EXPECTED("TGraph2D");
 
-    gSystem->Unlink(fname.c_str());
+    // gSystem->Unlink(fname.c_str());
 }
 
 
