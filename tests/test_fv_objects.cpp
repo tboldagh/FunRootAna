@@ -5,17 +5,9 @@
 #include <vector>
 #include "Testing.h"
 #include "LazyFunctionalVector.h"
-#include "EagerFunctionalVector.h"
+
 
 using namespace lfv;
-#ifdef TEST_LAZY
-#define functional_vector lazy_view
-#else
-#define functional_vector wrap
-#endif
-
-
-
 struct TestObject {
     int x;
     double y;
@@ -24,7 +16,7 @@ struct TestObject {
 
 void test_basic_transfromations() {
     std::vector<TestObject> vec = { TestObject({0, 0.2, "object 1"}), TestObject({11, 0.2, "object 2"}), TestObject({22, 0.5, "object 3"}), TestObject({33, 0.5, "object 4"}) };
-    auto fto = functional_vector(vec);
+    auto fto = lazy_view(vec);
 
     VALUE(fto.size()) EXPECTED(4);
     VALUE(fto.empty()) EXPECTED(false);
@@ -42,7 +34,7 @@ void test_basic_transfromations() {
 
 void test_advanced() {
     std::vector<TestObject> vec = { TestObject({0, 0.2, "object 1"}), TestObject({11, 0.2, "object 2"}), TestObject({22, 0.5, "object 3"}), TestObject({33, 0.5, "object 4"}) };
-    auto fto = functional_vector(vec);
+    auto fto = lazy_view(vec);
 
     auto dsum = fto.chain(fto).chain(fto).filter(F(_.x < 20)).map(F(_.x)).sum();
     VALUE(dsum) EXPECTED(33); // 3 x 11 + 3 x 0

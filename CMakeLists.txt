@@ -43,10 +43,6 @@ add_executable(example_analysis examples/example_analysis.cpp)
 target_link_libraries(example_analysis ${ROOT_LIBRARIES} FunRootAna)
 target_compile_features(example_analysis PRIVATE cxx_std_17)
 
-add_executable( test_efv tests/test_efv.cpp )
-target_link_libraries(test_efv ${ROOT_LIBRARIES} FunRootAna)
-target_compile_features(test_efv PRIVATE cxx_std_17)
-
 add_executable( test_hist tests/test_hist.cpp )
 target_link_libraries(test_hist ${ROOT_LIBRARIES} FunRootAna)
 target_compile_features(test_hist PRIVATE cxx_std_17)
@@ -91,11 +87,8 @@ target_compile_features(benchmark PRIVATE cxx_std_17)
 
 enable_testing() 
 add_test(NAME test_HIST COMMAND test_hist)
-add_test(NAME test_EagerFunctionalVector COMMAND test_efv)
 add_test(NAME test_LazyFunctionalVector COMMAND test_lfv)
-add_test(NAME test_EagerFunctionalVector2 COMMAND test_efv2)
 add_test(NAME test_LazyFunctionalVector_objects COMMAND test_lfv_objects)
-add_test(NAME test_EagerFunctionalVector2_objects COMMAND test_efv2_objects)
 add_test(NAME test_conf COMMAND test_conf)
 add_test(NAME test_csv COMMAND test_csv)
 

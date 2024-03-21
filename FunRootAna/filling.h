@@ -19,7 +19,6 @@
 #include <TProfile.h>
 #include <TProfile2D.h>
 
-#include "EagerFunctionalVector.h"
 #include "LazyFunctionalVector.h"
 
 // operators to streamline ROOT histograms filling

@@ -5,20 +5,13 @@
 
 #include "Testing.h"
 #include "LazyFunctionalVector.h"
-#include "EagerFunctionalVector.h"
 
 #include <vector>
 
 using namespace lfv;
-#ifdef TEST_LAZY
-#define functional_vector lazy_view
-#else
-#define functional_vector wrap
-#endif
-
 void test_type_presentation() {
     std::vector<int> t1({ 1,19,4 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
     decltype(vt1)::value_type x;
     VALUE(typeid(x) == typeid(int)) EXPECTED(true);
     VALUE(typeid(x) == typeid(float)) EXPECTED(false);
@@ -39,7 +32,7 @@ void test_type_presentation() {
 
 void test_element_access() {
     std::vector<int> t1({ 1,19,4 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
     VALUE( vt1.element_at(0).value()) EXPECTED(1);
     VALUE( vt1.element_at(2).value()) EXPECTED(4);
     VALUE( vt1.element_at(3).has_value()) EXPECTED(false);
@@ -47,7 +40,7 @@ void test_element_access() {
 
 void test_count_and_find() {
     std::vector<int> t1({ 1,19,4 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
     VALUE(vt1.size()) EXPECTED(3);
     const size_t count_below_5 = vt1.count(F(_ < 5));
     VALUE(count_below_5) EXPECTED(2);
@@ -80,7 +73,7 @@ void test_count_and_find() {
 
 void test_filter() {
     std::vector<int> t1({ 1,19,4, 2, 5, -1, 5 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
     auto ft1 = vt1.filter(F(_ > 2));
     VALUE(ft1.size()) EXPECTED(4);
     auto ft2 = ft1.filter(F(_ >= 5));
@@ -99,7 +92,7 @@ void test_filter() {
 
 void test_map() {
     std::vector<int> t1({ 1,19,4, 2, 5, -1, 5 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
     {
         auto mt1 = vt1.map(F(_ + 2));
         std::vector<int> r;
@@ -120,7 +113,7 @@ void test_map() {
 
 void test_filter_map() {
     std::vector<int> t1({ 1,19,4, 2, 5, -1, 5 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
     {
         auto mt1 = vt1.map(F(_ + 2)).filter(F(_ > 4));
         VALUE(mt1.size()) EXPECTED(4);
@@ -153,9 +146,9 @@ void test_filter_map() {
 
 void test_staging() {
     std::vector<int> t1({ 1,19,4, 2, 5, -1, 5 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
     auto plainVec = vt1.map(F(_ + 2)).filter(F(_ < 4)).filter(F(_ == 1)).map(F(_ * _ * 0.1)).stage();
-    auto mt1 = functional_vector(plainVec);
+    auto mt1 = lazy_view(plainVec);
     // one element (initially -1) should survive
     VALUE(mt1.size()) EXPECTED(1);
     VALUE(mt1.element_at(0).value()) EXPECTED(0.1);
@@ -181,7 +174,7 @@ void test_staging() {
 
 void test_take() {
     std::vector<int> t1({ 1,19,4, 2, 5, -1, 5 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
     auto tt1 = vt1.take(3);
     VALUE(tt1.size()) EXPECTED(3);
     VALUE(tt1.element_at(0).value()) EXPECTED(1);
@@ -220,7 +213,7 @@ void test_take() {
 
 void test_sum_and_accumulate() {
     std::vector<int> t1({ 1,19,4, 2, 5, -1, 5 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
     auto s = vt1.sum();
     VALUE( s ) EXPECTED(35);
     auto s3 = vt1.take(3).sum(F(_));
@@ -232,12 +225,12 @@ void test_sum_and_accumulate() {
 void test_chain() {
     std::vector<int> t1({ 1,19,4, 2 });
     std::vector<int> t2({ 5, -1, 3 });
-    auto vt1 = functional_vector(t1);
-    auto vt2 = functional_vector(t2);
+    auto vt1 = lazy_view(t1);
+    auto vt2 = lazy_view(t2);
     auto jt = vt1.chain(vt2);
     VALUE(jt.size()) EXPECTED(7);
     std::vector<int> byhand({1,19,4, 2, 5, -1, 3});
-    auto vb = functional_vector(byhand);
+    auto vb = lazy_view(byhand);
     VALUE( vb.is_same(jt)) EXPECTED(true);
 
     auto ajt = vt1.skip(1).chain(vt2.filter(F(_ < 0)));
@@ -254,7 +247,7 @@ void test_chain() {
 
 void test_sort() {
     std::vector<int> t1({ 1,19,4, 2, 5, -1, 5 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
     auto st1 = vt1.sort(); // default use values themselves
     VALUE(st1.size()) EXPECTED(t1.size());
     VALUE(st1.element_at(0).value()) EXPECTED(-1);
@@ -272,7 +265,7 @@ void test_enumerate() {
     // test first the indexed struct helper
 
     std::vector<int> t1({ 1,19,4, 2, 5, -1, 5 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
     auto en1 = vt1.enumerate();
     std::cout << "..... ";
     en1.foreach(S(std::cout << _.first << ":" << _.second << " "));
@@ -298,7 +291,7 @@ void test_enumerate() {
 
 void test_reversal() {
     std::vector<int> t1({ 1,19,4, 2, 5, -1, 5 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
     auto r1 = vt1.reverse();
     VALUE( r1.size() ) EXPECTED( 7);
     VALUE(r1.element_at(0).value()) EXPECTED(5);
@@ -330,7 +323,7 @@ void test_reversal() {
 
 void test_min_max() {
     std::vector<int> t1({ 1, 19, 4, 2, 5, -1, 5 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
 
 
     auto max1 = vt1.max(F(_));
@@ -352,10 +345,10 @@ void test_min_max() {
 
 void test_zip() {
     std::vector<int> t1({ 1, 19, 4, 2, 5, -1, 5 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
 
     std::vector<int> t2({ 0, -1, -2, -3, -4 });
-    auto vt2 = functional_vector(t2).reverse();
+    auto vt2 = lazy_view(t2).reverse();
     auto z = vt1.zip(vt2);
     std::cout << "..... ";
     z.foreach(S(std::cout << _.first << ":" << _.second << ", "));
@@ -454,7 +447,7 @@ void test_group() {
 
 void test_stat() {
     std::vector<int> t1({ 1, 19, 4, 2, 5, -1, 5 });
-    auto vt1 = functional_vector(t1); 
+    auto vt1 = lazy_view(t1); 
 
     auto s = vt1.stat();
     VALUE(s.sum) EXPECTED( vt1.sum() );
@@ -466,7 +459,7 @@ void test_stat() {
 
 void test_to_ref_ptr() {
     std::vector<int> t1({ 1, 19, 4, 2, 5, -1, 5 });
-    auto vt1 = functional_vector(t1);
+    auto vt1 = lazy_view(t1);
     const int sum1 = vt1.sum();
     const int sum2 = vt1.toptr().sum( F(*_));
     VALUE( sum1 ) EXPECTED( sum2 );

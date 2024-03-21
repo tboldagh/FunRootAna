@@ -8,6 +8,7 @@
 #include <set>
 #include <deque>
 #include <cmath>
+#include <optional>
 
 #include "futils.h"
 
