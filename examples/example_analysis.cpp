@@ -118,6 +118,15 @@ public:
             const auto x_view = event.template branch_view<std::vector<float>>("x"); // // obtain directly functional style container directly (avoids data copies)
 
             x_copy >> HIST1("x_copy", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
+            if (category == 4) {
+                HCONTEXT("cat4_"); // modify the context (histograms name prefixed)
+                x_copy >> HIST1("x_copy", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
+            }
+            if (category == 3) {
+                HCONTEXT("cat3/"); // modify the context (histograms in subdirectory)
+                x_copy >> HIST1("x_copy", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
+            }
+
             x_view >> HIST1("x_view", "x[mm]", 100, 1, 2); // fill the histogram with the x coordinates
 
             std::make_pair(x_view.sum(), x_view.size()) >> HIST2("tot_vs_size", ";sum;size", 20, 0, 150, 20, 0, 150);
