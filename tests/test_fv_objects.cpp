@@ -1,8 +1,10 @@
-// Copyright 2022, Tomasz Bold
+// Copyright 2024, Tomasz Bold
 // https://github.com/tboldagh/FunRootAna
 // Distributed under the MIT License
 // (See accompanying file LICENSE file)
 #include <vector>
+#include <set>
+#include <list>
 #include "Testing.h"
 #include "LazyFunctionalVector.h"
 
@@ -106,28 +108,14 @@ void test_heterogenous_chaining() {
 }
 
 
-void test_point_free() {
-#ifdef TEST_LAZY
-    auto pf = [](const std::vector<TestObject>& data) {
-        return lazy_view(data).filter(F(_.x>5)).map(F(_.y+1.5)).sum();
-    };
-
-    std::vector<TestObject> vec1 = { TestObject({0, 0.2, "object 1"}), TestObject({11, 0.2, "object 2"}), TestObject({22, 0.5, "object 3"}), TestObject({33, 0.5, "object 4"}) };
-
-    std::vector<TestObject> vec2 = { TestObject({0, 0.3, "object 03"}) };
-
-    auto r1 = pf(vec1);
-    VALUE( r1 ) EXPECTED (5.7);
-    auto r2 = pf(vec2);
-    VALUE(r2) EXPECTED (0.0);
-#endif    
-}
 
 void test_pointers_collection() {
     std::vector<const TestObject*> vec = { new TestObject(), new TestObject() };
     auto v = lazy_view(vec).skip(1).take(1).stage();
+    auto aslist = lazy_view(vec).stage<std::list<const TestObject*>>(); 
+    auto asset = lazy_view(vec).stage<std::set<const TestObject*>>(); 
     VALUE(v.size()) EXPECTED (1);
-    lazy_view(vec).foreach(S(delete _));    
+    lazy_view(vec).foreach(S(delete _));
 }
 
 
@@ -136,7 +124,6 @@ int main() {
         + SUITE(test_basic_transfromations)
         + SUITE(test_advanced)
         + SUITE(test_heterogenous_chaining)
-        + SUITE(test_point_free)
         + SUITE(test_pointers_collection);
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;

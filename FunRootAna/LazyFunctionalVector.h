@@ -1,4 +1,4 @@
-// Copyright 2022, Tomasz Bold
+// Copyright 2024, Tomasz Bold
 // https://github.com/tboldagh/FunRootAna
 // Distributed under the MIT License
 // (See accompanying file LICENSE file)
@@ -262,11 +262,11 @@ public:
     }
 
     // creates saves the data to STL container (vector by default)
-    template<template<typename, typename> typename C = std::vector>
-    C<Stored, std::allocator<Stored>> stage() const {
+    template<typename C = std::vector<Stored>>
+    C stage() const {
         static_assert(Container::is_finite, "Can't stage an infinite container");
-        C<Stored, std::allocator<Stored>> c;
-        push_back_to(c);
+        C c;
+        insert_to(c);
         return c;
     }
 
@@ -470,7 +470,7 @@ public:
     void insert_to(R& result) const {
         static_assert(Container::is_finite, "Can't save an infinite container");
         m_actual_container.foreach_imp([&result](argument_type el) {
-            result.insert(el); return true;
+            result.insert(result.end(), el); return true;
             });
     }
 
