@@ -115,6 +115,10 @@ class HandyHists {
     return h;
   }
 
+  // accessors
+  void foreach_histogram(std::function<void(TH1*)> fun);
+  void foreach_efficiency(std::function<void(TEfficiency*)> fun);
+  void foreach_profile(std::function<void(TProfile*)> fun);
 
   void save( const std::string& fname);
 

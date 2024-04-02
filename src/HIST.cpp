@@ -61,5 +61,21 @@ void HandyHists::save(const std::string& fname) {
   gDirectory = current;
 }
 
+void HandyHists::foreach_histogram(std::function<void(TH1*)> fun) {
+  for ( auto h: m_h )
+    fun(h);
+}
+
+void HandyHists::foreach_efficiency(std::function<void(TEfficiency*)> fun) {
+  for ( auto h: m_eff )
+    fun(h);
+}
+
+void HandyHists::foreach_profile(std::function<void(TProfile*)> fun) {
+  for ( auto h: m_prof )
+    fun(h);
+}
+
+
 const HistContext* HistContext::s_latest = nullptr;
 static const HistContext topContext ("");
