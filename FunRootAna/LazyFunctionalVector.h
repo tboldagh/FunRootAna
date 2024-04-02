@@ -1325,7 +1325,7 @@ public:
     void update_container(const Data* arr, const size_t sz) {m_data = arr; m_size = sz; }
 private:
     const Data* m_data;
-    const size_t m_size;
+    size_t m_size;
 };
 
 // infinite series of doubles following the geometric series recipe
