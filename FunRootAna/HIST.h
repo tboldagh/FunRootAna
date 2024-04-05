@@ -8,6 +8,8 @@
 #include <list>
 #include <iostream>
 #include <string>
+#include <string>
+
 #include "TH1.h"
 #include "TEfficiency.h"
 #include "TH2.h"
@@ -23,12 +25,8 @@
 
 using namespace std::string_literals;
 struct HistContext {
-  HistContext(const std::string_view str)
-    : m_prev(s_latest),
-      m_text(str) {
-      s_latest = this;
-      m_hash = std::hash<std::string_view>{}(m_text)  ^ ( m_prev  ? m_prev->m_hash : 0l);
-  }
+  HistContext(const std::string_view str, const std::string_view file="", int line=0);
+
   ~HistContext() {
     if ( s_latest != nullptr )
       s_latest = s_latest->prev();
@@ -59,13 +57,19 @@ struct HistContext {
   }
   private:
   const static HistContext* s_latest;
+  static std::map<std::string, std::pair<std::string, int> > s_contexts;
+
   const HistContext* m_prev;
 
   std::string m_text;
   size_t m_hash;
 };
 
-#define HCONTEXT(__CTX__) HistContext __hist_context(__CTX__);
+// histograms context switch (can be ever used only in one place in the program)
+#define HCONTEXT(__CTX__) HistContext __hist_context(__CTX__, __FILE__, __LINE__);
+
+// reusable histograms context (can be reused)
+#define REHCONTEXT(__CTX__) HistContext __hist_context(__CTX__);
 
 
 class HandyHists {

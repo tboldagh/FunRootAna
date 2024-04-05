@@ -309,13 +309,36 @@ void test_graph() {
     t1.test_graphs();
 }
 
+void test_duplicated_contexts() {
+    {
+        HCONTEXT("Hello");
+    }
+    {
+        bool wasException = false;
+        try{
+            HCONTEXT("Hello");
+        } catch (...){
+            wasException = true;
+        }
+        VALUE(wasException) EXPECTED(true);
+    }
+    // reusable context
+    {
+        REHCONTEXT("c2");
+    }
+    {
+        REHCONTEXT("c2");
+    }
+
+}
 
 int main() {
     const int failed = SUITE(test_create)
         + SUITE(test_fill)
         + SUITE(test_option_fill)
         + SUITE(test_joins_fill)
-        + SUITE(test_graph);
+        + SUITE(test_graph)
+        + SUITE(test_duplicated_contexts);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;

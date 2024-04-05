@@ -10,7 +10,7 @@
 void assure( bool cond, const std::string_view& message, bool silentIfok) {
   if ( cond == false ) {
     std::cout << ".. ERROR " << message << "\n";
-    exit(-1);
+    throw std::runtime_error("Failed to assure conditions is true, see error");
   } else {
     if ( ! silentIfok )
       std::cout << "... OK   " << message << "\n";

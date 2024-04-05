@@ -5,6 +5,23 @@
 #include "TFile.h"
 #include "HIST.h"
 
+  HistContext::HistContext(const std::string_view str, const std::string_view file, int line)
+    : m_prev(s_latest),
+      m_text(str) {
+      s_latest = this;
+      m_hash = std::hash<std::string_view>{}(m_text)  ^ ( m_prev  ? m_prev->m_hash : 0l);
+      auto there = s_contexts.find(std::string(str));
+      if ( there != s_contexts.end() ) {
+        if ( there->second.first != file )
+          assure(false, std::string("Same context ") + std::string(str) + " used in different files " + there->second.first + " " + std::string(file));
+
+        if(there->second.second != line)
+           assure(false, std::string("Same context ") + std::string(str) + " used in different lines " + std::to_string(there->second.second) + " " + std::to_string(line), true);
+      } else {
+        s_contexts[std::string(str)] =  std::make_pair(std::string(file), line);
+      }
+  }
+
 
 namespace {
 
@@ -78,4 +95,5 @@ void HandyHists::foreach_profile(std::function<void(TProfile*)> fun) {
 
 
 const HistContext* HistContext::s_latest = nullptr;
+std::map<std::string, std::pair<std::string, int> > HistContext::s_contexts;
 static const HistContext topContext ("");
