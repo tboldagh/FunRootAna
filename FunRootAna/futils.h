@@ -12,8 +12,17 @@
 #define F(CODE) []([[maybe_unused]] const auto &_) { return CODE; }
 
 
-// closure, like function but see outer scope by reference (can change external variables)
+// closure, like function but see outer scope by reference (e.g. can change external variables)
+// example:
+// double x = 0;
+//  container.map(CLOSURE(... some code using x ...))
 #define CLOSURE(CODE) [&]([[maybe_unused]] const auto &_) { return CODE; }
+
+// like the closure but allows to deliver variables to the scope selectively
+// example:
+// double x,y = 0;
+//  container.map([&x]SCLOSURE(... some code using x ... ... y is not accessible ...))
+#define SCLOSURE(CODE) ([[maybe_unused]] const auto &_) { return CODE; }
 
 // subroutine (nothing is returned)
 #define S(CODE) [&]([[maybe_unused]] const auto &_) { CODE; }
