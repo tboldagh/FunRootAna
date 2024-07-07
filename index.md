@@ -249,16 +249,22 @@ All of this has to happen in one statement. `HandyHists` class helps with that. 
 * macros that: declare/book/register histograms and return a `ROOT TH` object reference.
   The arguments taken by these macros are just passed over to constructors of respective histogram classes. 
   In macros ending with `V` the `std::vector<double>` is used to define bin limits.
-  Defined are: `HIST1` for 1D histograms, `PROF1` for profiles, `EFF1`, `EFF2` for efficiencies, `HIST2` for 2D histograms, `HIST3` for 3D,
-* and the context control.
+  Defined are: `HIST1` and `HIST1V` for 1D histograms, `PROF1` and `PROF1V` for profiles, `EFF1` and `EFF1V`, `EFF2` and `EFF2V` (taking two `vector<double>` argument) for efficiencies, `HIST2` and `HIST2V` for 2D histograms, `HIST3` and `HIST3V` for 3D,
+* and the context control. The `TGraph` and `TGraph2D` can be created with `GRAPH` and `GRAPH2` macros. As the two are basically collection of points in 2D and 3D spaces respectively only name snd title are needed to contruct them.
 
 ## Operator `>>` for histograms filling
 In the header `filling.h` a bunch of `>>` operators are defined to facilitate easy insertions of the data from functional containers and PODs into histograms.
-Histograms can be filled with their respective API however for syntactical clarity a set of operators `>>` is provided. Examples above illustrate how it can be used. In summary the value on the left side of `>>` can be either, single value, container of values or the  `std::optional`. For single value only one filling operation occur, if the functional container precedes the `>>` all the data in the container will be entered in the histogram. When the `std::optional` is used, the fill operation occurs only when there is a value in it. For 2/3-dimensional histograms or weighted histograms the values on the left can be std::pairs/std::tuples or std::array. E.g. to insert to a 2D histogram the pair of values is needed and it can be provided as `std::make_pair(a,b) >> hist;` or `std::make_tuple(a,b) >> hist;` or `std::array<2, float>({a, b}) >> hist;`. The same applies to filling from containers, i.e. each element needs to be mapped to a pair-like type. The same rule for `std::optional` applies as in case of 1D histograms.
+Histograms can be filled with their respective API however for syntactical clarity a set of operators `>>` is provided. Examples above illustrate how it can be used. In summary the value on the left side of `>>` can be either, single value, container of values or the  `std::optional`. For single value only one filling operation occur, if the functional container precedes the `>>` all the data in the container will be entered in the histogram. When the `std::optional` is used, the fill operation occurs only when there is a value in it. For 2/3-dimensional histograms or weighted histograms the values on the left can be std::pairs/std::tuples or std::array. E.g. to insert to a 2D histogram the pair of values is needed and it can be provided as `std::make_pair(a,b) >> hist;` or `std::make_tuple(a,b) >> hist;` or `std::array<2, float>({a, b}) >> hist;`. The same applies to filling from containers, i.e. each element needs to be mapped to a pair-like type. The same rule for `std::optional` applies as in case of 1D histograms. The result of fill operation is the input of it. That can be used to code filling of several, differently binned histograms. The only requirement is that histograms are defined in separate lines.
+```c++ 
+data.map(F(_.energy))  >> HIST1("energy", ";E[GeV]", 100, 0, 20)
+                       >> HIST1("energy_zoom", ";E[GeV]", 100, 0, 2);
+
+```
+
 
 
 ### Filling with weights
-To fill 1D histogram either the scalars or pairs of values can be used. In the later case the second value plays the role of weight. Similarly, the 2D histograms and profile plot are filled with pairs or triples. In the later case the last value in the triple is the weight. When filling efficiency plot the first value of the pair should be boolean. When the triple of values is used the last one is the weight. As mentioned above, the values in the containers are taken one by one and entered in the histograms. For example:
+To fill 1D histogram either the scalars or pairs of values can be used. In the later case the second value plays the role of weight. Similarly, the 2D histograms and profile plot are filled with pairs or triples. In the later case the last value in the triple is the weight. The same logic applies to 3D histograms. When filling efficiency plot the first value of the pair should be boolean. When the triple of values is used the last one is the weight. As mentioned above, the values in the containers are taken one by one and entered in the histograms. For example:
 ```c++
   // v1 is a vector of object with getters x(), y(), weight()
   v1.map(F(make_pair(_.x(), _.y()))) >> HIST2(...); // has the same meaning as
@@ -273,9 +279,10 @@ To fill 1D histogram either the scalars or pairs of values can be used. In the l
 In the above example the `HIST2` can be replaced by `PROF1`. If the `x()` would be a boolean access the `EFF1` filling would be implemented identically. 
 
 ## Context of the histogram
-We often need to make similar histograms for different selection of data. For that the FunRootAna provides context switching helper, `HCONTEXT` taking the `string` argument. The names of histograms in the  scope where the context is defined obtain a common prefix in their name. 
-The `HCONTEXT` should be used instead of tweaking histogram name. (This behavior allows certain optimization.)
-An example illustrates the use of the context:
+We often need to make similar histograms for different selection of data. For that the FunRootAna provides context switching helper, `HCONTEXT` taking the `std::string` argument. With this names of histograms in the  scope where the context is defined obtain a common prefix in their name. 
+The `HCONTEXT` should be used instead of tweaking histogram name. (This behavior allows certain optimization.) However, above all the `HCONTEXT` allows to structure output logically.
+
+An example below illustrates the use of the context:
 ```c++
 {
     HCONTEXT("HighRes_");
@@ -295,7 +302,7 @@ Contexts are nesting, that is:
 }
 ```
 would produce the histogram `PointsAnalysis_BasicPositions_x` histogram in the output.
-When the name contains `/` i.e. `A/x` histograms `x` end up in subdirectory `A`  in the output file.
+When the name of the context ends with `/` i.e. `A/` histograms `x` defined in this context will be saved in subdirectory `A`  in the output file.
 
 
 # Additional functionalities
