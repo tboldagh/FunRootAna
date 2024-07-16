@@ -27,7 +27,7 @@ namespace {
 
 std::pair<TDirectory*, std::string> dirForName(TFile* f, const std::string& name){
   if ( name.find('/') == std::string::npos ) {// no subdirectory designation, to be saved in the file main subdir
-  return std::make_pair(f, name);
+    return std::make_pair(f, name);
   }
 
   std::string dirName( name.substr(0, name.find_last_of('/')) );
@@ -35,8 +35,10 @@ std::pair<TDirectory*, std::string> dirForName(TFile* f, const std::string& name
 
   //  report("Saving " + std::string(name) +" in " + dirName + " renaming as " + oName);
   TDirectory* d = f->GetDirectory(dirName.c_str());
-  if ( d == nullptr )
-    d = f->mkdir(dirName.c_str());
+  if ( d == nullptr ) {
+    f->mkdir(dirName.c_str());
+  }
+  d = f->GetDirectory(dirName.c_str());
   return std::make_pair(d, oName);
 }
 
