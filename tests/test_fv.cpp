@@ -577,6 +577,16 @@ void test_string() {
     VALUE(filt.size()) EXPECTED (2);
 }
 
+void test_underscore_macros() {
+    std::vector<int> t1({ 1, 19, 4, 2, 5, -1, 5 });
+    auto vt1 = lazy_view(t1);
+    int val = vt1._filter(_>1).size();
+    VALUE(val) EXPECTED(5);
+    int el = vt1._filter(_>1).take(1)._map(_+1).get().value();
+    VALUE(el) EXPECTED(20);
+
+}
+
 
 int main() {
     const int failed =
@@ -605,7 +615,8 @@ int main() {
         + SUITE(test_match)
         + SUITE(test_ptr_view)
         + SUITE(test_array_view)
-        + SUITE(test_string);
+        + SUITE(test_string) 
+        + SUITE(test_underscore_macros);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;

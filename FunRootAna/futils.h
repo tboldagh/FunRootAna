@@ -57,5 +57,20 @@ struct StatInfo {
   double sigma() const { return std::sqrt(var()); }
 };
 
+// helper macros to streamline coding simple transformation that use pure functions
+// example data._filter(_.x > 0).map(_.y).stat() that is select points with x>0, take y and calculate statistics of it
+
+#define _filter(CODE) filter([]([[maybe_unused]] const auto &_) { return CODE; })
+#define _map(CODE) map([]([[maybe_unused]] const auto &_) { return CODE; })
+#define _count(CODE) count([]([[maybe_unused]] const auto &_) { return CODE; })
+#define _contains(CODE) contains([]([[maybe_unused]] const auto &_) { return CODE; })
+#define _all(CODE) all([]([[maybe_unused]] const auto &_) { return CODE; })
+#define _sort(CODE) sort([]([[maybe_unused]] const auto &_) { return CODE; })
+#define _take_while(CODE) take_while([]([[maybe_unused]] const auto &_) { return CODE; })
+#define _max(CODE) max([]([[maybe_unused]] const auto &_) { return CODE; })
+#define _min(CODE) min([]([[maybe_unused]] const auto &_) { return CODE; })
+
+
+
 
 #endif
