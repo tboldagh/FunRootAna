@@ -584,7 +584,18 @@ void test_underscore_macros() {
     VALUE(val) EXPECTED(5);
     int el = vt1._filter(_>1).take(1)._map(_+1).get().value();
     VALUE(el) EXPECTED(20);
-
+    int c1 = vt1._count(_>10);
+    VALUE(c1) EXPECTED(1);
+    bool c2 = vt1._contains(_%2 == 0);
+    VALUE(c2) EXPECTED(true);
+    bool c3 = vt1._all(_>-10);
+    VALUE(c3) EXPECTED(true);
+    bool c4 = vt1._all(_>0);
+    VALUE(c4) EXPECTED(false);
+    int ma = vt1._max(-1*_).get().value();
+    VALUE(ma) EXPECTED(-1);
+    int mi = vt1._min(-1*_).get().value();
+    VALUE(mi) EXPECTED(19);
 }
 
 
