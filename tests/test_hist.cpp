@@ -174,6 +174,39 @@ public:
                                  >> HIST1("o2", ";x;y", 100, 0, 2)
                                  >> HIST1("o3", ";x;y", 100, 0, 0.2); // multiple fills
         VALUE( o.GetEntries()) EXPECTED(2);
+        std::vector<const std::optional<int>> data({1, 2, {}, 4, 3, 1});
+        auto v1 = lazy_view(data);
+        auto & h4 = HIST1("o4", "", 4, 0, 4);
+        v1 >> h4;
+        VALUE(h4.GetEntries()) EXPECTED(5);
+        VALUE(h4.GetBinContent(1)) EXPECTED(0);
+        VALUE(h4.GetBinContent(2)) EXPECTED(2);
+
+        auto &h5 = HIST1("h5", "", 4, 0, 4);
+        v1.map(F( _.has_value() ? _.value()+1 : _ )) 
+            >> h5;
+        VALUE(h5.GetEntries()) EXPECTED(5);
+        VALUE(h5.GetBinContent(1)) EXPECTED(0);
+        VALUE(h5.GetBinContent(2)) EXPECTED(0);
+        VALUE(h5.GetBinContent(3)) EXPECTED(2);
+
+        std::vector<std::pair<double, std::optional<int>> > pairs;
+        pairs.emplace_back(0.0, std::optional<int>{1});
+        pairs.emplace_back(0.0, std::optional<int>{1});
+        pairs.emplace_back(0.0, std::optional<int>{});
+        pairs.emplace_back(1.0, std::optional<int>{1});
+        auto v2 = lazy_view(pairs);
+        auto &h6 = HIST1("h6", "", 4, 0, 4);
+        v2.map(F( _.second.has_value() ? _.first * _.second.value() : _.second)) >> h6;
+        VALUE(h6.GetEntries()) EXPECTED(3);
+        VALUE(h6.GetBinContent(1)) EXPECTED(2);
+        VALUE(h6.GetBinContent(2)) EXPECTED(1);
+        v2.filter(F(_.second.has_value())).map(F(  _.first * _.second.value())) >> h6;
+        VALUE(h6.GetEntries()) EXPECTED(6);
+        VALUE(h6.GetBinContent(1)) EXPECTED(4);
+        VALUE(h6.GetBinContent(2)) EXPECTED(2);
+        v2.map(F( _.second.has_value() ? _.first * _.second.value() : _.second))
+            >> PROF1("p1", "", 5, 0, 5);
     }    
 
     void test_joins_fill() {
