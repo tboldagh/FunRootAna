@@ -13,10 +13,10 @@
       auto there = s_contexts.find(std::string(str));
       if ( there != s_contexts.end() ) {
         if ( there->second.first != file )
-          assure(false, std::string("Same context ") + std::string(str) + " used in different files " + there->second.first + " " + std::string(file));
+          assure(false, std::string("Same context ") + std::string(str) + " used in different files " + there->second.first + " " + std::string(file) + " if intended use  REHCONTEXT macro, typically that means a mistake though");
 
         if(there->second.second != line)
-           assure(false, std::string("Same context ") + std::string(str) + " used in different lines " + std::to_string(there->second.second) + " " + std::to_string(line), true);
+           assure(false, std::string("Same context ") + std::string(str) + " used in different lines " + std::to_string(there->second.second) + " " + std::to_string(line) + " if intended use  REHCONTEXT macro, typically that means a mistake though", true);
       } else {
         s_contexts[std::string(str)] =  std::make_pair(std::string(file), line);
       }
