@@ -168,13 +168,13 @@ public:
 
     void test_option_fill() {
         auto o = HIST1("o", ";x;y", 10, 0, 2);
-        std::optional<double> (3) >> o;
+        const std::optional<double> o1(3); o1 >> o; // make sure that const is handled too
         std::optional<double> (6) >> o;
         std::optional<double> () >> o 
                                  >> HIST1("o2", ";x;y", 100, 0, 2)
                                  >> HIST1("o3", ";x;y", 100, 0, 0.2); // multiple fills
         VALUE( o.GetEntries()) EXPECTED(2);
-        std::vector<const std::optional<int>> data({1, 2, {}, 4, 3, 1});
+        std::vector<std::optional<int>> data({1, 2, {}, 4, 3, 1});
         auto v1 = lazy_view(data);
         auto & h4 = HIST1("o4", "", 4, 0, 4);
         v1 >> h4;
