@@ -1354,6 +1354,14 @@ Series<T> crandom_stream() {
     return Series<T>([](T) { return static_cast<T>(rand()); }, rand());
 }
 
+// completely user fined stream, eg. the provided functions takes care of all
+// this is by construction an infinite stream unless the provided function returns max value for type T
+template<typename T>
+Series<T> free_stream( std::function<T(T)> f) {    
+    return Series<T>(f, f({}));
+}
+
+
 // finite range from x = begin until x < end
 template<typename T>
 Range<T> range_stream(T begin, T end, T step = 1) {

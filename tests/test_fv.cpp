@@ -586,6 +586,18 @@ void test_underscore_macros() {
     VALUE(el) EXPECTED(20);
 
 }
+#include "TRandom3.h"
+void test_free_stream() {
+    TRandom* gen = new TRandom3;
+    auto fs = free_stream<double>([gen](double){ return gen->Poisson(2); });
+    fs.take(10).foreach(PRINT);
+    auto s = fs.take(10000).stat();
+    // check if generation actually worked as expected - for poisson bot mean and variance should be similar and equal to poisson parameter
+    std::cout << s.mean() <<  "  " << s.sigma() << std::endl;
+    VALUE(std::abs(s.mean() - 2) < 0.1) EXPECTED(true);
+    VALUE(std::abs(s.var() - 2) < 0.1) EXPECTED(true);
+
+}
 
 
 int main() {
@@ -616,7 +628,8 @@ int main() {
         + SUITE(test_ptr_view)
         + SUITE(test_array_view)
         + SUITE(test_string) 
-        + SUITE(test_underscore_macros);
+        + SUITE(test_underscore_macros)
+        + SUITE(test_free_stream);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;
