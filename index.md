@@ -147,10 +147,11 @@ Other, maybe less commonly used functions, but still good to know about are:
   //  e.g. to sort points by `x`
   const auto sorted_poits = points.sort(F(_.x));
 ```
-* `sum` and `accumulate` - with obvious results (the later takes customizable function F, and there is a similar variant for the sum), there are also `reduceLeft` `reduceRight` for those who are accustomed to the functional lingo
-* `stat` to obtain mean, count, and RMS in one pass
-* `max` & `min`
-* `first`, `last`, `element_at` or `[]` for single element access
+* `sum` - with obvious results (the first take key extractor function defaulting to identity), 
+* `accumulate` (typically called `reduce`) - that takes customizable function `f`, which is evaluated for each element with this meaning `total = f(total, element)` and start value,
+* `stat` - to obtain mean, count, and RMS in one pass over elements,
+* `max` & `min` - to obtain extreme values (takes key extractor),
+* `first`, `last`, `element_at` or `[]` for single element access,
 * ... and couple more.
 
 It is really like a `std::vector` with these extra methods. However these extra methods allow to write a very clear and expressive code. 
