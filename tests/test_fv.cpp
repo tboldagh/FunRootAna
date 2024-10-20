@@ -405,7 +405,6 @@ void test_series() {
 
     auto rd = range_stream(0.1, 0.2, 0.01);
     VALUE(rd.size()) EXPECTED(10);
-#ifdef TEST_LAZY
     // randoms
     auto r = crandom_stream();
     std::cout << "..... ";
@@ -417,7 +416,6 @@ void test_series() {
     auto points = crandom_stream().map(F(double(_) / RAND_MAX)).group(2).take(npoints);
     size_t points_in = points.map(F(_.map(F(_ * _)).sum())).filter(F(_ < 1.0)).size();
     std::cout << "..... pi " << 4.0 * static_cast<double>(points_in) / npoints;
-#endif
 }
 
 
