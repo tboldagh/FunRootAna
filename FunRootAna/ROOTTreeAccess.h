@@ -94,26 +94,26 @@ public:
 	}
 
 	// get any branch, two variants available for PODs (below) and vectors
-	template<typename T, typename std::enable_if<not std::is_pod<T>::value, int>::type = 0>
+	template<typename T, typename std::enable_if<not std::is_trivial<T>::value, int>::type = 0>
 	T get(const std::string& name) {
 		fillbr<T> br(m_tree, name, m_current);
 		return *(br.data);
 	}
 
-	template<typename T, typename std::enable_if<std::is_pod<T>::value, int>::type = 0 >
+	template<typename T, typename std::enable_if<std::is_trivial<T>::value, int>::type = 0 >
 	T get(const std::string& name) {
 		fillbrpod<T> br(m_tree, name, m_current);
 		T value = *(br.data);
 		return value;
 	}
 
-	template<typename T, typename std::enable_if<not std::is_pod<T>::value, int>::type = 0>
+	template<typename T, typename std::enable_if<not std::is_trivial<T>::value, int>::type = 0>
 	auto branch_view(const std::string& name) {
 		auto br = fillbr<T>(m_tree, name, m_current);
 		return lfv::OwningView(*(br.data));
 	}
 
-	template<typename T, typename std::enable_if<std::is_pod<T>::value, int>::type = 0 >
+	template<typename T, typename std::enable_if<std::is_trivial<T>::value, int>::type = 0 >
 	auto branch_view(const std::string& name) {
 		auto br = fillbrpod<T>(m_tree, name, m_current);
 		return lfv::one_own(*(br.data));
