@@ -150,7 +150,7 @@ class HandyHists {
 
 
 #define HIST1( __NAME,__TITLE,__XBINS,__XMIN,__XMAX ) \
-  ([this]() -> TH1D& { \
+  ([&]() -> TH1D& { \
     static std::vector< std::pair<size_t, TH1D*>> cache; \
     for ( auto & [contextHash, histogram]: cache) \
       if ( HistContext::sameAsCurrent(contextHash) ) return *histogram; \
@@ -163,7 +163,7 @@ class HandyHists {
 
 
 #define HIST1V( __NAME,__TITLE,__VEC ) \
-  ([this]() -> TH1& { \
+  ([&]() -> TH1& { \
     static std::vector< std::pair<size_t, TH1*>> cache; \
     for ( auto & [contextHash, histogram]: cache) \
       if ( HistContext::sameAsCurrent(contextHash) ) return *histogram; \
@@ -176,7 +176,7 @@ class HandyHists {
 
 
 #define PROF1( __NAME,__TITLE,__XBINS,__XMIN,__XMAX ) \
-  ([this]() -> TProfile& { \
+  ([&]() -> TProfile& { \
     static std::vector< std::pair<size_t, TProfile*>> cache; \
     for ( auto & [contextHash, histogram]: cache) \
       if ( HistContext::sameAsCurrent(contextHash) ) return *histogram; \
@@ -188,7 +188,7 @@ class HandyHists {
   }())
 
 #define PROF2( __NAME,__TITLE,__XBINS,__XMIN,__XMAX,__YBINS,__YMIN,__YMAX ) \
-  ([this]() -> TProfile2D& { \
+  ([&]() -> TProfile2D& { \
     static std::vector< std::pair<size_t, TProfile2D*>> cache; \
     for ( auto & [contextHash, histogram]: cache) \
       if ( HistContext::sameAsCurrent(contextHash) ) return *histogram; \
@@ -202,7 +202,7 @@ class HandyHists {
 
 
 #define PROF1V( __NAME,__TITLE,__VEC ) \
-  ([this]() -> TProfile& { \
+  ([&]() -> TProfile& { \
     static std::vector< std::pair<size_t, TProfile*>> cache; \
     for ( auto & [contextHash, histogram]: cache) \
       if ( HistContext::sameAsCurrent(contextHash) ) return *histogram; \
@@ -213,7 +213,7 @@ class HandyHists {
   }())
 
 #define PROF2V( __NAME,__TITLE,__VECX,__VECY ) \
-  ([this]() -> TH1& { \
+  ([&]() -> TH1& { \
     static std::vector< std::pair<size_t, TProfile2D*>> cache; \
     for ( auto & [contextHash, histogram]: cache) \
       if ( HistContext::sameAsCurrent(contextHash) ) return *histogram; \
@@ -288,7 +288,7 @@ class HandyHists {
   }())
 
 #define HIST2V( __NAME,__TITLE,__VECX,__VECY ) \
-  ([this]() -> TH1& { \
+  ([&]() -> TH1& { \
     static std::vector< std::pair<size_t, TH2*>> cache; \
     for ( auto & [contextHash, histogram]: cache) \
       if ( HistContext::sameAsCurrent(contextHash) ) return *histogram; \
@@ -315,7 +315,7 @@ class HandyHists {
   }())
 
 #define HIST3V( __NAME,__TITLE,__VECX,__VECY,__VECZ ) \
-  ([this]() -> TH3D& { \
+  ([&]() -> TH3D& { \
     static std::vector< std::pair<size_t, TH3D*>> cache; \
     for ( auto & [contextHash, histogram]: cache) \
       if ( HistContext::sameAsCurrent(contextHash) ) return *histogram; \
@@ -327,7 +327,7 @@ class HandyHists {
   }())
 
 #define GRAPH( __NAME,__TITLE ) \
-  ([this]() -> TGraph& { \
+  ([&]() -> TGraph& { \
     static std::vector< std::pair<size_t, TGraph*>> cache; \
     for ( auto & [contextHash, histogram]: cache) \
       if ( HistContext::sameAsCurrent(contextHash) ) return *histogram; \
@@ -342,7 +342,7 @@ class HandyHists {
   }())
 
 #define GRAPH2( __NAME,__TITLE ) \
-  ([this]() -> TGraph2D& { \
+  ([&]() -> TGraph2D& { \
     static std::vector< std::pair<size_t, TGraph2D*>> cache; \
     for ( auto & [contextHash, histogram]: cache) \
       if ( HistContext::sameAsCurrent(contextHash) ) return *histogram; \
