@@ -313,7 +313,7 @@ public:
     // the implementation is suboptimal, that is, it involves inexed access to one of the containers, it is therefore better if one of them is staged
     template<typename Other>
     auto zip(const Other& c) const {
-        static_assert(Container::is_finite or Other::is_finite, "Can't combine infinite containers");
+        // static_assert(Container::is_finite or Other::is_finite, "Can't combine infinite containers");
         return ZipView<Container, Other>(m_actual_container, c);
     }
 
@@ -937,7 +937,7 @@ public:
     static constexpr bool is_permanent = Container1::is_permanent && Container2::is_permanent;
     static constexpr bool is_finite = Container1::is_finite or Container2::is_finite;
 
-    static_assert(details::has_fast_element_access_tag<Container1>::value or details::has_fast_element_access_tag<Container2>::value, "At least one container needs to to provide fast element access, consider calling stage() ");
+    // static_assert(details::has_fast_element_access_tag<Container1>::value or details::has_fast_element_access_tag<Container2>::value, "At least one container needs to to provide fast element access, consider calling stage() ");
 
     ZipView(const Container1& c1, const Container2& c2)
         : interface(*this),
@@ -947,7 +947,7 @@ public:
     template<typename F>
     void foreach_imp(F f, details::foreach_instructions how = {}) const {
         size_t index = 0;
-        if (details::has_fast_element_access_tag<Container2>::value) {
+        if constexpr (details::has_fast_element_access_tag<Container2>::value) {
             m_foreach_imp_provider1.foreach_imp([f, &index, this](typename Container1::argument_type el1) {
                 auto el2_option = m_foreach_imp_provider2.element_at(index);
                 if (el2_option.has_value() == false) // reached end of container 2
@@ -959,7 +959,8 @@ public:
                 return true;
                 }, how);
         }
-        else {
+		// - Pierwszy kontener ma szybki dostęp
+        else if constexpr (details::has_fast_element_access_tag<Container1>::value) {
             m_foreach_imp_provider2.foreach_imp([f, &index, this](typename Container2::argument_type el2) {
                 auto el1_option = m_foreach_imp_provider1.element_at(index);
                 if (el1_option.has_value() == false)
@@ -970,6 +971,28 @@ public:
                 index++;
                 return true;
                 }, how);
+        }
+		// - Oba to strumienie
+        // Posiadają metodę get_generator() (jak klasa Series)
+        else {
+            auto gen1 = m_foreach_imp_provider1.get_generator();
+            auto gen2 = m_foreach_imp_provider2.get_generator();
+
+            while (true) {
+                auto val1 = gen1();
+                auto val2 = gen2();
+
+                // Jeśli którykolwiek strumień się wyczerpał => stop
+                if (!val1.has_value() || !val2.has_value()) {
+                    break;
+                }
+
+                // Wywołanie funkcji użytkownika na obydwu wartościach
+                const bool go = f(std::make_pair(val1.value(), val2.value()));
+                if (!go) {
+                    break;
+                }
+            }
         }
     }
 private:
@@ -1195,6 +1218,17 @@ public:
         m_generator(gen),
         m_start(start),
         m_stop(stop) {}
+
+	auto get_generator() const {
+        // Zwraca lambdę, która trzyma stan iteracji
+        return [gen = m_generator, current = m_start, stop = m_stop]() mutable -> std::optional<T> {
+            if (current >= stop) return {}; // Koniec strumienia
+            
+            T val = current;
+            current = gen(current); // Obliczenia następnego stanu
+            return val;
+        };
+    }
 
     template<typename F>
     void foreach_imp(F f, details::foreach_instructions = {}) const {
