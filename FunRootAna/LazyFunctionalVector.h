@@ -314,9 +314,7 @@ public:
     // the implementation is suboptimal, that is, it involves inexed access to one of the containers, it is therefore better if one of them is staged
     template<typename Other>
     auto zip(const Other& c) const {
-        // ZMIANA
         // static_assert(Container::is_finite or Other::is_finite, "Can't combine infinite containers");
-        // ZMIANA KONIEC
         return ZipView<Container, Other>(m_actual_container, c);
     }
 
@@ -941,9 +939,7 @@ public:
     static constexpr bool is_permanent = Container1::is_permanent && Container2::is_permanent;
     static constexpr bool is_finite = Container1::is_finite or Container2::is_finite;
 
-    // ZMIANA
     // static_assert(details::has_fast_element_access_tag<Container1>::value or details::has_fast_element_access_tag<Container2>::value, "At least one container needs to to provide fast element access, consider calling stage() ");
-    // ZMIANA KONIEC
 
     ZipView(const Container1& c1, const Container2& c2)
         : interface(*this),
@@ -953,7 +949,7 @@ public:
     template<typename F>
     void foreach_imp(F f, details::foreach_instructions how = {}) const {
         size_t index = 0;
-        // ZMIANA constecpr
+        // constecpr
         if constexpr (details::has_fast_element_access_tag<Container2>::value) {
             m_foreach_imp_provider1.foreach_imp([f, &index, this](typename Container1::argument_type el1) {
                 auto el2_option = m_foreach_imp_provider2.element_at(index);
@@ -966,7 +962,6 @@ public:
                 return true;
                 }, how);
         }
-        // ZMIANA
         // - Pierwszy kontener ma szybki dostęp
         else if constexpr (details::has_fast_element_access_tag<Container1>::value) {
             m_foreach_imp_provider2.foreach_imp([f, &index, this](typename Container2::argument_type el2) {
@@ -1002,7 +997,6 @@ public:
                 }
             }
         }
-        // ZMIANA KONIEC
     }
 private:
     const Container1 m_foreach_imp_provider1;
@@ -1228,7 +1222,6 @@ public:
         m_start(start),
         m_stop(stop) {}
 
-    // ZMIANA
     auto get_generator() const {
         // Zwraca lambdę, która trzyma stan iteracji
         return [gen = m_generator, current = m_start, stop = m_stop]() mutable -> std::optional<T> {
@@ -1239,7 +1232,6 @@ public:
             return val;
         };
     }
-    // ZMIANA KONIEC
 
     template<typename F>
     void foreach_imp(F f, details::foreach_instructions = {}) const {
