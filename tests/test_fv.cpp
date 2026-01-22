@@ -622,7 +622,7 @@ void test_infinite_zip() {
 }
 
 void test_direct_view_as_unknown() {
-    // Symulacja funkcji "wybranej", która może przyjmować kontenery o nieznanym rozmiarze
+    // Symulacja funkcji, która może przyjmować kontenery o nieznanym rozmiarze
     // używa take() aby wymusić skończoność przetwarzania
     auto process_infinite_source = [](const auto& container) {
         return container.map(F(_ * 2)).take(3).sum();
