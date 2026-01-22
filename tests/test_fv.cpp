@@ -597,7 +597,6 @@ void test_free_stream() {
 
 }
 
-// ZMIANA
 void test_infinite_zip() {
     // Generuje 0 - nieskończony
     auto infinite_ints = iota_stream<int>(0); 
@@ -642,8 +641,6 @@ void test_direct_view_as_unknown() {
     size_t count_result = dv.count(F(_ > 0));
     VALUE(count_result) EXPECTED(6);
 }
-
-// ZMIANA KONIEC
 
 int main() {
     const int failed =
