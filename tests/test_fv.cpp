@@ -637,7 +637,6 @@ void test_direct_view_as_unknown() {
     // Oczekiwany wynik: (1*2) + (2*2) + (3*2) = 12
     VALUE(process_infinite_source(dv)) EXPECTED(12);
 
-    // Wyciągnięcie operacji z lambdą przed makro VALUE 
     size_t count_result = dv.count(F(_ > 0));
     VALUE(count_result) EXPECTED(6);
 }
