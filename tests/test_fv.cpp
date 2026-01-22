@@ -597,7 +597,6 @@ void test_free_stream() {
 
 }
 
-
 void test_infinite_zip() {
     // Generuje 0 - nieskończoność
     auto infinite_ints = iota_stream<int>(0); 
@@ -620,6 +619,27 @@ void test_infinite_zip() {
     std::cout << "Infinite Zip Output: ";
     zipped.foreach(S(std::cout << "[" << _.first << ":" << _.second << "] "));
     std::cout << "\n";
+}
+
+void test_direct_view_as_unknown() {
+    // Symulacja funkcji "wybranej", która może przyjmować kontenery o nieznanym rozmiarze
+    // używa take() aby wymusić skończoność przetwarzania
+    auto process_infinite_source = [](const auto& container) {
+        return container.map(F(_ * 2)).take(3).sum();
+    };
+
+    std::vector<int> data = {1, 2, 3, 4, 5, 6};
+    
+    // DirectView jako źródło danych
+    auto dv = DirectView(data);
+
+    // Sprawdzenie czy DirectView jest poprawnie obsługiwany jako kontener o nieznanym rozmiarze
+    // Oczekiwany wynik: (1*2) + (2*2) + (3*2) = 12
+    VALUE(process_infinite_source(dv)) EXPECTED(12);
+
+    // Wyciągnięcie operacji z lambdą przed makro VALUE 
+    size_t count_result = dv.count(F(_ > 0));
+    VALUE(count_result) EXPECTED(6);
 }
 
 
@@ -653,7 +673,8 @@ int main() {
         + SUITE(test_string) 
         + SUITE(test_underscore_macros)
         + SUITE(test_free_stream)
-        + SUITE(test_infinite_zip);
+        + SUITE(test_infinite_zip)
+        + SUITE(test_direct_view_as_unknown);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;
