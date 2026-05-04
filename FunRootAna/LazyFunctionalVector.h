@@ -9,6 +9,8 @@
 #include <deque>
 #include <cmath>
 #include <optional>
+#include <algorithm>
+
 
 #include "futils.h"
 
