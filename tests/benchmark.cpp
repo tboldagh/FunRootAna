@@ -24,7 +24,7 @@ public:
     }
   }
   void test_changing_names() {
-    HCONTEXT("top_");
+    HCONTEXT("top_dynamic_");
     for (int i = 0; i < 10; i++) {
       HCONTEXT("loop_" + std::to_string(i) + "_");
       for (int j = 0; j < 1000; ++j) {
