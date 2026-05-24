@@ -597,6 +597,30 @@ void test_free_stream() {
 
 }
 
+void test_infinite_zip() {
+    // Generuje 0 - nieskończony
+    auto infinite_ints = iota_stream<int>(0); 
+    
+    // Generuje liczby losowe (nieskończony)
+    auto infinite_randoms = crandom_stream();
+
+    // Łączymy dwa nieskończone strumienie
+    // Bierzemy tylko 10 pierwszych par => bylaby pętla nieskończona
+    auto zipped = infinite_ints.zip(infinite_randoms).take(10);
+
+    VALUE(zipped.size()) EXPECTED(10);
+    
+    // Sprawdzamy czy pierwszy element pary to kolejne liczby całkowite
+    VALUE(zipped.element_at(0).value().first) EXPECTED(0);
+    VALUE(zipped.element_at(5).value().first) EXPECTED(5);
+    VALUE(zipped.element_at(9).value().first) EXPECTED(9);
+
+    // Czy da się iterować?
+    std::cout << "Infinite Zip Output: ";
+    zipped.foreach(S(std::cout << "[" << _.first << ":" << _.second << "] "));
+    std::cout << "\n";
+}
+
 
 int main() {
     const int failed =
@@ -627,7 +651,8 @@ int main() {
         + SUITE(test_array_view)
         + SUITE(test_string) 
         + SUITE(test_underscore_macros)
-        + SUITE(test_free_stream);
+        + SUITE(test_free_stream)
+        + SUITE(test_infinite_zip);
 
     std::cout << (failed == 0 ? "ALL OK" : "FAILURE") << std::endl;
     return failed;

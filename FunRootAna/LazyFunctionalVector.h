@@ -311,13 +311,15 @@ public:
         return ChainView<Container, Other, ExposedType>(m_actual_container, c);
     }
 
+    
     // combine pairwise
     // the implementation is suboptimal, that is, it involves inexed access to one of the containers, it is therefore better if one of them is staged
     template<typename Other>
     auto zip(const Other& c) const {
-        static_assert(Container::is_finite or Other::is_finite, "Can't combine infinite containers");
+        // static_assert(Container::is_finite or Other::is_finite, "Can't combine infinite containers");
         return ZipView<Container, Other>(m_actual_container, c);
     }
+
 
     // compare pairwise, if the containers have diffrent len,  the comparison is performed only until smaller of the sizes
     // the comparator obtains a pair from first element is from 1st container, and second from container c
@@ -939,7 +941,7 @@ public:
     static constexpr bool is_permanent = Container1::is_permanent && Container2::is_permanent;
     static constexpr bool is_finite = Container1::is_finite or Container2::is_finite;
 
-    static_assert(details::has_fast_element_access_tag<Container1>::value or details::has_fast_element_access_tag<Container2>::value, "At least one container needs to to provide fast element access, consider calling stage() ");
+    // static_assert(details::has_fast_element_access_tag<Container1>::value or details::has_fast_element_access_tag<Container2>::value, "At least one container needs to to provide fast element access, consider calling stage() ");
 
     ZipView(const Container1& c1, const Container2& c2)
         : interface(*this),
@@ -949,7 +951,8 @@ public:
     template<typename F>
     void foreach_imp(F f, details::foreach_instructions how = {}) const {
         size_t index = 0;
-        if (details::has_fast_element_access_tag<Container2>::value) {
+        // ZMIANA constecpr
+        if constexpr (details::has_fast_element_access_tag<Container2>::value) {
             m_foreach_imp_provider1.foreach_imp([f, &index, this](typename Container1::argument_type el1) {
                 auto el2_option = m_foreach_imp_provider2.element_at(index);
                 if (el2_option.has_value() == false) // reached end of container 2
@@ -961,7 +964,8 @@ public:
                 return true;
                 }, how);
         }
-        else {
+        // - Pierwszy kontener ma szybki dostęp
+        else if constexpr (details::has_fast_element_access_tag<Container1>::value) {
             m_foreach_imp_provider2.foreach_imp([f, &index, this](typename Container2::argument_type el2) {
                 auto el1_option = m_foreach_imp_provider1.element_at(index);
                 if (el1_option.has_value() == false)
@@ -972,6 +976,26 @@ public:
                 index++;
                 return true;
                 }, how);
+        }
+        // - Oba to strumienie
+        // Posiadają metodę get_generator() (jak klasa Series)
+        else {
+            auto gen1 = m_foreach_imp_provider1.get_generator();
+            auto gen2 = m_foreach_imp_provider2.get_generator();
+
+            while (true) {
+                auto val1 = gen1();
+                auto val2 = gen2();
+
+                if (!val1.has_value() || !val2.has_value()) {
+                    break;
+                }
+
+                const bool go = f(std::make_pair(val1.value(), val2.value()));
+                if (!go) {
+                    break;
+                }
+            }
         }
     }
 private:
@@ -1028,31 +1052,62 @@ public:
     static constexpr bool is_permanent = true;
     static constexpr bool is_finite = true;
 
+    // Przechowujemy iteratory zamiast referencji do kontenera
+    using iterator_type = decltype(std::begin(std::declval<const Container&>()));
+
     DirectView(const Container& m)
-        : interface(*this), m_data(m) {}
+        : interface(*this), m_begin(std::begin(m)), m_end(std::end(m)) {}
 
     template<typename F>
     void foreach_imp(F f, details::foreach_instructions = {}) const {
-        for (const auto& el : m_data.get()) {
-            const bool go = f(el);
+        for (auto it = m_begin; it != m_end; ++it) {
+            const bool go = f(*it);
             if (not go)
                 break;
         }
     }
 
+    auto get_generator() const {
+        // Zwracamy lambdę mutable, która trzyma kopię iteratora
+        return [it = m_begin, end = m_end]() mutable -> std::optional<const_value_type> {
+            if (it == end) return {};
+            return *it++;
+        };
+    }
+
     using optional_value = std::optional<const_value_type>;
+    
     optional_value element_at(size_t  n) const {
-        if (n < m_data.get().size())
-            return m_data.get().at(n);
-        return {};
+        if constexpr (std::is_same<typename std::iterator_traits<iterator_type>::iterator_category, 
+                                   std::random_access_iterator_tag>::value) {
+            if (n >= size()) return {};
+            return *(m_begin + n);
+        } else {
+            // Dla innych iteratorów (list) nie sprawdzamy 'size' z góry,  tylko próbujemy przesunąć iterator
+            auto it = m_begin;
+            for (size_t i = 0; i < n; ++i) {
+                if (it == m_end) return {};
+                ++it;
+            }
+            if (it == m_end) return {};
+            return *it;
+        }
     }
+
     size_t size() const {
-        return m_data.get().size();
+        return std::distance(m_begin, m_end);
     }
-    void update_container(const Container& m) {m_data = m;}
+
+    void update_container(const Container& m) {
+        m_begin = std::begin(m);
+        m_end = std::end(m);
+    }
+
 private:
-    std::reference_wrapper<const Container> m_data;
+    iterator_type m_begin;
+    iterator_type m_end;
 };
+
 // only for internal use (expensive and insecure to copy)
 template<typename T, template<typename, typename> typename Container>
 class OwningView final : public FunctionalInterface<OwningView<T, Container>, T> {
@@ -1197,6 +1252,17 @@ public:
         m_generator(gen),
         m_start(start),
         m_stop(stop) {}
+
+    auto get_generator() const {
+        // Zwraca lambdę, która trzyma stan iteracji
+        return [gen = m_generator, current = m_start, stop = m_stop]() mutable -> std::optional<T> {
+            if (current >= stop) return {}; // Koniec strumienia
+            
+            T val = current;
+            current = gen(current); // Obliczenia następnego stanu
+            return val;
+        };
+    }
 
     template<typename F>
     void foreach_imp(F f, details::foreach_instructions = {}) const {
@@ -1396,7 +1462,12 @@ auto one_own(const T& ele) {
 
 
 namespace details {
-    template<typename T> struct has_fast_element_access_tag<DirectView<T>> { static constexpr bool value = true; };
+    // Zmiana dla DirectView -> sprawdzamy kategorię iteratora
+    template<typename T> 
+    struct has_fast_element_access_tag<DirectView<T>> { 
+        using iterator_cat = typename std::iterator_traits<typename T::iterator>::iterator_category;
+        static constexpr bool value = std::is_base_of<std::random_access_iterator_tag, iterator_cat>::value; 
+    };
     template<typename T> struct has_fast_element_access_tag<OwningView<std::vector<T>>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<OwningView<T, std::vector>> { static constexpr bool value = true; };
     template<typename T> struct has_fast_element_access_tag<RefView<T, std::vector>> { static constexpr bool value = true; };
